@@ -15,9 +15,11 @@
 | --- | --- | --- |
 | **本編** | https://mukkii-game.github.io/metopon/ | 滑らかに飛んで上空の雑魚を撃ち、地上のボスの装甲パネルをそろえて剥がす |
 | **別案 BLAST** | https://mukkii-game.github.io/metopon/blast/ | 下から撃ち込んで四角を作り、その四角をそのまま天井のボスへ撃ち返す |
+| **第三案 PUSH** | https://mukkii-game.github.io/metopon/push/ | 外周のレールを走って弾でレーンを押し、そろえた塊をボスへ撃ち上げる |
 
 - ルールと設計メモ: [docs/concept.md](docs/concept.md)
 - 別案のルールと設計メモ: [docs/blast.md](docs/blast.md)
+- 第三案のルールと設計メモ: [docs/push.md](docs/push.md)
 - 絵と音の出どころ・作り方: [docs/assets.md](docs/assets.md)
 
 操作: 移動＝アナログパッド／矢印・WASD、A＝Space・Z（連射）、B＝X（地上操作）、C＝Bモード切替

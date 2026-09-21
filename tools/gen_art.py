@@ -278,13 +278,20 @@ def shot_sprite():
     return img
 
 
-def app_icon(kind=3, blast=False, n=64):
+def app_icon(kind=3, blast=False, push=False, n=64):
     """ホーム画面に追加した時のアイコン。64pxのドット絵を整数倍に拡大して使う。"""
     img = sand_tile(n)
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, n - 1, n - 1], outline=PAL['o'], width=3)
     d.rectangle([3, 3, n - 4, n - 4], outline=PAL['S'], width=1)
-    if blast:
+    if push:
+        # レーンを押し上げる、という図
+        for (x, y) in ((14, 34), (32, 34), (14, 50), (32, 50)):
+            d.rectangle([x, y, x + 16, y + 14], fill=PAL['S'], outline=PAL['O'], width=2)
+        d.polygon([(32, 8), (46, 24), (37, 24), (37, 30), (27, 30), (27, 24), (18, 24)],
+                  fill=PAL['W'], outline=PAL['o'])
+        d.rectangle([12, 26, 52, 28], fill=PAL['O'])
+    elif blast:
         # 四角を上へ撃ち返す、という図
         for (x, y) in ((16, 30), (34, 30), (16, 48), (34, 48)):
             d.rectangle([x, y, x + 14, y + 14], fill=PAL['S'], outline=PAL['O'], width=2)
@@ -328,6 +335,8 @@ def build():
         'icon-512.png': app_icon().resize((512, 512), Image.NEAREST),
         'icon-blast-192.png': app_icon(blast=True).resize((192, 192), Image.NEAREST),
         'icon-blast-512.png': app_icon(blast=True).resize((512, 512), Image.NEAREST),
+        'icon-push-192.png': app_icon(push=True).resize((192, 192), Image.NEAREST),
+        'icon-push-512.png': app_icon(push=True).resize((512, 512), Image.NEAREST),
     }
     for name, img in made.items():
         save(img, name)

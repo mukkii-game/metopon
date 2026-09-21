@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1109">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../assets/img/icon-push-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M12 20V6M6 12l6-6 6 6' stroke='%233a2a1a' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+<meta name="description" content="レールを走って盤面のレーンを押し、そろえた塊を上空のボスへ撃ち上げる8ビット風の押し出しパズルシューティング。">
+<title>METOPON PUSH</title>
+<style>
+*{box-sizing:border-box}
+html{height:100%;overscroll-behavior:none;background:#1a1109}
+body{overflow:hidden;touch-action:none;overscroll-behavior:none;
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+ -webkit-tap-highlight-color:transparent}
+body{margin:0;background:#1a1109;color:#f4e6c8;font-family:system-ui,sans-serif}
+main{max-width:470px;margin:auto;height:100dvh;display:flex;flex-direction:column;
+ padding:max(8px,env(safe-area-inset-top)) 10px max(14px,env(safe-area-inset-bottom));gap:6px}
+header{display:flex;align-items:center;justify-content:space-between;gap:6px}
+header>div:first-child{min-width:0}
+h1{font-size:18px;letter-spacing:2px;margin:0;color:#f2d9a4}
+small{font-size:10px;color:#b79b6c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;border-radius:12px;padding:8px;touch-action:none}
+button:active{background:#8a6528}
+#top{display:flex;gap:4px;flex:0 0 auto}
+#top button{font-size:11px;padding:7px 8px;white-space:nowrap}
+#status{font-size:12px;display:flex;justify-content:space-between;min-height:18px;color:#e5cf9f}
+#stage{position:relative;flex:1;min-height:220px;overflow:hidden;border-radius:14px;border:1px solid #7a5a2e;background:#8f6d38}
+canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
+#overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;background:#1a1109ee;
+ display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
+#overlay h2{font-size:23px;margin:10px 0;color:#f2d9a4}
+#overlay p{font-size:13px;line-height:1.7;color:#d9c49a;margin:8px 0}
+#overlay b{color:#f2d9a4}
+#overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:13px 26px;border-color:#f2d9a4;margin-top:12px}
+.hidden{display:none!important}
+#ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
+#hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
+</style></head><body><main>
+<header><div><h1>METOPON PUSH</h1><small>RAIL → PUSH → LAUNCH</small></div>
+<div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
+<div id="status"><span id="score">SCORE 0</span><span id="charge">—</span><span id="wave">WAVE 1</span></div>
+<div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
+<small>押して、そろえて、撃ち上げる</small>
+<h2>レーンを押して、<br>塊をボスへ撃ち上げる。</h2>
+<p>自機は<b>外周のレール</b>を走る。底辺を左右に、<br>左右の端まで行くとそのまま上下に動ける。<br>指を置いた所へ自機が回り込む。</p>
+<p>撃つと、狙っているレーンが<b>1マス押される</b>。<br>ただし<b>同じレーンに3発</b>当てないと動かない。<br>途中で別のレーンを撃つと<b>カウントは0に戻る</b>。<br>端から出たマスは反対側に戻ってくる。</p>
+<p>同じ模様が縦か横に3つ以上そろうと<b>輪郭が光る</b>。<br><b>そこをタップ</b>すると発射準備に入り、<br>数秒後に上空のボスへ飛んでいく。</p>
+<p>弾は<b>降りてくる雑魚</b>にも当たる。<br>撃ち落とさないとレーンに届かない。</p>
+<button id="start">あそぶ</button></div></div></div>
+<div id="ios" class="hidden"></div>
+<div id="hint">レーンに3発 → 1マス押す ／ 光った塊をタップ → 撃ち上げ</div>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
+const W=440,H=680,KINDS=5;
+const GRID=336;                 // 盤面の見た目の大きさは一定。ウェーブで割る数が増える
+const GY=138;                   // 盤面の上端
+const RAIL_L=26,RAIL_R=W-26,RAIL_Y=600;
+const NEED=3;                   // 1マス押すのに必要な命中数
+const ARM=1.8;                  // タップしてから発射までの秒数
+const COMBO_WIN=3.2;
+const GLYPH_NAMES=['二条線','十字','稲妻','渦','輪'];
+const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
+
+// ---- アセット（本編と共用） -------------------------------------------------
+const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy4','enemy1','enemy2','zako22'];
+for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
+const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3','chain','deny','move','start','warn','bossdown','pickup'];
+const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
+ place:[260,.09,'square'],swap:[700,.06,'square'],match:[560,.12,'triangle'],clear:[780,.18,'triangle'],
+ sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],deny:[140,.12,'square'],
+ move:[1040,.02,'square'],start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square'],pickup:[880,.1,'square']};
+let ac,sound=true,sfxLoaded=false;
+function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
+ fetch('../assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b}).catch(()=>{})}
+function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
+ if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
+ const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
+ g.gain.value=.55*vol;s.connect(g);g.connect(ac.destination);s.start()}
+function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
+ o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
+ o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
+function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
+
+// ---- 状態 -------------------------------------------------------------------
+let grid,N,S,gx,shipT,shipTarget,shots,zako,slabs,booms,particles,boss,
+    chargeKey,chargeN,wave,score,combo,comboUntil,phase='ready',paused=false,
+    time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0;
+const keys=new Set();
+let pointer=null,fireHeld=false;
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const cellX=c=>gx+c*S,cellY=r=>GY+r*S;
+
+// ---- レール（底辺＋左右の縦） -----------------------------------------------
+function segs(){const top=GY+6;
+ return [[RAIL_L,top,RAIL_L,RAIL_Y],[RAIL_L,RAIL_Y,RAIL_R,RAIL_Y],[RAIL_R,RAIL_Y,RAIL_R,top]]}
+function segLens(){return segs().map(([x1,y1,x2,y2])=>Math.hypot(x2-x1,y2-y1))}
+function railTotal(){return segLens().reduce((a,b)=>a+b,0)}
+function railPoint(t){const sg=segs(),L=segLens();let u=clamp(t,0,railTotal());
+ for(let i=0;i<3;i++){if(u<=L[i]||i===2){const f=L[i]?clamp(u/L[i],0,1):0,[x1,y1,x2,y2]=sg[i];
+   return{x:x1+(x2-x1)*f,y:y1+(y2-y1)*f,seg:i}}u-=L[i]}}
+function railProject(px,py){const sg=segs(),L=segLens();let best=0,bd=1e9,base=0;
+ for(let i=0;i<3;i++){const [x1,y1,x2,y2]=sg[i],dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;
+  const f=clamp(l2?((px-x1)*dx+(py-y1)*dy)/l2:0,0,1);
+  const d=Math.hypot(px-(x1+dx*f),py-(y1+dy*f));
+  if(d<bd){bd=d;best=base+L[i]*f}base+=L[i]}
+ return best}
+function lane(){ // 今どのレーンを狙っているか
+ const p=railPoint(shipT);
+ if(p.seg===1)return{side:'up',i:clamp(Math.round((p.x-gx-S/2)/S),0,N-1)};
+ return{side:p.seg===0?'right':'left',i:clamp(Math.round((p.y-GY-S/2)/S),0,N-1)}}
+
+// ---- 盤面 -------------------------------------------------------------------
+function idx(r,c){return r*N+c}
+function matched(g=grid){ // 縦横3つ以上そろっているマス
+ const found=new Set();
+ for(let r=0;r<N;r++)for(let c=0;c<N-2;c++){const k=g[r][c];
+  if(k>=0&&g[r][c+1]===k&&g[r][c+2]===k){found.add(idx(r,c));found.add(idx(r,c+1));found.add(idx(r,c+2))}}
+ for(let c=0;c<N;c++)for(let r=0;r<N-2;r++){const k=g[r][c];
+  if(k>=0&&g[r+1][c]===k&&g[r+2][c]===k){found.add(idx(r,c));found.add(idx(r+1,c));found.add(idx(r+2,c))}}
+ return found}
+function findGroups(){ // そろっているマスを、同じ模様の隣接ごとにまとめる
+ const set=matched(),seen=new Set(),out=[];
+ for(const id of set){
+  if(seen.has(id))continue;
+  const k=grid[Math.floor(id/N)][id%N],stack=[id],cells=[];seen.add(id);
+  while(stack.length){const cur=stack.pop(),r=Math.floor(cur/N),c=cur%N;cells.push(cur);
+   for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    const nr=r+dr,nc=c+dc,nid=idx(nr,nc);
+    if(nr<0||nr>=N||nc<0||nc>=N||seen.has(nid)||!set.has(nid))continue;
+    if(grid[nr][nc]!==k)continue;
+    seen.add(nid);stack.push(nid)}}
+  out.push({k,cells})}
+ return out}
+function refill(cells){ // 持ち上げた跡を埋める。すぐにまた成立しない模様を選ぶ
+ for(const id of cells){const r=Math.floor(id/N),c=id%N;
+  for(let t=0;t<14;t++){grid[r][c]=rnd(KINDS);if(!matched().has(id))break}}}
+function push(side,i){
+ if(side==='up'){const col=[];for(let r=0;r<N;r++)col.push(grid[r][i]);
+  col.push(col.shift());for(let r=0;r<N;r++)grid[r][i]=col[r]}       // 上へ。端は反対側へ回る
+ else if(side==='right'){const row=grid[i].slice();row.unshift(row.pop());grid[i]=row}
+ else{const row=grid[i].slice();row.push(row.shift());grid[i]=row}
+ play('place');shake=Math.max(shake,3);
+ const g=findGroups();
+ if(g.length)play('match',1,.7);
+ message('レーンを押した'+(g.length?'　そろった塊をタップして撃ち上げ':''),1.6)}
+function newGrid(n){
+ N=n;S=Math.floor(GRID/N);gx=Math.round((W-N*S)/2);
+ grid=Array.from({length:N},()=>Array.from({length:N},()=>rnd(KINDS)));
+ for(let t=0;t<400&&matched().size;t++){const set=[...matched()];
+  const id=set[rnd(set.length)];grid[Math.floor(id/N)][id%N]=rnd(KINDS)}}
+
+// ---- 撃ち上げ ---------------------------------------------------------------
+function armGroup(r,c){
+ const g=findGroups().find(G=>G.cells.includes(idx(r,c)));
+ if(!g){play('deny');return false}
+ const cells=g.cells.map(id=>({x:cellX(id%N),y:cellY(Math.floor(id/N))}));
+ slabs.push({cells,k:g.k,n:g.cells.length,t:0,y:0,vy:0,fired:false,size:S});
+ refill(g.cells);
+ play('warn',1.4,.6);message(g.cells.length+'マスを発射準備　'+ARM.toFixed(1)+'秒後に発射',2);
+ return true}
+function launch(s){
+ s.fired=true;s.vy=-620;play('sq2');
+ combo=time<comboUntil?combo+1:1;comboUntil=time+COMBO_WIN;
+ if(combo>1)play('chain',Math.pow(1.12,Math.min(combo,8)))}
+function slabHit(s){
+ const dmg=Math.round(s.n*s.n/2)*combo;boss.hp=Math.max(0,boss.hp-dmg);boss.flash=.18;
+ score+=s.n*80*combo;shake=Math.max(shake,8);
+ boom(s.cells[0].x+S/2,90,3);play(dmg>=12?'boom_l':'boom_s');
+ message(s.n+'マスで撃ち抜いた　'+(combo>1?combo+' COMBO　':'')+'装甲 -'+dmg,2);
+ if(boss.hp<=0)nextWave();
+ ui()}
+
+// ---- 敵 ---------------------------------------------------------------------
+function makeBoss(){const hp=32+wave*22;
+ return{hp,maxHp:hp,size:64+Math.min(wave,6)*14,flash:0}}
+function spawnZako(){
+ const kinds=[{w:1,h:1,s:'enemy1'},{w:2,h:1,s:'enemy2'},{w:2,h:2,s:'zako22'}];
+ const z=kinds[rnd(Math.min(kinds.length,1+Math.floor(wave/2)))];
+ zako.push({x:40+Math.random()*(W-80),y:100,w:z.w,h:z.h,sprite:z.s,
+  hp:z.w*z.h+1,maxHp:z.w*z.h+1,vy:34+Math.random()*26+wave*3,ph:Math.random()*6.3})}
+function hurtShip(){
+ stun=.9;shake=Math.max(shake,9);play('deny');
+ const sides=['up','left','right'],side=sides[rnd(3)];
+ push(side,rnd(N));
+ chargeKey=null;chargeN=0;
+ message('雑魚に体当たりされた！ レーンが1つ勝手に押された',2.4);ui()}
+
+// ---- 効果・UI ---------------------------------------------------------------
+function burst(x,y,n=10,col=SAND.light){for(let i=0;i<n;i++)
+ particles.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.35+Math.random()*.4,col})}
+function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
+function message(s,secs=2.2){$('hint').textContent=s;messageUntil=time+secs}
+function ui(){$('score').textContent='SCORE '+score;$('wave').textContent='WAVE '+wave;
+ const l=lane();
+ $('charge').textContent=chargeKey===l.side+l.i?'チャージ '+chargeN+'/'+NEED
+  :time<comboUntil&&combo>1?combo+' COMBO':'—'}
+
+function nextWave(){
+ score+=1500*wave;play('bossdown');wave++;
+ newGrid(Math.min(8,4+wave));boss=makeBoss();
+ chargeKey=null;chargeN=0;slabs=[];zako=[];
+ message('WAVE '+wave+'　盤面は '+N+'×'+N+'　ボスも大きくなった',3.4);ui()}
+function reset(){
+ wave=1;score=0;combo=0;comboUntil=0;chargeKey=null;chargeN=0;
+ newGrid(5);boss=makeBoss();
+ shipT=railTotal()/2;shipTarget=shipT;
+ shots=[];zako=[];slabs=[];booms=[];particles=[];
+ time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
+ message('底辺を左右に動いて、同じレーンに3発当てると1マス押せる',4);ui()}
+
+// ---- 更新 -------------------------------------------------------------------
+function update(dt){
+ time+=dt;scroll+=dt*18;fireCD-=dt;stun=Math.max(0,stun-dt);
+ shake=Math.max(0,shake-dt*26);if(boss.flash>0)boss.flash-=dt;
+
+ if(pointer)shipTarget=railProject(pointer.x,pointer.y);
+ else{const k=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);
+  if(k)shipTarget=clamp(shipTarget+k*430*dt,0,railTotal())}
+ shipT+=(shipTarget-shipT)*Math.min(1,dt*13);
+
+ if(fireHeld&&fireCD<=0&&stun<=0){
+  const p=railPoint(shipT),l=lane();
+  const dir=l.side==='up'?{x:0,y:-1}:l.side==='right'?{x:1,y:0}:{x:-1,y:0};
+  shots.push({x:p.x,y:p.y,dx:dir.x,dy:dir.y,side:l.side,i:l.i});
+  fireCD=.17;play('shot',1,.4)}
+
+ for(const s of shots){
+  s.x+=s.dx*760*dt;s.y+=s.dy*760*dt;
+  for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<z.w*16&&Math.abs(s.y-z.y)<z.h*16){
+   s.dead=true;if(--z.hp<=0){z.dead=true;score+=120*z.w*z.h;boom(z.x,z.y,2);
+    burst(z.x,z.y,10,SAND.hi);play('boom_s')}else{burst(s.x,s.y,3);play('hit',1,.5)}break}
+  if(s.dead)continue;
+  const inGrid=(s.side==='up'&&s.y<=GY+N*S)||(s.side==='right'&&s.x>=gx)||(s.side==='left'&&s.x<=gx+N*S);
+  if(inGrid){s.dead=true;hitLane(s.side,s.i)}
+  else if(s.x<-20||s.x>W+20||s.y<-20||s.y>H+20)s.dead=true}
+ shots=shots.filter(s=>!s.dead);
+
+ spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=Math.max(1,3.4-wave*.25)+Math.random()}
+ for(const z of zako){z.y+=z.vy*dt;z.x+=Math.cos(time*1.2+z.ph)*26*dt;
+  z.x=clamp(z.x,z.w*16,W-z.w*16);
+  if(z.y>RAIL_Y-18){z.dead=true;hurtShip()}}
+ zako=zako.filter(z=>!z.dead);
+
+ for(const s of slabs){
+  s.t+=dt;
+  if(!s.fired){s.y=-12*Math.min(1,s.t*5)+Math.sin(s.t*9)*3;if(s.t>=ARM)launch(s)}
+  else{s.y+=s.vy*dt;
+   if(!s.hitDone&&s.cells[0].y+s.y<=110){s.hitDone=true;slabHit(s)}}}
+ slabs=slabs.filter(s=>!s.hitDone||s.cells[0].y+s.y>-200);
+
+ for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
+ for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
+ if(time>messageUntil)$('hint').textContent='レーンに3発 → 1マス押す ／ 光った塊をタップ → 撃ち上げ';
+ ui()}
+
+function hitLane(side,i){ // 同じレーンに3発でようやく1マス押せる
+ const key=side+i;
+ if(chargeKey!==key){
+  if(chargeKey!==null&&chargeN>0)message('別のレーンを撃ったので、前のカウントは0に戻った',1.6);
+  chargeKey=key;chargeN=0}
+ chargeN++;play('hit',1+chargeN*.15,.6);
+ const p=laneAnchor(side,i);burst(p.x,p.y,5,SAND.hi);
+ if(chargeN>=NEED){chargeN=0;chargeKey=null;push(side,i)}
+ ui()}
+function laneAnchor(side,i){
+ if(side==='up')return{x:cellX(i)+S/2,y:GY+N*S};
+ if(side==='right')return{x:gx,y:cellY(i)+S/2};
+ return{x:gx+N*S,y:cellY(i)+S/2}}
+
+// ---- 描画 -------------------------------------------------------------------
+function glyph(k,x,y,size){
+ if(has('glyphs')){ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size);return}
+ ctx.save();ctx.translate(x,y);ctx.scale(size/24,size/24);ctx.translate(-12,-12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();
+ if(k===0){ctx.moveTo(8,3);ctx.lineTo(8,20);ctx.moveTo(15,3);ctx.lineTo(15,20)}
+ else if(k===1){ctx.moveTo(3,12);ctx.lineTo(20,12);ctx.moveTo(12,3);ctx.lineTo(12,20)}
+ else if(k===2){ctx.moveTo(4,4);ctx.lineTo(17,9);ctx.lineTo(6,14);ctx.lineTo(19,19)}
+ else if(k===3){for(let i=0;i<=90;i++){const a=i/90*1.75*Math.PI*2,rr=1.5+8*i/90;
+  const px=12+Math.cos(a)*rr,py=12+Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}}
+ else ctx.arc(12,12,8.5,0,Math.PI*2);
+ ctx.stroke();ctx.restore()}
+function block(k,x,y,size,lit){
+ if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,0,0,24,24,Math.round(x),Math.round(y),size,size);
+ else{ctx.fillStyle=lit?SAND.light:SAND.base;ctx.fillRect(x+1,y+1,size-2,size-2)}
+ glyph(k,x+size/2,y+size/2,size)}
+
+function drawBoss(){
+ ctx.fillStyle=boss.flash>0?'#e2624a':'#2a1c0a';ctx.fillRect(0,0,W,104);
+ ctx.fillStyle='#4a3520';for(let x=0;x<W;x+=26)ctx.fillRect(x+5,96,16,6);
+ if(has('enemy4'))ctx.drawImage(IMG.enemy4,Math.round(W/2-boss.size/2),Math.round(72-boss.size/2),boss.size,boss.size);
+ const ratio=boss.hp/boss.maxHp;
+ ctx.fillStyle='#00000088';ctx.fillRect(14,108,W-28,8);
+ ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(14,108,(W-28)*ratio,8);
+ ctx.font='10px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('BOSS '+boss.hp+'/'+boss.maxHp,16,104)}
+
+function drawRail(){
+ ctx.strokeStyle='#5a4326';ctx.lineWidth=6;ctx.lineCap='round';
+ for(const [x1,y1,x2,y2] of segs()){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
+ ctx.strokeStyle='#7a5a2e';ctx.lineWidth=2;
+ for(const [x1,y1,x2,y2] of segs()){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}}
+
+function drawLaneGuide(){
+ const l=lane(),charged=chargeKey===l.side+l.i?chargeN:0;
+ ctx.globalAlpha=.2;ctx.fillStyle='#fff6c8';
+ if(l.side==='up')ctx.fillRect(cellX(l.i),GY,S,N*S);
+ else ctx.fillRect(gx,cellY(l.i),N*S,S);
+ ctx.globalAlpha=1;
+ const a=laneAnchor(l.side,l.i);                       // 押される向きの矢印
+ ctx.fillStyle=Math.floor(time*8)%2?'#fff6c8':'#e0a93c';
+ const d=l.side==='up'?[0,-1]:l.side==='right'?[1,0]:[-1,0];
+ for(let i=0;i<3;i++){const ox=a.x+d[0]*(10+i*9),oy=a.y+d[1]*(10+i*9);
+  ctx.beginPath();ctx.moveTo(ox+d[0]*5-d[1]*5,oy+d[1]*5-d[0]*5);
+  ctx.lineTo(ox+d[0]*5+d[1]*5,oy+d[1]*5+d[0]*5);ctx.lineTo(ox+d[0]*10,oy+d[1]*10);ctx.fill()}
+ for(let i=0;i<NEED;i++){                              // チャージの目印
+  const px=a.x-d[0]*(16+i*12)-d[1]*0,py=a.y-d[1]*(16+i*12);
+  ctx.fillStyle=i<charged?'#f6e27a':'#00000066';
+  ctx.fillRect(px-4,py-4,8,8);ctx.strokeStyle='#1a140e';ctx.lineWidth=1;ctx.strokeRect(px-4,py-4,8,8)}}
+
+function drawGrid(){
+ ctx.fillStyle='#00000055';ctx.fillRect(gx-6,GY-6,N*S+12,N*S+12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.strokeRect(gx-6,GY-6,N*S+12,N*S+12);
+ const set=matched();
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++)block(grid[r][c],cellX(c),cellY(r),S,set.has(idx(r,c)));
+ for(const g of findGroups()){                         // そろった塊の輪郭を光らせる
+  ctx.globalAlpha=.55+Math.sin(time*9)*.35;
+  for(const [col,lw] of [['#1a140e',7],['#8fe0ff',3]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;
+   for(const id of g.cells){const r=Math.floor(id/N),c=id%N,x=cellX(c),y=cellY(r);
+    for(const [dr,dc,x1,y1,x2,y2] of [[-1,0,0,0,1,0],[1,0,0,1,1,1],[0,-1,0,0,0,1],[0,1,1,0,1,1]]){
+     const nid=idx(r+dr,c+dc);
+     if(r+dr>=0&&r+dr<N&&c+dc>=0&&c+dc<N&&g.cells.includes(nid))continue;
+     ctx.beginPath();ctx.moveTo(x+x1*S,y+y1*S);ctx.lineTo(x+x2*S,y+y2*S);ctx.stroke()}}}
+  ctx.globalAlpha=1}}
+
+function drawSlabs(){
+ for(const s of slabs){
+  const prog=Math.min(1,s.t/ARM);
+  if(!s.fired){ctx.globalAlpha=.35;ctx.fillStyle='#1a140e';
+   for(const c of s.cells)ctx.fillRect(c.x+3,c.y+6,s.size,s.size);ctx.globalAlpha=1}
+  for(const c of s.cells)block(s.k,c.x,c.y+s.y,s.size,true);
+  if(!s.fired){
+   ctx.globalAlpha=.45+Math.sin(s.t*14)*.3;ctx.fillStyle='#8fe0ff';
+   for(const c of s.cells)ctx.fillRect(c.x,c.y+s.y,s.size,s.size);
+   ctx.globalAlpha=1;
+   const c0=s.cells[0];ctx.fillStyle='#00000088';ctx.fillRect(c0.x,c0.y+s.y-9,s.size,6);
+   ctx.fillStyle='#8fe0ff';ctx.fillRect(c0.x,c0.y+s.y-9,s.size*prog,6)}}}
+
+function drawShip(){
+ const p=railPoint(shipT),x=Math.round(p.x-16),y=Math.round(p.y-16);
+ ctx.save();ctx.translate(p.x,p.y);
+ ctx.rotate(p.seg===0?Math.PI/2:p.seg===2?-Math.PI/2:0);   // 撃つ向きに機首を向ける
+ if(stun>0){ctx.globalAlpha=.4+Math.sin(time*40)*.3}
+ if(has('ship'))ctx.drawImage(IMG.ship,-16,-16,32,32);
+ else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(14,14);ctx.lineTo(-14,14);ctx.closePath();ctx.fill()}
+ ctx.globalAlpha=1;ctx.restore()}
+
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.save();
+ if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
+  ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
+ else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
+ drawRail();
+ drawGrid();
+ if(phase==='play')drawLaneGuide();
+ drawSlabs();
+ for(const s of shots){const a=Math.atan2(s.dy,s.dx)+Math.PI/2;
+  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(a);
+  if(has('shot'))ctx.drawImage(IMG.shot,-5,-14,10,28);
+  else{ctx.fillStyle='#f6e27a';ctx.fillRect(-3,-12,6,20)}ctx.restore()}
+ for(const z of zako){const w=z.w*32,h=z.h*32,x=Math.round(z.x-w/2),y=Math.round(z.y-h/2);
+  if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,w,h);
+  else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,w,h)}
+  if(z.hp<z.maxHp){ctx.fillStyle='#f6e27a';ctx.fillRect(x,y-6,w*z.hp/z.maxHp,3)}}
+ drawShip();drawBoss();
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
+ ctx.globalAlpha=1;
+ for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
+  if(has('boom'))ctx.drawImage(IMG.boom,f*24,0,24,24,Math.round(b.x-d/2),Math.round(b.y-d/2),d,d)}
+ if(time<comboUntil&&combo>1){ctx.font='bold 14px monospace';ctx.fillStyle='#f6e27a';
+  ctx.fillText(combo+' COMBO',gx,GY-14)}
+ ctx.restore();
+ ctx.globalAlpha=.1;ctx.fillStyle='#000';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
+
+// ---- 入力：指を置くと自機が回り込む／光った塊はタップで発射準備 -------------
+function point(e){const b=canvas.getBoundingClientRect();
+ return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
+function gridCell(p){const c=Math.floor((p.x-gx)/S),r=Math.floor((p.y-GY)/S);
+ return(r>=0&&r<N&&c>=0&&c<N)?{r,c}:null}
+function onDown(e){
+ if(phase!=='play'||paused)return;
+ audio();canvas.setPointerCapture(e.pointerId);
+ const p=point(e),cell=gridCell(p);
+ if(cell&&matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}  // 光った塊
+ pointer={id:e.pointerId,x:p.x,y:p.y};fireHeld=true}
+function onMove(e){if(!pointer||pointer.id!==e.pointerId)return;
+ const p=point(e);pointer.x=p.x;pointer.y=p.y}
+function onUp(e){if(pointer&&pointer.id!==e.pointerId)return;pointer=null;fireHeld=false}
+canvas.addEventListener('pointerdown',onDown);
+canvas.addEventListener('pointermove',onMove);
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,onUp);
+window.addEventListener('keydown',e=>{
+ if(['ArrowLeft','ArrowRight',' ','z','x'].includes(e.key))e.preventDefault();
+ keys.add(e.key);if(e.key===' '||e.key==='z')fireHeld=true;
+ if(e.key==='x'&&!e.repeat){const g=findGroups()[0];
+  if(g)armGroup(Math.floor(g.cells[0]/N),g.cells[0]%N);else play('deny')}});
+window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireHeld=false});
+function togglePause(){if(phase!=='play')return;paused=!paused;
+ $('pause').textContent=paused?'再開':'停止';if(paused){pointer=null;fireHeld=false}}
+window.addEventListener('blur',()=>{pointer=null;fireHeld=false;if(!paused)togglePause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
+function restart(){audio();goFullscreen();keepAwake();reset();paused=false;
+ $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start')}
+$('start').onclick=restart;$('pause').onclick=togglePause;
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
+
+// ---- 全画面と誤タッチ対策 ---------------------------------------------------
+const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+const isStandalone=window.matchMedia('(display-mode: fullscreen)').matches||
+ window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||
+ (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+function enterFullscreen(){
+ const el=document.documentElement,r=el.requestFullscreen||el.webkitRequestFullscreen;
+ if(!r)return Promise.resolve(false);
+ try{return Promise.resolve(r.call(el,{navigationUI:'hide'})).then(()=>true).catch(()=>false)}
+ catch(e){return Promise.resolve(false)}}
+function leaveFullscreen(){const x=document.exitFullscreen||document.webkitExitFullscreen;
+ if(x)try{x.call(document)}catch(e){}}
+function lockPortrait(){try{const o=screen.orientation;
+ if(o&&o.lock)o.lock('portrait').catch(()=>{})}catch(e){}}
+let wakeLock=null;
+function keepAwake(){if(!('wakeLock'in navigator)||wakeLock)return;
+ navigator.wakeLock.request('screen').then(w=>{wakeLock=w;
+  w.addEventListener('release',()=>{wakeLock=null})}).catch(()=>{})}
+function syncFullBtn(){const b=$('full');if(!b)return;
+ if(isStandalone){b.classList.add('hidden');return}
+ if(!canFullscreen){b.classList.toggle('hidden',isIOS);return}
+ b.textContent=inFullscreen()?'解除':'全画面'}
+function goFullscreen(){if(isStandalone)return;
+ enterFullscreen().then(ok=>{if(ok)lockPortrait();syncFullBtn()})}
+if($('full'))$('full').onclick=()=>{audio();
+ if(inFullscreen())leaveFullscreen();else goFullscreen();setTimeout(syncFullBtn,120)};
+for(const ev of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(ev,syncFullBtn);
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault());
+for(const ev of ['gesturestart','gesturechange','gestureend'])
+ document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener('touchmove',e=>{
+ if(e.target&&e.target.closest&&e.target.closest('#overlay'))return;
+ if(e.cancelable)e.preventDefault()},{passive:false});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake()});
+if($('ios')&&isIOS&&!isStandalone&&!canFullscreen){
+ $('ios').textContent='iPhoneは 共有 →「ホーム画面に追加」で全画面';
+ $('ios').onclick=()=>$('ios').classList.add('hidden');
+ $('ios').classList.remove('hidden')}
+syncFullBtn();
+function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
+ ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
+window.addEventListener('resize',resize);resize();reset();phase='ready';
+let last=performance.now();
+function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
+ if(phase==='play'&&!paused)update(dt);draw();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script></body></html>
