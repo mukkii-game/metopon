@@ -1,74 +1,290 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>METOPON — 撃って集めて、そろえて消す</title>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M3 12h18M12 3v18' stroke='%233a2a1a' stroke-width='3'/%3E%3C/svg%3E"><title>METOPON — 砂に刻んで、そろえて消す</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#08131e;color:#ecf8ee;font-family:system-ui,sans-serif;overscroll-behavior:none}main{max-width:480px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:8px 12px max(8px,env(safe-area-inset-bottom));gap:6px}header{display:flex;align-items:center;justify-content:space-between}h1{font-size:20px;letter-spacing:3px;margin:0}small{font-size:10px;color:#96b7bf}button{font:inherit;color:inherit;background:#18313d;border:1px solid #42616b;border-radius:12px;padding:8px;touch-action:none}button:active,.held{background:#436878!important}#top{display:flex;gap:5px}#top button{font-size:12px}#status{font-size:12px;display:flex;justify-content:space-between;min-height:18px}#stage{position:relative;flex:1;min-height:160px;overflow:hidden;border-radius:16px;border:1px solid #35525c;background:#0a242b}canvas{width:100%;height:100%;display:block;touch-action:none}#overlay{position:absolute;inset:0;background:#071725eF;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center}#overlay h2{font-size:26px;margin:12px 0}#overlay p{font-size:14px;line-height:1.8;color:#bbd0d0}#overlay button{background:#acdc69;color:#102517;font-weight:bold;padding:14px 28px}#hint{font-size:12px;min-height:32px;color:#bfd4cf;text-align:center}#controls{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;height:83px}#pad{background:radial-gradient(circle,#274a58,#142b38);border:1px solid #44636c;border-radius:16px;display:flex;align-items:center;justify-content:center;text-align:center;touch-action:none;font-size:13px;color:#c5d5d8;user-select:none}#fire{background:#193f56}#bomb{background:#483b65}#controls button b{font-size:23px;display:block}#controls button span{font-size:11px}#options{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#9ab6bd;gap:5px}#options button{font-size:11px;padding:5px 8px}.hidden{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;background:#1a1109;color:#f4e6c8;font-family:system-ui,sans-serif;overscroll-behavior:none}
+main{max-width:480px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:8px 12px max(8px,env(safe-area-inset-bottom));gap:6px}
+header{display:flex;align-items:center;justify-content:space-between}
+h1{font-size:20px;letter-spacing:3px;margin:0;color:#f2d9a4}
+small{font-size:10px;color:#b79b6c}
+button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;border-radius:12px;padding:8px;touch-action:none}
+button:active,.held{background:#8a6528!important}
+#top{display:flex;gap:5px}#top button{font-size:12px}
+#status{font-size:12px;display:flex;justify-content:space-between;min-height:18px;color:#e5cf9f}
+#stage{position:relative;flex:1;min-height:160px;overflow:hidden;border-radius:16px;border:1px solid #7a5a2e;background:#8f6d38}
+canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
+#overlay{position:absolute;inset:0;background:#1a1109ee;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center}
+#overlay h2{font-size:26px;margin:12px 0;color:#f2d9a4}
+#overlay p{font-size:14px;line-height:1.8;color:#d9c49a}
+#overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:14px 28px;border-color:#f2d9a4}
+#hint{font-size:12px;min-height:32px;color:#d4bd8e;text-align:center}
+#controls{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;height:83px}
+#pad{background:radial-gradient(circle,#6b4e28,#3a2a17);border:1px solid #7a5a2e;border-radius:16px;display:flex;align-items:center;justify-content:center;text-align:center;touch-action:none;font-size:13px;color:#e5cf9f;user-select:none}
+#fire{background:#5c3520}#bomb{background:#3f4a26}
+#controls button b{font-size:23px;display:block}#controls button span{font-size:11px}
+#options{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#b79b6c;gap:5px}
+#options button{font-size:11px;padding:5px 8px}
+.hidden{display:none!important}
 </style></head><body><main>
-<header><div><h1>METOPON</h1><small>AIR × EARTH / PLAYABLE STUDY 03</small></div><div id="top"><button id="sound">音 ON</button><button id="pause">一時停止</button></div></header>
-<div id="status"><span id="score">SCORE 0</span><span id="progress">消去 0</span><span id="life">回避なし</span></div>
-<div id="stage"><canvas id="game"></canvas><div id="overlay"><div><small>3個の直線・2×2・3×3</small><h2>同じものを、<br>大きくそろえる。</h2><p>左パッドで自機を動かす。<br>Aを押し続けて空中の敵を撃つ。<br>Bで照準内の地上ピースを左右交換。<br>同じ色・記号を直線や正方形に。<br>光っている間も交換・配置で大きくできます。</p><p>敵は攻撃してきません。<br>撃破した形が右のNEXTにストック。<br>「交換／配置」を切り替えてBで実行。</p><button id="start">試作をあそぶ</button></div></div></div>
-<div id="hint">空中で集める → 地上でそろえる → 連鎖で大きく消す</div>
+<header><div><h1>METOPON</h1><small>AIR × EARTH / DESERT GEOGLYPH 04</small></div><div id="top"><button id="sound">音 ON</button><button id="pause">一時停止</button></div></header>
+<div id="status"><span id="score">SCORE 0</span><span id="progress">消去 0</span><span id="life">—</span></div>
+<div id="stage"><canvas id="game"></canvas><div id="overlay"><div><small>3直線・四マス（2×2）・3×3</small><h2>砂の模様を、<br>大きくそろえる。</h2><p>左パッドで自機を動かす。<br>Aを押し続けて空中の敵を撃つ。<br>自機の少し先に出る照準が地上の狙い。<br>Bで照準の2マスを左右に入れ替え、<br>同じ<b>線の模様</b>を直線や正方形に。</p><p>ピースの違いは色ではなく刻まれた線。<br>光っている間も動かして大きくできます。</p><button id="start">試作をあそぶ</button></div></div></div>
+<div id="hint">空で集める → 砂に刻む → 大きくそろえて消す</div>
 <div id="controls"><div id="pad">↕ ↔<br>移動パッド</div><button id="fire"><b>A</b><span>押し続けて連射</span></button><button id="bomb"><b>B</b><span id="bLabel">左右交換</span></button></div>
 <div id="options"><button id="mode">B：交換</button><span>3直線 / 2×2 / 3×3</span><button id="reset">最初から</button></div>
 </main><script>
 'use strict';
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
-const W=508,FIELD=420,H=620,COLS=7,ROWS=7,S=48,GX=42,GY=94;
-const colors=['#bf9bf9','#8edda8','#ffc778','#7acbfa'];
-let board,ship,enemies,shots,drops,particles,score,ink,phase='ready',time=0,spawn=0,fireCD=0,bombCD=0,chain=0,chainUntil=0,cleared=0,pending=null,moveCD=0,sound=true,ac,mode='swap',shake=0;
+const W=508,FIELD=420,H=620,COLS=7,ROWS=7,S=48,GX=42,GY=94,KINDS=5;
+// ピースは色ではなく「砂に刻まれた線」で見分ける。
+const GLYPH_NAMES=['二条線','十字','稲妻','渦','輪'];
+const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
+
+// ---- アセット（tools/gen_art.py・tools/gen_sfx.py で生成） -------------------
+const IMG={},IMG_NAMES=['ship','enemy1','enemy2','enemy4','shot','boom','glyphs','slab','slab_lit','sand'];
+for(const n of IMG_NAMES){const im=new Image();im.src='assets/img/'+n+'.png';IMG[n]=im}
+const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','pickup','swap','place','match','clear','sq2','sq3','chain','deny','move','start'];
+// 読み込めない時（file:// 直開きなど）は矩形波の合成音に落とす。
+const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
+ pickup:[880,.1,'square'],swap:[700,.06,'square'],place:[260,.09,'square'],match:[560,.12,'triangle'],
+ clear:[780,.18,'triangle'],sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],
+ deny:[140,.12,'square'],move:[1040,.02,'square'],start:[660,.3,'triangle']};
+let sfxLoaded=false;
+function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
+ fetch('assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b}).catch(()=>{})}
+function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
+ if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
+ const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
+ g.gain.value=.55*vol;s.connect(g);g.connect(ac.destination);s.start()}
+function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
+ o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
+ o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
+function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
+
+let board,ship,enemies,shots,booms,particles,score,ink,phase='ready',time=0,spawn=0,fireCD=0,bombCD=0,
+ chain=0,chainUntil=0,cleared=0,pending=null,moveCD=0,sound=true,ac,mode='swap',shake=0,scroll=0;
 const keys=new Set(),firePointers=new Set();let drag=null,padDrag=null,fireKey=false;
-function tone(f=440,d=.07,type='sine',v=.035){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d);}
-function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});}
 function rnd(n){return Math.floor(Math.random()*n)}
-function matches(b=board){const found=new Set();for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const k=b[r][c];if(k<0)continue;if(c+2<COLS&&b[r][c+1]===k&&b[r][c+2]===k){found.add(r*COLS+c);found.add(r*COLS+c+1);found.add(r*COLS+c+2)}if(r+2<ROWS&&b[r+1][c]===k&&b[r+2][c]===k){found.add(r*COLS+c);found.add((r+1)*COLS+c);found.add((r+2)*COLS+c)}}for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS-1;c++){const k=b[r][c];if(k>=0&&b[r][c+1]===k&&b[r+1][c]===k&&b[r+1][c+1]===k){for(let y=0;y<2;y++)for(let x=0;x<2;x++)found.add((r+y)*COLS+c+x)}}return found}
-function bestSquare(){let best=1;for(const n of [2,3])for(let r=0;r<=ROWS-n;r++)for(let c=0;c<=COLS-n;c++){const k=board[r][c];let ok=k>=0;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(board[r+y][c+x]!==k)ok=false;if(ok)best=n}return best}
-function newBoard(){board=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>rnd(4)));for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){while((c>1&&board[r][c]===board[r][c-1]&&board[r][c]===board[r][c-2])||(r>1&&board[r][c]===board[r-1][c]&&board[r][c]===board[r-2][c]))board[r][c]=(board[r][c]+1)%4;if(r>0&&c>0&&board[r][c]===board[r-1][c]&&board[r][c]===board[r][c-1]&&board[r][c]===board[r-1][c-1])board[r][c]=(board[r][c]+1)%4;}board[4][1]=0;board[4][2]=0;board[4][3]=1;board[4][4]=0;}
-function reset(){newBoard();ship={x:210,y:460};enemies=[];shots=[];drops=[];particles=[];score=0;ink=[];time=0;spawn=1;fireCD=0;bombCD=0;chain=0;chainUntil=0;cleared=0;pending=null;moveCD=0;mode='swap';shake=0;clearInput();ui();}
+
+// ---- 成立判定 ---------------------------------------------------------------
+function matches(b=board){const found=new Set();
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const k=b[r][c];if(k<0)continue;
+  if(c+2<COLS&&b[r][c+1]===k&&b[r][c+2]===k){found.add(r*COLS+c);found.add(r*COLS+c+1);found.add(r*COLS+c+2)}
+  if(r+2<ROWS&&b[r+1][c]===k&&b[r+2][c]===k){found.add(r*COLS+c);found.add((r+1)*COLS+c);found.add((r+2)*COLS+c)}}
+ for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS-1;c++){const k=b[r][c];
+  if(k>=0&&b[r][c+1]===k&&b[r+1][c]===k&&b[r+1][c+1]===k){for(let y=0;y<2;y++)for(let x=0;x<2;x++)found.add((r+y)*COLS+c+x)}}
+ return found}
+function bestSquare(){let best=1;for(const n of [2,3])for(let r=0;r<=ROWS-n;r++)for(let c=0;c<=COLS-n;c++){
+ const k=board[r][c];let ok=k>=0;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(board[r+y][c+x]!==k)ok=false;if(ok)best=n}return best}
+function bestRun(){let best=0;
+ for(let r=0;r<ROWS;r++)for(let c=0,run=1;c<COLS;c++){run=c&&board[r][c]===board[r][c-1]?run+1:1;if(run>best)best=run}
+ for(let c=0;c<COLS;c++)for(let r=0,run=1;r<ROWS;r++){run=r&&board[r][c]===board[r-1][c]?run+1:1;if(run>best)best=run}
+ return best}
+function runBonus(n){return n>=5?300:n===4?80:0}
+
+function newBoard(){board=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>rnd(KINDS)));
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+  while((c>1&&board[r][c]===board[r][c-1]&&board[r][c]===board[r][c-2])||(r>1&&board[r][c]===board[r-1][c]&&board[r][c]===board[r-2][c]))board[r][c]=(board[r][c]+1)%KINDS;
+  if(r>0&&c>0&&board[r][c]===board[r-1][c]&&board[r][c]===board[r][c-1]&&board[r][c]===board[r-1][c-1])board[r][c]=(board[r][c]+1)%KINDS}
+ board[4][1]=0;board[4][2]=0;board[4][3]=1;board[4][4]=0}
+function reset(){newBoard();ship={x:210,y:460};enemies=[];shots=[];booms=[];particles=[];score=0;ink=[];time=0;spawn=1;
+ fireCD=0;bombCD=0;chain=0;chainUntil=0;cleared=0;pending=null;moveCD=0;mode='swap';shake=0;clearInput();ui()}
 function clearInput(){keys.clear();firePointers.clear();fireKey=false;padDrag=null;drag=null;$('fire').classList.remove('held')}
 function footprint(){return mode==='place'?(ink[0]||{w:1,h:1}):{w:2,h:1}}
-function target(){const p=footprint();return {c:Math.max(0,Math.min(COLS-p.w,Math.round((ship.x-GX-S/2)/S))),r:Math.max(0,Math.min(ROWS-p.h,Math.round((ship.y-150-GY-S/2)/S)))}}
-function burst(x,y,col,n=12){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*180,vy:(Math.random()-.5)*180,life:.4+Math.random()*.4,col})}
-function ui(){$('score').textContent='SCORE '+score;$('progress').textContent='消去 '+cleared;$('life').textContent='回避なし';$('mode').textContent=mode==='swap'?'B：交換':'B：素材を置く';$('bLabel').textContent=mode==='swap'?'照準の2マスを交換':ink.length?'配置 '+ink[0].w+'×'+ink[0].h+' ／残'+ink.length:'素材なし（Aで獲得）';}
+function target(){const p=footprint();return{
+ c:Math.max(0,Math.min(COLS-p.w,Math.round((ship.x-GX-S/2)/S))),
+ r:Math.max(0,Math.min(ROWS-p.h,Math.round((ship.y-150-GY-S/2)/S)))}}
+function burst(x,y,n=12,col=SAND.light){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*180,vy:(Math.random()-.5)*180,life:.4+Math.random()*.4,col})}
+function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
+function ui(){$('score').textContent='SCORE '+score;$('progress').textContent='消去 '+cleared;
+ $('mode').textContent=mode==='swap'?'B：交換':'B：素材を置く';
+ $('bLabel').textContent=mode==='swap'?'照準の2マスを交換':ink.length?'配置 '+ink[0].w+'×'+ink[0].h+' ／残'+ink.length:'素材なし（Aで獲得）'}
 let messageUntil=0;function message(s,secs=3){$('hint').textContent=s;messageUntil=time+secs}
-function resolve(){const hit=matches();if(!hit.size){pending=null;return false}const square=bestSquare();if(!pending){pending={hit,until:time+2.4,square};message('成立！ 消えるまで2.4秒。交換・配置で大きくしよう',2.4)}else{pending.hit=hit;pending.square=square}return true}
-function clearPending(){if(!pending)return;const {hit,square}=pending;pending=null;chain=time<chainUntil?chain+1:1;chainUntil=time+3.2;const bonus=square===3?900:square===2?160:0;const gain=(hit.size*30+bonus)*chain;score+=gain;cleared+=hit.size;for(const id of hit){const r=Math.floor(id/COLS),c=id%COLS;burst(GX+c*S+24,GY+r*S+24,colors[board[r][c]],12);board[r][c]=-1}
-for(let c=0;c<COLS;c++){const remain=board.map(r=>r[c]).filter(v=>v>=0);while(remain.length<ROWS)remain.unshift(rnd(4));for(let r=0;r<ROWS;r++)board[r][c]=remain[r]}
-shake=square===3?10:square===2?5:2;tone(220*Math.pow(1.25,Math.min(chain,7)),.2,'triangle');resolve();message((square>1?square+'×'+square:'3個の直線')+'！ '+chain+' CHAIN +'+gain,2);ui()}
-function moveShip(dx,dy){ship.x=Math.max(GX+24,Math.min(GX+24+6*S,ship.x+dx*S));ship.y=Math.max(GY+24+150,Math.min(GY+24+150+6*S,ship.y+dy*S))}
-function bomb(){if(phase!=='play'||bombCD>0)return;const {r,c}=target();if(mode==='place'){if(!ink.length){message('Aで空中の敵を倒すと、右のNEXTにピースが入ります');return}const p=ink.shift();for(let y=0;y<p.h;y++)for(let x=0;x<p.w;x++)board[r+y][c+x]=p.k}else{[board[r][c],board[r][c+1]]=[board[r][c+1],board[r][c]]}bombCD=.2;tone(330,.09,'triangle');burst(GX+c*S+24,GY+r*S+24,'#ffffff',6);if(!resolve())message(mode==='swap'?'交換しました。同じ色・形を縦横3つそろえる':'素材を配置しました');ui();}
-function kill(e){if(e.dead)return;e.dead=true;score+=100*e.w*e.h;burst(e.x,e.y,colors[e.k],12*e.w*e.h);ink.push({w:e.w,h:e.h,k:e.k});message(e.w+'×'+e.h+'ピース獲得！ NEXT先頭からBで配置');tone(100,.08,'square');ui()}
-function makeEnemy(w,h,x,y,k=rnd(4)){return {w,h,x,y,k,hp:w*h+1,maxHp:w*h+1,age:0,t:Math.random()*6}}
-function spawnWave(){[[1,1,76],[2,1,198],[2,2,326]].forEach(([w,h,x],i)=>enemies.push(makeEnemy(w,h,x,-45-i*52)));}
-function update(dt){time+=dt;spawn-=dt;fireCD-=dt;bombCD-=dt;shake=Math.max(0,shake-dt*25);
-let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
-if(padDrag){dx=Math.abs(padDrag.dx)>.3?Math.sign(padDrag.dx):0;dy=Math.abs(padDrag.dy)>.3?Math.sign(padDrag.dy):0}moveCD-=dt;if(dx||dy){if(moveCD<=0){moveShip(dx,dy);moveCD=.14}}else moveCD=0;if(pending&&time>=pending.until)clearPending();
-if((firePointers.size||fireKey)&&fireCD<=0){shots.push({x:ship.x,y:ship.y-20});fireCD=.12;tone(620,.035,'triangle',.016)}
-if(spawn<=0){spawnWave();spawn=5.5}
-for(const s of shots){const prev=s.y;s.y-=620*dt;for(const e of enemies)if(!e.dead&&Math.abs(s.x-e.x)<e.w*19&&s.y<=e.y+e.h*19&&prev>=e.y-e.h*19){s.y=-999;if(--e.hp<=0)kill(e);else burst(s.x,e.y,colors[e.k],3);break}}shots=shots.filter(s=>s.y>-30);
-for(const e of enemies){e.age+=dt;if(e.age>=.55){e.age-=.55;e.step=(e.step||0)+1;if(e.step%3===0){e.x=Math.max(66,Math.min(354,e.x+(e.step%6===0?-48:48)))}else e.y+=24}}enemies=enemies.filter(e=>!e.dead&&e.y<H+50);
-for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
-if(time>messageUntil){$('hint').textContent=time<chainUntil?'連鎖チャンス '+(chainUntil-time).toFixed(1)+'秒':'同じ色・記号を3直線／2×2／3×3にそろえよう。'}
-}
-function symbol(k,x,y,size=8){ctx.beginPath();if(k===0){ctx.moveTo(x,y-size);ctx.lineTo(x+size,y);ctx.lineTo(x,y+size);ctx.lineTo(x-size,y)}else if(k===1){ctx.arc(x,y,size,0,Math.PI*2)}else if(k===2){ctx.moveTo(x,y-size);ctx.lineTo(x+size,y+size);ctx.lineTo(x-size,y+size)}else{ctx.rect(x-size,y-size,size*2,size*2)}ctx.closePath();ctx.fill()}
-function draw(){ctx.clearRect(0,0,W,H);ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);ctx.fillStyle='#0b262e';ctx.fillRect(0,0,W,H);
-ctx.strokeStyle='#183941';ctx.lineWidth=1;for(let y=-40;y<H;y+=42){ctx.beginPath();ctx.moveTo(0,y+(time*10)%42);ctx.lineTo(W,y+(time*10)%42);ctx.stroke()}
-ctx.font='11px system-ui';ctx.fillStyle='#70968e';ctx.fillText('GROUND / 3直線・2×2・3×3',GX,76);ctx.fillText('AIR / 編隊を撃って素材を回収',GX,26);
-for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=GX+c*S,y=GY+r*S,k=board[r][c],lit=pending?.hit.has(r*COLS+c);ctx.fillStyle=lit?'#536653':'#122f38';ctx.fillRect(x+1,y+1,S-2,S-2);if(lit){ctx.strokeStyle='#efffb7';ctx.lineWidth=2;ctx.strokeRect(x+3,y+3,S-6,S-6)}ctx.fillStyle=colors[k];symbol(k,x+24,y+24,lit?13+Math.sin(time*12)*2:10)}
-const {r,c}=target(),tx=GX+c*S,ty=GY+r*S;ctx.strokeStyle='#f6f5b4';ctx.lineWidth=3;const fp=footprint();ctx.strokeRect(tx+2,ty+2,S*fp.w-4,S*fp.h-4);if(mode==='place'&&ink.length){ctx.globalAlpha=.55;ctx.fillStyle=colors[ink[0].k];for(let yy=0;yy<fp.h;yy++)for(let xx=0;xx<fp.w;xx++)symbol(ink[0].k,tx+xx*S+24,ty+yy*S+24,17);ctx.globalAlpha=1;}ctx.setLineDash([3,7]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ship.x,ship.y);ctx.lineTo(tx+24,ty+24);ctx.stroke();ctx.setLineDash([]);
-for(const s of shots){ctx.fillStyle='#e9ffb3';ctx.shadowColor='#bbff6b';ctx.shadowBlur=8;ctx.fillRect(s.x-2,s.y-12,4,17);ctx.shadowBlur=0}
-for(const e of enemies){ctx.save();ctx.translate(e.x-e.w*19,e.y-e.h*19);for(let y=0;y<e.h;y++)for(let x=0;x<e.w;x++){ctx.fillStyle='#07131d';ctx.fillRect(x*38+4,y*38+7,36,36);ctx.fillStyle=colors[e.k];ctx.fillRect(x*38+1,y*38+1,34,34);ctx.fillStyle='#192e3b';symbol(e.k,x*38+18,y*38+18,8)}ctx.fillStyle='#efffd6';ctx.fillRect(0,-7,e.w*38*e.hp/e.maxHp,3);ctx.restore()}
-ctx.save();ctx.translate(ship.x,ship.y);ctx.globalAlpha=1;ctx.fillStyle='#090f24';ctx.beginPath();ctx.ellipse(8,20,24,10,0,0,7);ctx.fill();ctx.fillStyle='#f5f4d8';ctx.beginPath();ctx.moveTo(0,-22);ctx.lineTo(19,17);ctx.lineTo(0,8);ctx.lineTo(-19,17);ctx.closePath();ctx.fill();ctx.fillStyle='#66d4e3';ctx.fillRect(-4,-5,8,16);ctx.fillStyle='#e8b677';ctx.fillRect(-3,16,6,8+Math.random()*8);ctx.restore();
-for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}ctx.globalAlpha=1;
-if(pending){ctx.fillStyle='#f4e99f';ctx.fillRect(GX,446,COLS*S*Math.max(0,pending.until-time)/2.4,5);ctx.font='13px system-ui';ctx.fillText('消去まで '+Math.max(0,pending.until-time).toFixed(1)+'秒 / まだ大きくできる',GX,475)}else if(time<chainUntil){ctx.fillStyle='#bce7a0';ctx.fillRect(GX,446,(COLS*S)*(chainUntil-time)/3.2,3)}ctx.restore();drawNext()}
-function drawNext(){ctx.fillStyle='#0a1421';ctx.fillRect(FIELD,0,W-FIELD,H);ctx.strokeStyle='#496075';ctx.beginPath();ctx.moveTo(FIELD,0);ctx.lineTo(FIELD,H);ctx.stroke();ctx.textAlign='center';ctx.font='bold 14px system-ui';ctx.fillStyle='#edf5d1';ctx.fillText('NEXT',464,28);ctx.font='11px system-ui';ctx.fillText('ストック '+ink.length,464,47);if(!ink.length){ctx.fillStyle='#99aebd';ctx.fillText('Aで撃破',464,90);ctx.fillText('して獲得',464,109)}ink.slice(0,6).forEach((p,i)=>{const y=64+i*82;ctx.strokeStyle=i===0?'#f7f3af':'#314558';ctx.lineWidth=i===0?2:1;ctx.strokeRect(430,y,68,75);ctx.fillStyle='#bdd0d4';ctx.font='10px system-ui';ctx.fillText(i===0?'次に置く':String(i+1),464,y+13);const size=20,x=464-p.w*size/2;for(let r=0;r<p.h;r++)for(let c=0;c<p.w;c++){ctx.fillStyle=colors[p.k];ctx.fillRect(x+c*size,y+21+r*size,size-2,size-2);ctx.fillStyle='#172536';symbol(p.k,x+c*size+9,y+30+r*size,5)}});if(ink.length>6){ctx.fillStyle='#adc3d1';ctx.fillText('ほか '+(ink.length-6)+'個',464,580)}ctx.textAlign='left'}
+
+function resolve(){const hit=matches();if(!hit.size){pending=null;return false}
+ const square=bestSquare(),run=bestRun();
+ if(!pending){pending={hit,until:time+2.4,square,run};play('match');message('成立！ 消えるまで2.4秒。交換・配置で大きくしよう',2.4)}
+ else{pending.hit=hit;pending.square=square;pending.run=run}
+ return true}
+function clearPending(){if(!pending)return;const {hit,square,run}=pending;pending=null;
+ chain=time<chainUntil?chain+1:1;chainUntil=time+3.2;
+ const bonus=(square===3?900:square===2?160:0)+runBonus(run);
+ const gain=(hit.size*30+bonus)*chain;score+=gain;cleared+=hit.size;
+ for(const id of hit){const r=Math.floor(id/COLS),c=id%COLS;boom(GX+c*S+24,GY+r*S+24,1.6);burst(GX+c*S+24,GY+r*S+24,8);board[r][c]=-1}
+ for(let c=0;c<COLS;c++){const remain=board.map(r=>r[c]).filter(v=>v>=0);
+  while(remain.length<ROWS)remain.unshift(rnd(KINDS));for(let r=0;r<ROWS;r++)board[r][c]=remain[r]}
+ shake=square===3?10:square===2?5:2;
+ play(square===3?'sq3':square===2?'sq2':'clear');
+ if(chain>1)play('chain',Math.pow(1.12,Math.min(chain,8)));
+ resolve();
+ const what=square>1?square+'×'+square:run>=4?run+'連':'3個の直線';
+ message(what+'！ '+chain+' CHAIN +'+gain,2);ui()}
+
+function moveShip(dx,dy){const x0=ship.x,y0=ship.y;
+ ship.x=Math.max(GX+24,Math.min(GX+24+6*S,ship.x+dx*S));
+ ship.y=Math.max(GY+24+150,Math.min(GY+24+150+6*S,ship.y+dy*S));
+ if(ship.x!==x0||ship.y!==y0)play('move',1,.6)}
+function bomb(){if(phase!=='play'||bombCD>0)return;const {r,c}=target();
+ if(mode==='place'){if(!ink.length){play('deny');message('Aで空中の敵を倒すと、右のNEXTにピースが入ります');return}
+  const p=ink.shift();for(let y=0;y<p.h;y++)for(let x=0;x<p.w;x++)board[r+y][c+x]=p.k;play('place')}
+ else{[board[r][c],board[r][c+1]]=[board[r][c+1],board[r][c]];play('swap')}
+ bombCD=.2;burst(GX+c*S+24,GY+r*S+24,6,SAND.hi);
+ if(!resolve())message(mode==='swap'?'交換しました。同じ模様を縦横3つそろえる':'素材を刻みました');ui()}
+function kill(e){if(e.dead)return;e.dead=true;score+=100*e.w*e.h;
+ boom(e.x,e.y,e.w*e.h>1?3.2:2);burst(e.x,e.y,10*e.w*e.h,SAND.hi);
+ ink.push({w:e.w,h:e.h,k:e.k});message(e.w+'×'+e.h+'の「'+GLYPH_NAMES[e.k]+'」を獲得！ Bで配置',2.5);
+ play(e.w*e.h>1?'boom_l':'boom_s');play('pickup',1,.6);ui()}
+function makeEnemy(w,h,x,y,k=rnd(KINDS)){return{w,h,x,y,k,hp:w*h+1,maxHp:w*h+1,age:0}}
+function spawnWave(){[[1,1,76],[2,1,198],[2,2,326]].forEach(([w,h,x],i)=>enemies.push(makeEnemy(w,h,x,-45-i*52)))}
+
+function update(dt){time+=dt;scroll+=dt*26;spawn-=dt;fireCD-=dt;bombCD-=dt;shake=Math.max(0,shake-dt*25);
+ let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
+     dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+ if(padDrag){dx=Math.abs(padDrag.dx)>.3?Math.sign(padDrag.dx):0;dy=Math.abs(padDrag.dy)>.3?Math.sign(padDrag.dy):0}
+ moveCD-=dt;if(dx||dy){if(moveCD<=0){moveShip(dx,dy);moveCD=.14}}else moveCD=0;
+ if(pending&&time>=pending.until)clearPending();
+ if((firePointers.size||fireKey)&&fireCD<=0){shots.push({x:ship.x,y:ship.y-20});fireCD=.12;play('shot',1,.45)}
+ if(spawn<=0){spawnWave();spawn=5.5}
+ for(const s of shots){const prev=s.y;s.y-=620*dt;
+  for(const e of enemies)if(!e.dead&&Math.abs(s.x-e.x)<e.w*16&&s.y<=e.y+e.h*16&&prev>=e.y-e.h*16){
+   s.y=-999;if(--e.hp<=0)kill(e);else{burst(s.x,e.y,3);play('hit',1,.5)}break}}
+ shots=shots.filter(s=>s.y>-30);
+ for(const e of enemies){e.age+=dt;if(e.age>=.55){e.age-=.55;e.step=(e.step||0)+1;
+  if(e.step%3===0)e.x=Math.max(66,Math.min(354,e.x+(e.step%6===0?-48:48)));else e.y+=24}}
+ enemies=enemies.filter(e=>!e.dead&&e.y<H+50);
+ for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
+ for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
+ $('life').textContent=pending?'消去まで '+Math.max(0,pending.until-time).toFixed(1)+'秒':
+  time<chainUntil?chain+' CHAIN 継続中':'—';
+ if(time>messageUntil)$('hint').textContent=time<chainUntil?'連鎖チャンス '+(chainUntil-time).toFixed(1)+'秒':'同じ線の模様を3直線／2×2／3×3にそろえよう。'}
+
+// ---- 描画 -------------------------------------------------------------------
+function glyph(k,x,y,size){ // 砂に刻まれた線。画像が無ければベクタで代用する。
+ if(has('glyphs')){ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size);return}
+ ctx.save();ctx.translate(x,y);ctx.scale(size/24,size/24);ctx.translate(-12,-12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();
+ if(k===0){ctx.moveTo(8,3);ctx.lineTo(8,20);ctx.moveTo(15,3);ctx.lineTo(15,20)}
+ else if(k===1){ctx.moveTo(3,12);ctx.lineTo(20,12);ctx.moveTo(12,3);ctx.lineTo(12,20)}
+ else if(k===2){ctx.moveTo(4,4);ctx.lineTo(17,9);ctx.lineTo(6,14);ctx.lineTo(19,19)}
+ else if(k===3){for(let i=0;i<=120;i++){const a=i/120*1.75*Math.PI*2,r=1.5+8*i/120;
+  const px=12+Math.cos(a)*r,py=12+Math.sin(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}}
+ else ctx.arc(12,12,8.5,0,Math.PI*2);
+ ctx.stroke();ctx.restore()}
+
+function ground(){ // 砂漠。タイルを縦にスクロールさせる。
+ if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
+  ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
+ else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H);ctx.strokeStyle='#7a5a2e';
+  for(let y=-64;y<H;y+=42){ctx.beginPath();ctx.moveTo(0,y+scroll%42);ctx.lineTo(W,y+scroll%42);ctx.stroke()}}}
+
+function drawBoard(){
+ ctx.fillStyle='#00000055';ctx.fillRect(GX-6,GY-6,COLS*S+12,ROWS*S+12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=2;ctx.strokeRect(GX-6,GY-6,COLS*S+12,ROWS*S+12);
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+  const x=GX+c*S,y=GY+r*S,k=board[r][c],lit=!!(pending&&pending.hit.has(r*COLS+c));
+  if(k<0)continue;
+  if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,0,0,24,24,x,y,S,S);
+  else{ctx.fillStyle=lit?SAND.light:SAND.base;ctx.fillRect(x+1,y+1,S-2,S-2)}
+  glyph(k,x+24,y+24,48);
+  if(lit){ctx.strokeStyle='#fff6c8';ctx.lineWidth=2;ctx.globalAlpha=.5+Math.sin(time*14)*.35;
+   ctx.strokeRect(x+2,y+2,S-4,S-4);ctx.globalAlpha=1}}}
+
+function reticle(){ // ゼビウスのブラスター照準。自機の少し先に出る。
+ const {r,c}=target(),tx=GX+c*S,ty=GY+r*S,fp=footprint(),w=S*fp.w,h=S*fp.h,arm=12;
+ if(mode==='place'&&ink.length){ctx.globalAlpha=.5;
+  for(let yy=0;yy<fp.h;yy++)for(let xx=0;xx<fp.w;xx++)glyph(ink[0].k,tx+xx*S+24,ty+yy*S+24,48);ctx.globalAlpha=1}
+ ctx.strokeStyle=Math.floor(time*8)%2?'#fff6c8':'#e0a93c';ctx.lineWidth=3;
+ for(const [ox,oy,sx,sy] of [[0,0,1,1],[w,0,-1,1],[0,h,1,-1],[w,h,-1,-1]]){
+  ctx.beginPath();ctx.moveTo(tx+ox+sx*arm,ty+oy);ctx.lineTo(tx+ox,ty+oy);ctx.lineTo(tx+ox,ty+oy+sy*arm);ctx.stroke()}
+ ctx.setLineDash([3,7]);ctx.lineWidth=1;ctx.globalAlpha=.6;ctx.beginPath();
+ ctx.moveTo(ship.x,ship.y);ctx.lineTo(tx+w/2,ty+h/2);ctx.stroke();ctx.globalAlpha=1;ctx.setLineDash([])}
+
+function drawEnemy(e){const w=e.w*32,h=e.h*32,x=Math.round(e.x-w/2),y=Math.round(e.y-h/2);
+ const sprite=e.w===2&&e.h===2?'enemy4':e.w===2?'enemy2':'enemy1';
+ if(has(sprite))ctx.drawImage(IMG[sprite],x,y,w,h);
+ else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,w,h)}
+ for(let r=0;r<e.h;r++)for(let c=0;c<e.w;c++)glyph(e.k,x+c*32+16,y+r*32+16,24); // 落とすピースの模様
+ ctx.fillStyle='#f6e27a';ctx.fillRect(x,y-6,w*e.hp/e.maxHp,3)}
+
+function drawShip(){const x=Math.round(ship.x-16),y=Math.round(ship.y-16);
+ ctx.globalAlpha=.3;ctx.fillStyle='#2a1c0a';ctx.fillRect(x+6,y+26,26,8);ctx.globalAlpha=1;
+ if(has('ship'))ctx.drawImage(IMG.ship,x,y,32,32);
+ else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(ship.x,ship.y-16);ctx.lineTo(ship.x+14,ship.y+14);
+  ctx.lineTo(ship.x-14,ship.y+14);ctx.closePath();ctx.fill()}
+ ctx.fillStyle='#5fd6e6';ctx.fillRect(Math.round(ship.x-2),y+30,4,3+Math.random()*7)}
+
+function scanlines(){ctx.globalAlpha=.10;ctx.fillStyle='#000';
+ for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
+function draw(){ctx.clearRect(0,0,W,H);ctx.save();
+ if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ ground();
+ ctx.font='11px monospace';ctx.fillStyle='#2a1c0a';
+ ctx.fillText('AIR / 編隊を撃って素材を回収',GX,26);ctx.fillText('EARTH / 3直線・2×2・3×3',GX,80);
+ drawBoard();reticle();
+ for(const s of shots){if(has('shot'))ctx.drawImage(IMG.shot,Math.round(s.x-4),Math.round(s.y-24),8,24);
+  else{ctx.fillStyle='#f6e27a';ctx.fillRect(s.x-2,s.y-12,4,17)}}
+ for(const e of enemies)drawEnemy(e);
+ drawShip();
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}ctx.globalAlpha=1;
+ for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
+  if(has('boom'))ctx.drawImage(IMG.boom,f*24,0,24,24,Math.round(b.x-d/2),Math.round(b.y-d/2),d,d);
+  else{ctx.globalAlpha=1-b.t/.3;ctx.fillStyle='#f6e27a';ctx.fillRect(b.x-d/2,b.y-d/2,d,d);ctx.globalAlpha=1}}
+ if(pending||time<chainUntil){const w=COLS*S,y=GY+ROWS*S+10;
+  ctx.fillStyle='#00000077';ctx.fillRect(GX-2,y-2,w+4,10);
+  ctx.fillStyle=pending?'#f6e27a':'#c8e6a0';
+  ctx.fillRect(GX,y,w*(pending?Math.max(0,pending.until-time)/2.4:(chainUntil-time)/3.2),6)}
+ ctx.restore();drawNext();scanlines()}
+
+function drawNext(){ctx.fillStyle='#2a1c0a';ctx.fillRect(FIELD,0,W-FIELD,H);
+ ctx.strokeStyle='#7a5a2e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(FIELD,0);ctx.lineTo(FIELD,H);ctx.stroke();
+ ctx.textAlign='center';ctx.font='bold 14px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('NEXT',464,28);
+ ctx.font='11px monospace';ctx.fillText('ストック '+ink.length,464,47);
+ if(!ink.length){ctx.fillStyle='#b79b6c';ctx.fillText('Aで撃破',464,90);ctx.fillText('して獲得',464,109)}
+ ink.slice(0,6).forEach((p,i)=>{const y=64+i*82;
+  ctx.strokeStyle=i===0?'#f2d9a4':'#7a5a2e';ctx.lineWidth=i===0?2:1;ctx.strokeRect(430,y,68,75);
+  ctx.fillStyle='#d4bd8e';ctx.font='10px monospace';ctx.fillText(i===0?'次に置く':String(i+1),464,y+13);
+  const size=24,x=464-p.w*size/2;
+  for(let r=0;r<p.h;r++)for(let c=0;c<p.w;c++){
+   if(has('slab'))ctx.drawImage(IMG.slab,0,0,24,24,x+c*size,y+20+r*size,size,size);
+   else{ctx.fillStyle=SAND.base;ctx.fillRect(x+c*size,y+20+r*size,size-1,size-1)}
+   glyph(p.k,x+c*size+12,y+32+r*size,24)}});
+ if(ink.length>6){ctx.fillStyle='#d4bd8e';ctx.fillText('ほか '+(ink.length-6)+'個',464,580)}ctx.textAlign='left'}
+
+// ---- 入力 -------------------------------------------------------------------
 function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
-canvas.addEventListener('pointerdown',e=>{if(phase!=='play'||drag||point(e).x>=FIELD)return;canvas.setPointerCapture(e.pointerId);drag={id:e.pointerId,p:point(e)}});canvas.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;const p=point(e);const dx=p.x-drag.p.x,dy=p.y-drag.p.y;if(Math.abs(dx)>=S*.6||Math.abs(dy)>=S*.6){moveShip(Math.abs(dx)>=S*.6?Math.sign(dx):0,Math.abs(dy)>=S*.6?Math.sign(dy):0);drag.p=p}});
-for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,e=>{if(drag?.id===e.pointerId)drag=null});
-$('pad').addEventListener('pointerdown',e=>{if(phase!=='play'||padDrag)return;$('pad').setPointerCapture(e.pointerId);padDrag={id:e.pointerId,x:e.clientX,y:e.clientY,dx:0,dy:0}});$('pad').addEventListener('pointermove',e=>{if(padDrag?.id!==e.pointerId)return;padDrag.dx=Math.max(-1,Math.min(1,(e.clientX-padDrag.x)/35));padDrag.dy=Math.max(-1,Math.min(1,(e.clientY-padDrag.y)/35))});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('pad').addEventListener(ev,e=>{if(padDrag?.id===e.pointerId)padDrag=null});
-$('fire').addEventListener('pointerdown',e=>{if(phase!=='play')return;audio();$('fire').setPointerCapture(e.pointerId);firePointers.add(e.pointerId);$('fire').classList.add('held')});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('fire').addEventListener(ev,e=>{firePointers.delete(e.pointerId);if(!firePointers.size)$('fire').classList.remove('held')});$('bomb').addEventListener('pointerdown',e=>{e.preventDefault();audio();bomb()});
-window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','z','x'].includes(e.key))e.preventDefault();keys.add(e.key);if(e.key===' '||e.key==='z')fireKey=true;if(e.key==='x'&&!e.repeat)bomb()});window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireKey=false});
-function togglePause(){if(phase==='play'){phase='pause';clearInput();$('pause').textContent='再開';message('一時停止中')}else if(phase==='pause'){phase='play';$('pause').textContent='一時停止'}}
-window.addEventListener('blur',()=>{clearInput();if(phase==='play')togglePause()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play')togglePause()});
-function restart(){audio();reset();phase='play';$('overlay').classList.add('hidden');$('pause').textContent='一時停止';message('自機はマス移動。Bで交換し、同じ色・記号をそろえよう。',5)}
-$('start').onclick=restart;$('reset').onclick=restart;$('pause').onclick=togglePause;$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};$('mode').onclick=()=>{mode=mode==='swap'?'place':'swap';ui()};
-function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;ctx.setTransform(d,0,0,d,0,0)}window.addEventListener('resize',resize);resize();reset();let last=performance.now();function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;if(phase==='play')update(dt);draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
+canvas.addEventListener('pointerdown',e=>{if(phase!=='play'||drag||point(e).x>=FIELD)return;
+ canvas.setPointerCapture(e.pointerId);drag={id:e.pointerId,p:point(e)}});
+canvas.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;const p=point(e);
+ const dx=p.x-drag.p.x,dy=p.y-drag.p.y;if(Math.abs(dx)>=S*.6||Math.abs(dy)>=S*.6){
+  moveShip(Math.abs(dx)>=S*.6?Math.sign(dx):0,Math.abs(dy)>=S*.6?Math.sign(dy):0);drag.p=p}});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,e=>{if(drag&&drag.id===e.pointerId)drag=null});
+$('pad').addEventListener('pointerdown',e=>{if(phase!=='play'||padDrag)return;$('pad').setPointerCapture(e.pointerId);
+ padDrag={id:e.pointerId,x:e.clientX,y:e.clientY,dx:0,dy:0}});
+$('pad').addEventListener('pointermove',e=>{if(!padDrag||padDrag.id!==e.pointerId)return;
+ padDrag.dx=Math.max(-1,Math.min(1,(e.clientX-padDrag.x)/35));padDrag.dy=Math.max(-1,Math.min(1,(e.clientY-padDrag.y)/35))});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('pad').addEventListener(ev,e=>{if(padDrag&&padDrag.id===e.pointerId)padDrag=null});
+$('fire').addEventListener('pointerdown',e=>{if(phase!=='play')return;audio();$('fire').setPointerCapture(e.pointerId);
+ firePointers.add(e.pointerId);$('fire').classList.add('held')});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('fire').addEventListener(ev,e=>{
+ firePointers.delete(e.pointerId);if(!firePointers.size)$('fire').classList.remove('held')});
+$('bomb').addEventListener('pointerdown',e=>{e.preventDefault();audio();bomb()});
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','z','x'].includes(e.key))e.preventDefault();
+ keys.add(e.key);if(e.key===' '||e.key==='z')fireKey=true;if(e.key==='x'&&!e.repeat)bomb()});
+window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireKey=false});
+function togglePause(){if(phase==='play'){phase='pause';clearInput();$('pause').textContent='再開';message('一時停止中')}
+ else if(phase==='pause'){phase='play';$('pause').textContent='一時停止'}}
+window.addEventListener('blur',()=>{clearInput();if(phase==='play')togglePause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play')togglePause()});
+function restart(){audio();reset();phase='play';$('overlay').classList.add('hidden');$('pause').textContent='一時停止';
+ play('start');message('自機はマス移動。Bで交換し、同じ線の模様をそろえよう。',5)}
+$('start').onclick=restart;$('reset').onclick=restart;$('pause').onclick=togglePause;
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
+$('mode').onclick=()=>{mode=mode==='swap'?'place':'swap';ui()};
+function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
+ ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
+window.addEventListener('resize',resize);resize();reset();
+let last=performance.now();
+function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;if(phase==='play')update(dt);draw();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
 </script></body></html>
