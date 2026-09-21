@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Crect x='4' y='4' width='16' height='16' fill='none' stroke='%233a2a1a' stroke-width='3'/%3E%3C/svg%3E">
+<meta name="description" content="下から撃ち込んで四角を完成させ、その四角をそのまま天井のボスへ撃ち返す。指で直接動かしてタップで撃つ、8ビット風の落ちものシューティング。">
+<title>METOPON BLAST</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#1a1109;color:#f4e6c8;font-family:system-ui,sans-serif;overscroll-behavior:none;user-select:none}
+main{max-width:460px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:8px 10px max(8px,env(safe-area-inset-bottom));gap:6px}
+header{display:flex;align-items:center;justify-content:space-between}
+h1{font-size:18px;letter-spacing:2px;margin:0;color:#f2d9a4}
+small{font-size:10px;color:#b79b6c}
+button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;border-radius:12px;padding:7px 10px;touch-action:none}
+button:active{background:#8a6528}
+#top{display:flex;gap:5px}#top button{font-size:12px}
+#status{font-size:12px;display:flex;justify-content:space-between;min-height:18px;color:#e5cf9f}
+#stage{position:relative;flex:1;min-height:200px;overflow:hidden;border-radius:14px;border:1px solid #7a5a2e;background:#8f6d38}
+canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
+#overlay{position:absolute;inset:0;background:#1a1109ee;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
+#overlay h2{font-size:23px;margin:10px 0;color:#f2d9a4}
+#overlay p{font-size:13px;line-height:1.7;color:#d9c49a;margin:8px 0}
+#overlay b{color:#f2d9a4}
+#overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:13px 26px;border-color:#f2d9a4;margin-top:12px}
+.hidden{display:none!important}
+#hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
+</style></head><body><main>
+<header><div><h1>METOPON BLAST</h1><small>SHOOT IN → SQUARE → SHOOT BACK</small></div>
+<div id="top"><button id="sound">音 ON</button><button id="pause">停止</button></div></header>
+<div id="status"><span id="score">SCORE 0</span><span id="combo">—</span><span id="stageNo">STAGE 1</span></div>
+<div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
+<small>クォース × メテオス × パネポン × ピタパタポップ</small>
+<h2>撃ち込んで四角を作り、<br>その四角を撃ち返す。</h2>
+<p>天井のボスが、<b>底の欠けた四角</b>を落としてくる。<br>
+指を置くと自機がそこへ動く。<b>空いた所をタップ</b>して<br>足りないブロックを下から撃ち込む。</p>
+<p>四角が埋まると、その四角は消えずに<br><b>そのまま上へ発射</b>されてボスに刺さる。<br>大きい四角ほど威力が高い。</p>
+<p><b>塊を直接タップ</b>すると、そのマスを左上とする<br>2×2が時計回りに回る。形が崩れた時はこれで直す。</p>
+<p>消した後<b>2.5秒以内にもう一度消す</b>とコンボ。<br>倍率はそのまま威力になる。</p>
+<button id="start">あそぶ</button></div></div></div>
+<div id="hint">空いた所をタップ＝撃ち込み　／　塊をタップ＝2×2を回す</div>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
+const W=440,H=640,CELL=48,COLS=8,ROWS=10,GX=28,GY=76,KINDS=5;
+const SHIP_Y=584,DANGER=GY+ROWS*CELL;
+const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
+
+// ---- アセット（本編と共用） -------------------------------------------------
+const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy4'];
+for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
+const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3','chain','deny','start','warn','bossdown'];
+const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
+ place:[260,.09,'square'],swap:[700,.06,'square'],match:[560,.12,'triangle'],clear:[780,.18,'triangle'],
+ sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],deny:[140,.12,'square'],
+ start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square']};
+let ac,sound=true,sfxLoaded=false,rotFlash=null;
+function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
+ fetch('../assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b}).catch(()=>{})}
+function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
+ if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
+ const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
+ g.gain.value=.55*vol;s.connect(g);g.connect(ac.destination);s.start()}
+function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
+ o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
+ o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
+function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
+
+// ---- 状態 -------------------------------------------------------------------
+let grid,queue,massY,ship,shots,slabs,booms,particles,boss,nextK,
+    phase='ready',paused=false,stage,score,combo,comboUntil,rotCD,fireCD,
+    time,scroll,shake,messageUntil,bestScore=0;
+const keys=new Set();
+let pointer=null,fireHeld=false;
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const cellY=r=>GY+massY+r*CELL;
+const colX=c=>GX+c*CELL;
+
+// ---- ボスが落としてくる「底の欠けた四角」 -----------------------------------
+function shapeRows(){
+ // クォース同様、下辺が欠けた矩形を落とす。欠けを下から撃ち込んで埋める。
+ const w=2+rnd(Math.min(4,COLS-2)),h=2+rnd(stage<2?2:3);
+ const left=rnd(COLS-w+1),k=rnd(KINDS);
+ const rows=[];
+ for(let y=0;y<h;y++){
+  const row=Array(COLS).fill(-1);
+  for(let x=0;x<w;x++)row[left+x]=k;
+  rows.push(row)}
+ const holes=1+rnd(Math.min(w,1+stage));        // 下辺から欠けを作る
+ const picks=[];while(picks.length<holes){const x=rnd(w);if(!picks.includes(x))picks.push(x)}
+ for(const x of picks){rows[h-1][left+x]=-1;
+  if(h>2&&Math.random()<.3)rows[h-2][left+x]=-1}
+ // 行は unshift で上に積まれるため、先に出した行ほど画面の下にくる。
+ // 欠けた下辺が本当に下へ来るよう、下の行から順に出す。
+ rows.reverse();
+ const gap=Math.max(1,4-stage);                  // 形と形のあいだの余白
+ for(let i=0;i<gap;i++)rows.push(Array(COLS).fill(-1));
+ return rows}
+function nextRow(){if(!queue.length)queue=shapeRows();return queue.shift()}
+function fallSpeed(){return 15+stage*5+(boss?(1-boss.hp/boss.maxHp)*10:0)}
+
+// ---- 四角の判定 -------------------------------------------------------------
+function findRect(){ // 塗りつぶされた最大の矩形（2×2以上）を探す
+ let best=null;
+ for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS-1;c++){
+  if(grid[r][c]<0)continue;
+  let maxW=COLS-c;
+  for(let h=1;r+h<ROWS;h++){
+   let w=0;while(w<maxW&&grid[r+h-1][c+w]>=0&&grid[r][c+w]>=0)w++;
+   // r..r+h-1 の全行が c..c+w-1 まで埋まっているか
+   let ok=w;
+   for(let y=0;y<h;y++){let run=0;while(run<ok&&grid[r+y][c+run]>=0)run++;ok=run}
+   maxW=ok;
+   if(ok<2)break;
+   if(h>=2){const area=ok*h;
+    if(!best||area>best.area)best={r,c,w:ok,h,area}}}}
+ return best}
+function sameKind(rect){const k=grid[rect.r][rect.c];
+ for(let y=0;y<rect.h;y++)for(let x=0;x<rect.w;x++)if(grid[rect.r+y][rect.c+x]!==k)return false;
+ return true}
+
+function resolve(){ // 四角ができていれば消し、そのまま上へ撃ち返す
+ let n=0,rect;
+ while((rect=findRect())&&n<8){
+  const uniform=sameKind(rect),k=grid[rect.r][rect.c];
+  combo=time<comboUntil?combo+1:1;comboUntil=time+2.5;
+  const power=rect.area*combo*(uniform?2:1);
+  score+=rect.area*50*combo*(uniform?2:1);
+  slabs.push({x:colX(rect.c),y:cellY(rect.r),w:rect.w,h:rect.h,k,power,uniform,vy:-560,hitDone:false});
+  for(let y=0;y<rect.h;y++)for(let x=0;x<rect.w;x++)grid[rect.r+y][rect.c+x]=-1;
+  play(rect.area>=9?'sq3':rect.area>=6?'sq2':'clear');
+  if(combo>1)play('chain',Math.pow(1.12,Math.min(combo,8)));
+  shake=Math.max(shake,4+rect.area);
+  message((uniform?'同じ模様の ':'')+rect.w+'×'+rect.h+' を撃ち返す！ '+
+   (combo>1?combo+' COMBO ':'')+'威力 '+power,1.8);
+  n++}
+ ui();return n}
+
+// ---- 撃ち込み ---------------------------------------------------------------
+function shipCol(){return clamp(Math.round((ship.x-GX-CELL/2)/CELL),0,COLS-1)}
+function attachRow(c){ // その列でブロックが吸着する行。無ければ null（撃っても素通り）
+ for(let r=ROWS-1;r>=0;r--)if(grid[r][c]>=0)return r+1<ROWS?r+1:null;
+ return null}
+function fire(){
+ if(phase!=='play'||fireCD>0)return;
+ fireCD=.16;const c=shipCol();
+ shots.push({x:colX(c)+CELL/2,y:SHIP_Y-18,c,k:nextK,prev:ROWS+2});
+ nextK=rnd(KINDS);
+ play('shot',1,.45)}
+function rotate(r,c){ // ピタパタポップ風：塊を直接タップして2×2を回す
+ if(phase!=='play'||rotCD>0)return;
+ rotCD=.3;
+ const t=grid[r][c];
+ grid[r][c]=grid[r+1][c];grid[r+1][c]=grid[r+1][c+1];grid[r+1][c+1]=grid[r][c+1];grid[r][c+1]=t;
+ play('swap');burst(colX(c)+CELL,cellY(r)+CELL,8,SAND.hi);rotFlash={r,c,t:time+.3};
+ if(!resolve())message('2×2を回した。四角の下辺を埋めよう',1.4)}
+
+// ---- 効果・UI ---------------------------------------------------------------
+function burst(x,y,n=10,col=SAND.light){for(let i=0;i<n;i++)
+ particles.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.35+Math.random()*.4,col})}
+function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
+function message(s,secs=2.4){$('hint').textContent=s;messageUntil=time+secs}
+function ui(){$('score').textContent='SCORE '+score;$('stageNo').textContent='STAGE '+stage;
+ $('combo').textContent=time<comboUntil&&combo>1?combo+' COMBO':'—'}
+
+// ---- 進行 -------------------------------------------------------------------
+function makeBoss(){const hp=60+stage*45;return{hp,maxHp:hp,flash:0,dying:0}}
+function reset(){
+ grid=Array.from({length:ROWS},()=>Array(COLS).fill(-1));
+ queue=[];massY=0;shots=[];slabs=[];booms=[];particles=[];
+ ship={x:W/2,vx:0};stage=1;score=0;combo=0;comboUntil=0;rotCD=0;fireCD=0;nextK=rnd(KINDS);
+ time=0;scroll=0;shake=0;boss=makeBoss();phase='play';
+ for(let i=0;i<3;i++)shiftDown();     // 最初の形を少し入れておく
+ message('空いた所をタップして、四角の欠けを下から埋めよう',4);ui()}
+function shiftDown(){
+ const out=grid.pop();
+ grid.unshift(nextRow());
+ if(out.some(v=>v>=0)){gameOver();return}
+ resolve()}
+function gameOver(){phase='over';bestScore=Math.max(bestScore,score);play('bossdown');
+ $('overlay').classList.remove('hidden');
+ $('overlay').firstElementChild.innerHTML=
+  '<small>底まで積まれた</small><h2>GAME OVER</h2>'+
+  '<p>SCORE <b>'+score+'</b><br>ベスト <b>'+bestScore+'</b><br>STAGE '+stage+'</p>'+
+  '<p>四角は下辺が欠けて落ちてくる。<br>欠けを撃ち込むか、塊をタップして2×2を回そう。</p>'+
+  '<button id="start">もう一度</button>';
+ $('start').onclick=restart}
+function nextStage(){stage++;boss=makeBoss();play('warn');
+ message('STAGE '+stage+'　落下が速くなる',3);ui()}
+
+function update(dt){
+ time+=dt;scroll+=dt*20;fireCD-=dt;rotCD-=dt;shake=Math.max(0,shake-dt*26);
+ if(boss.flash>0)boss.flash-=dt;
+
+ // 自機：指の位置へ滑らかに追従（バーチャルパッドは使わない）
+ let tx=ship.x;
+ if(pointer)tx=clamp(pointer.x,GX+CELL/2,GX+COLS*CELL-CELL/2);
+ else{const k=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);
+  tx=clamp(ship.x+k*300*dt,GX+CELL/2,GX+COLS*CELL-CELL/2)}
+ ship.x+=(tx-ship.x)*Math.min(1,dt*16);
+ if(fireHeld)fire();
+
+ massY+=fallSpeed()*dt;
+ while(massY>=CELL){massY-=CELL;shiftDown();if(phase!=='play')return}
+
+ for(const s of shots){
+  const cur=Math.floor((s.y-=900*dt,(s.y-GY-massY)/CELL));
+  for(let r=Math.min(s.prev,ROWS-1);r>=Math.max(cur,0);r--){
+   if(grid[r][s.c]>=0){
+    const ar=r+1;
+    if(ar<ROWS&&grid[ar][s.c]<0){grid[ar][s.c]=s.k;play('place');
+     burst(colX(s.c)+CELL/2,cellY(ar)+CELL/2,6);resolve()}
+    else{play('deny')}
+    s.dead=true;break}}
+  s.prev=cur;
+  if(s.y<GY-20){s.dead=true;play('deny',1,.5)}}
+ shots=shots.filter(s=>!s.dead);
+
+ for(const s of slabs){                       // 撃ち返した四角
+  s.y+=s.vy*dt;
+  if(!s.hitDone&&s.y<=GY-10){s.hitDone=true;
+   boss.hp=Math.max(0,boss.hp-s.power);boss.flash=.18;shake=Math.max(shake,7);
+   boom(s.x+s.w*CELL/2,GY-10,3);play(s.power>=20?'boom_l':'boom_s');
+   if(boss.hp<=0){score+=2000*stage;boom(W/2,40,5);play('bossdown');nextStage()}}}
+ slabs=slabs.filter(s=>s.y>-s.h*CELL-40);
+
+ for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
+ for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
+ if(rotFlash&&time>rotFlash.t)rotFlash=null;
+ if(time>messageUntil)$('hint').textContent='空いた所をタップ＝撃ち込み　／　塊をタップ＝2×2を回す';
+ ui()}
+
+// ---- 描画 -------------------------------------------------------------------
+function glyph(k,x,y,size){
+ if(has('glyphs')){ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size);return}
+ ctx.save();ctx.translate(x,y);ctx.scale(size/24,size/24);ctx.translate(-12,-12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();
+ if(k===0){ctx.moveTo(8,3);ctx.lineTo(8,20);ctx.moveTo(15,3);ctx.lineTo(15,20)}
+ else if(k===1){ctx.moveTo(3,12);ctx.lineTo(20,12);ctx.moveTo(12,3);ctx.lineTo(12,20)}
+ else if(k===2){ctx.moveTo(4,4);ctx.lineTo(17,9);ctx.lineTo(6,14);ctx.lineTo(19,19)}
+ else if(k===3){for(let i=0;i<=90;i++){const a=i/90*1.75*Math.PI*2,rr=1.5+8*i/90;
+  const px=12+Math.cos(a)*rr,py=12+Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}}
+ else ctx.arc(12,12,8.5,0,Math.PI*2);
+ ctx.stroke();ctx.restore()}
+function block(k,x,y,size=CELL,lit){
+ if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,0,0,24,24,Math.round(x),Math.round(y),size,size);
+ else{ctx.fillStyle=lit?SAND.light:SAND.base;ctx.fillRect(x+1,y+1,size-2,size-2)}
+ glyph(k,x+size/2,y+size/2,size)}
+
+function drawBoss(){
+ const flash=boss.flash>0;
+ ctx.fillStyle=flash?'#e2624a':'#2a1c0a';ctx.fillRect(0,0,W,GY-14);
+ ctx.fillStyle='#4a3520';for(let x=0;x<W;x+=24)ctx.fillRect(x+4,GY-24,16,8);   // 排出口
+ if(has('enemy4'))ctx.drawImage(IMG.enemy4,Math.round(W/2-32),2,64,64);
+ const ratio=boss.hp/boss.maxHp;
+ ctx.fillStyle='#00000088';ctx.fillRect(14,GY-12,W-28,8);
+ ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(14,GY-12,(W-28)*ratio,8);
+ ctx.font='10px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('BOSS '+boss.hp+'/'+boss.maxHp,16,GY-16)}
+
+function drawGuide(){
+ const c=shipCol(),x=colX(c),ar=attachRow(c);
+ ctx.globalAlpha=.16;ctx.fillStyle='#fff6c8';ctx.fillRect(x,GY,CELL,DANGER-GY);ctx.globalAlpha=1;
+ if(ar===null){
+  ctx.globalAlpha=.5;ctx.font='bold 12px monospace';ctx.fillStyle='#e2624a';
+  ctx.fillText('この列は素通り',x-22,GY+18);ctx.globalAlpha=1}
+ if(ar!==null){
+  const y=cellY(ar);
+  ctx.globalAlpha=.5;block(nextK,x,y,CELL,true);ctx.globalAlpha=1;
+  for(const [col,lw] of [['#1a140e',6],['#fff6c8',2]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x+2,y+2,CELL-4,CELL-4)}
+  ctx.setLineDash([4,6]);ctx.lineWidth=1;ctx.globalAlpha=.6;ctx.strokeStyle='#fff6c8';
+  ctx.beginPath();ctx.moveTo(x+CELL/2,SHIP_Y-18);ctx.lineTo(x+CELL/2,y+CELL);ctx.stroke();
+  ctx.globalAlpha=1;ctx.setLineDash([])}}
+
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.save();
+ if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
+  ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
+ else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
+ ctx.fillStyle='#00000044';ctx.fillRect(GX,GY,COLS*CELL,DANGER-GY);          // 盤面の影
+ if(phase==='play')drawGuide();
+ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const k=grid[r][c];
+  if(k>=0)block(k,colX(c),cellY(r))}
+ if(rotFlash){const x=colX(rotFlash.c),y=cellY(rotFlash.r);
+  for(const [col,lw] of [['#1a140e',6],['#fff6c8',3]]){ctx.strokeStyle=col;ctx.lineWidth=lw;
+   ctx.strokeRect(x+2,y+2,CELL*2-4,CELL*2-4)}}
+ ctx.strokeStyle='#e2624a';ctx.lineWidth=2;ctx.globalAlpha=.5+Math.sin(time*5)*.25;  // 底のライン
+ ctx.beginPath();ctx.moveTo(GX,DANGER);ctx.lineTo(GX+COLS*CELL,DANGER);ctx.stroke();ctx.globalAlpha=1;
+ for(const s of shots){if(has('shot'))ctx.drawImage(IMG.shot,Math.round(s.x-5),Math.round(s.y-16),10,30);
+  else{ctx.fillStyle='#f6e27a';ctx.fillRect(s.x-3,s.y-14,6,20)}}
+ for(const s of slabs){                                                       // 撃ち返した四角
+  ctx.globalAlpha=.9;
+  for(let y=0;y<s.h;y++)for(let x=0;x<s.w;x++)block(s.k,s.x+x*CELL,s.y+y*CELL);
+  ctx.globalAlpha=Math.max(0,.2+Math.sin(time*30)*.14);
+  ctx.fillStyle=s.uniform?'#f6e27a':'#fff6c8';ctx.fillRect(s.x,s.y,s.w*CELL,s.h*CELL);
+  ctx.globalAlpha=1}
+ drawBoss();
+ const sx=Math.round(ship.x-16);                                              // 自機
+ ctx.globalAlpha=.3;ctx.fillStyle='#2a1c0a';ctx.fillRect(sx+6,SHIP_Y+14,24,8);ctx.globalAlpha=1;
+ if(has('ship'))ctx.drawImage(IMG.ship,sx,SHIP_Y-16,32,32);
+ else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(ship.x,SHIP_Y-16);
+  ctx.lineTo(ship.x+14,SHIP_Y+14);ctx.lineTo(ship.x-14,SHIP_Y+14);ctx.closePath();ctx.fill()}
+ if(phase==='play'){                                                          // 次に撃つ模様（下端の固定枠）
+  ctx.fillStyle='#1a140e';ctx.fillRect(GX,H-36,84,34);
+  ctx.font='9px monospace';ctx.fillStyle='#d4bd8e';ctx.fillText('NEXT',GX+36,H-22);
+  block(nextK,GX+3,H-33,28)}
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
+ ctx.globalAlpha=1;
+ for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
+  if(has('boom'))ctx.drawImage(IMG.boom,f*24,0,24,24,Math.round(b.x-d/2),Math.round(b.y-d/2),d,d)}
+ if(time<comboUntil&&combo>1){                                                // パネポンのコンボ窓
+  const bx=GX+94,bw=GX+COLS*CELL-bx,w=bw*(comboUntil-time)/2.5;
+  ctx.fillStyle='#00000077';ctx.fillRect(bx-2,H-16,bw+4,10);
+  ctx.fillStyle='#f6e27a';ctx.fillRect(bx,H-14,w,6);
+  ctx.font='bold 13px monospace';ctx.fillStyle='#f6e27a';ctx.fillText(combo+' COMBO',bx,H-22)}
+ ctx.restore();
+ ctx.globalAlpha=.1;ctx.fillStyle='#000';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
+
+// ---- 入力：バーチャルパッドなし。指／マウスで直接動かしてタップする ---------
+function point(e){const b=canvas.getBoundingClientRect();
+ return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
+function cellAt(p){const c=Math.floor((p.x-GX)/CELL),r=Math.floor((p.y-GY-massY)/CELL);
+ return(r>=0&&r<ROWS&&c>=0&&c<COLS)?{r,c}:null}
+function onDown(e){
+ if(phase!=='play'||paused)return;
+ audio();canvas.setPointerCapture(e.pointerId);
+ const p=point(e);pointer={id:e.pointerId,x:p.x,y:p.y,moved:0,t:time};
+ ship.x=clamp(p.x,GX+CELL/2,GX+COLS*CELL-CELL/2);
+ const cell=cellAt(p);
+ if(cell&&grid[cell.r][cell.c]>=0){        // 塊を直接タップ＝そのマスを左上とする2×2を回す
+  pointer.rotating=true;
+  rotate(clamp(cell.r,0,ROWS-2),clamp(cell.c,0,COLS-2))}
+ else fireHeld=true;                        // 空いた所＝撃ち込み（長押しで連射）
+}
+function onMove(e){if(!pointer||pointer.id!==e.pointerId)return;
+ const p=point(e);pointer.moved+=Math.abs(p.x-pointer.x);pointer.x=p.x;pointer.y=p.y}
+function onUp(e){if(pointer&&pointer.id!==e.pointerId)return;pointer=null;fireHeld=false}
+canvas.addEventListener('pointerdown',onDown);
+canvas.addEventListener('pointermove',onMove);
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,onUp);
+window.addEventListener('keydown',e=>{
+ if(['ArrowLeft','ArrowRight',' ','z','x'].includes(e.key))e.preventDefault();
+ keys.add(e.key);if(e.key===' '||e.key==='z')fireHeld=true;
+ if(e.key==='x'&&!e.repeat){const c=shipCol(),ar=attachRow(c);
+  if(ar!==null&&ar-1>=0)rotate(clamp(ar-1,0,ROWS-2),clamp(c,0,COLS-2));else play('deny')}});
+window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireHeld=false});
+function togglePause(){if(phase!=='play')return;paused=!paused;
+ $('pause').textContent=paused?'再開':'停止';if(paused){pointer=null;fireHeld=false}}
+window.addEventListener('blur',()=>{pointer=null;fireHeld=false;if(!paused)togglePause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
+function restart(){audio();reset();paused=false;$('overlay').classList.add('hidden');
+ $('pause').textContent='停止';play('start')}
+$('start').onclick=restart;$('pause').onclick=togglePause;
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
+function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
+ ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
+window.addEventListener('resize',resize);resize();reset();phase='ready';
+let last=performance.now();
+function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
+ if(phase==='play'&&!paused)update(dt);draw();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script></body></html>
