@@ -137,6 +137,24 @@ def enemy4(n=32):
     return img
 
 
+def zako22(n=32):
+    """2x2 の雑魚。ボス（大型母艦）と取り違えないよう、四つ足の角ばった機体にする。"""
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([3, 3, n - 4, n - 4], fill=PAL['o'])
+    d.rectangle([4, 4, n - 5, n - 5], fill=PAL['g'])
+    d.rectangle([6, 6, n - 7, n - 7], fill=PAL['G'])
+    for (x, y) in ((1, 1), (n - 7, 1), (1, n - 7), (n - 7, n - 7)):   # 四隅の推進ポッド
+        d.rectangle([x, y, x + 5, y + 5], fill=PAL['o'])
+        d.rectangle([x + 1, y + 1, x + 4, y + 4], fill=PAL['l'])
+        d.point((x + 2, y + 2), fill=PAL['G'])
+    c = (n - 1) / 2
+    d.ellipse([c - 4, c - 4, c + 4, c + 4], fill=PAL['o'])            # 目
+    d.ellipse([c - 3, c - 3, c + 3, c + 3], fill=PAL['R'])
+    d.ellipse([c - 1, c - 1, c + 1, c + 1], fill=PAL['y'])
+    return img
+
+
 def spiral_points(cx, cy, turns, r0, r1, steps=120):
     pts = []
     for i in range(steps + 1):
@@ -281,6 +299,7 @@ def build():
         'enemy1.png': from_rows(E1, mirror_x=True, mirror_y=True),
         'enemy2.png': from_rows(E2, mirror_x=True),
         'enemy4.png': enemy4(),
+        'zako22.png': zako22(),
         'shot.png': shot_sprite(),
         'boom.png': boom_sheet(),
         'glyphs.png': glyph_sheet(),
@@ -298,7 +317,7 @@ if __name__ == '__main__':
     # 目視確認用の一覧を一時ディレクトリへ（リポジトリには入れない）
     tmp = tempfile.gettempdir()
     contact_sheet([made['ship.png'], made['enemy1.png'], made['enemy2.png'],
-                   made['enemy4.png'], made['shot.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
+                   made['enemy4.png'], made['zako22.png'], made['shot.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
     contact_sheet([made['glyphs.png'], made['slab.png'], made['slab_lit.png'],
                    made['sand.png'], made['boom.png']], scale=3).save(os.path.join(tmp, 'metopon_tiles.png'))
     print('プレビュー:', tmp)

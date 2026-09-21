@@ -121,6 +121,14 @@ def build():
     # カーソル移動（自機のマス移動）
     out['move.wav'] = blip(1046, 0.022, 0.125, curve=4.0, gain=0.5)
 
+    # ボス接近の警報
+    out['warn.wav'] = cat(*[blip(f, 0.12, 0.5, curve=0.9) for f in (740, 494, 740, 494)])
+
+    # ボス撃破
+    out['bossdown.wav'] = cat(noise(0.5, seed=5, step=6) * env(0.5, curve=1.4),
+                              seq([392, 523, 659, 784], 0.32, duty=0.5),
+                              blip(1047, 0.4, 0.25, curve=0.8))
+
     # スタートのジングル
     out['start.wav'] = cat(seq([392, 523, 659], 0.21, duty=0.5),
                            blip(784, 0.12, 0.25, curve=1.4),

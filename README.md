@@ -1,13 +1,20 @@
 # metopon
 メテオスとパネポン、そしてゼビウス。
 
-砂漠の上を飛びながら空の敵を撃ち、撃ち落とした素材で地上の模様をそろえて消す、
+砂漠の上を滑らかに飛び、上空の雑魚を撃って素材を集め、
+地上に降りてくる大型ボスの装甲パネルを入れ替えてそろえ、剥がしていく、
 8ビット風のシューティング×マッチ3の試作です。
+
+自機も敵もマス単位ではなく実時間で連続的に動きますが、
+「今どこを狙っているか」のガイドを出すことで、
+アナログ移動のままマス単位で狙った場所を指定できます。
 
 **遊ぶ → https://mukkii-game.github.io/metopon/**
 
 - ルールと設計メモ: [docs/concept.md](docs/concept.md)
 - 絵と音の出どころ・作り方: [docs/assets.md](docs/assets.md)
+
+操作: 移動＝アナログパッド／矢印・WASD、A＝Space・Z（連射）、B＝X（地上操作）、C＝Bモード切替
 
 ## 公開
 `main` へプッシュすると GitHub Actions（[.github/workflows/pages.yml](.github/workflows/pages.yml)）が

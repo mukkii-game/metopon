@@ -1,5 +1,8 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M3 12h18M12 3v18' stroke='%233a2a1a' stroke-width='3'/%3E%3C/svg%3E"><meta name="description" content="砂漠の上を飛んで敵を撃ち、砂に刻まれた線の模様をそろえて消す8ビット風シューティング×マッチ3。"><title>METOPON</title>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M3 12h18M12 3v18' stroke='%233a2a1a' stroke-width='3'/%3E%3C/svg%3E">
+<meta name="description" content="砂漠の上を滑らかに飛び、上空の雑魚を撃ち、地上の巨大ボスの装甲パネルを入れ替えてそろえて崩す8ビット風シューティング×マッチ3。">
+<title>METOPON</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#1a1109;color:#f4e6c8;font-family:system-ui,sans-serif;overscroll-behavior:none}
@@ -14,8 +17,8 @@ button:active,.held{background:#8a6528!important}
 #stage{position:relative;flex:1;min-height:160px;overflow:hidden;border-radius:16px;border:1px solid #7a5a2e;background:#8f6d38}
 canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
 #overlay{position:absolute;inset:0;background:#1a1109ee;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center}
-#overlay h2{font-size:26px;margin:12px 0;color:#f2d9a4}
-#overlay p{font-size:14px;line-height:1.8;color:#d9c49a}
+#overlay h2{font-size:25px;margin:12px 0;color:#f2d9a4}
+#overlay p{font-size:13px;line-height:1.75;color:#d9c49a}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:14px 28px;border-color:#f2d9a4}
 #hint{font-size:12px;min-height:32px;color:#d4bd8e;text-align:center}
 #controls{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;height:83px}
@@ -26,31 +29,39 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #options button{font-size:11px;padding:5px 8px}
 .hidden{display:none!important}
 </style></head><body><main>
-<header><div><h1>METOPON</h1><small>AIR × EARTH / DESERT GEOGLYPH 04</small></div><div id="top"><button id="sound">音 ON</button><button id="pause">一時停止</button></div></header>
-<div id="status"><span id="score">SCORE 0</span><span id="progress">消去 0</span><span id="life">—</span></div>
-<div id="stage"><canvas id="game"></canvas><div id="overlay"><div><small>3直線・四マス（2×2）・3×3</small><h2>砂の模様を、<br>大きくそろえる。</h2><p>左パッドで自機を動かす。<br>Aを押し続けて空中の敵を撃つ。<br>自機の少し先に出る照準が地上の狙い。<br>Bで照準の2マスを左右に入れ替え、<br>同じ<b>線の模様</b>を直線や正方形に。</p><p>ピースの違いは色ではなく刻まれた線。<br>光っている間も動かして大きくできます。</p><button id="start">試作をあそぶ</button></div></div></div>
-<div id="hint">空で集める → 砂に刻む → 大きくそろえて消す</div>
-<div id="controls"><div id="pad">↕ ↔<br>移動パッド</div><button id="fire"><b>A</b><span>押し続けて連射</span></button><button id="bomb"><b>B</b><span id="bLabel">左右交換</span></button></div>
-<div id="options"><button id="mode">B：交換</button><span>3直線 / 2×2 / 3×3</span><button id="reset">最初から</button></div>
+<header><div><h1>METOPON</h1><small>AIR ZAKO × EARTH BOSS / SMOOTH 05</small></div><div id="top"><button id="sound">音 ON</button><button id="pause">一時停止</button></div></header>
+<div id="status"><span id="score">SCORE 0</span><span id="progress">STAGE 1</span><span id="life">—</span></div>
+<div id="stage"><canvas id="game"></canvas><div id="overlay"><div><small>滑らか移動 × 砂の模様そろえ</small><h2>地上のボスを、<br>入れ替えて崩す。</h2>
+<p>自機はマス単位ではなく<b>滑らかに動く</b>。<br>Aを押し続けて上空の雑魚を撃つ。<br>同じ模様の雑魚は編隊ごと誘爆する。</p>
+<p>自機の少し先に出る照準が地上の狙い。<br>どのマスを狙っているかはガイドが出るので、<br>アナログ移動でも狙った所を指定できる。</p>
+<p>地上のボスは装甲パネルそのもの。<br><b>B</b>でパネルを入れ替え／素材を刺して、<br>同じ模様をそろえた分だけ装甲を剥がす。</p>
+<button id="start">試作をあそぶ</button></div></div></div>
+<div id="hint">上空で集める → 地上のボスに刺す → そろえて装甲を剥がす</div>
+<div id="controls"><div id="pad">↕ ↔<br>アナログパッド</div><button id="fire"><b>A</b><span>押し続けて連射</span></button><button id="bomb"><b>B</b><span id="bLabel">横に入れ替え</span></button></div>
+<div id="options"><button id="mode">B：横入れ替え</button><span id="bossInfo">—</span><button id="reset">最初から</button></div>
 </main><script>
 'use strict';
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
-const W=508,FIELD=420,H=620,COLS=7,ROWS=7,S=48,GX=42,GY=94,KINDS=5;
-// ピースは色ではなく「砂に刻まれた線」で見分ける。
+const W=508,FIELD=420,H=620,S=48,KINDS=5;
+const PANEL_BOTTOM=404;        // ボス盤面の下端（照準の届く範囲に合わせて固定）
+const AIM=190;                 // 照準は自機のこれだけ前方（上）に出る
+const SHIP_SPEED=265;          // 滑らか移動の最高速度（px/秒）
+const STAGES=[3,5,7];          // 面ごとのボス装甲パネルの一辺
 const GLYPH_NAMES=['二条線','十字','稲妻','渦','輪'];
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
+const SHAPES=[{w:1,h:1},{w:2,h:1},{w:2,h:2},{w:3,h:1}];   // 雑魚の形＝落とすピースの形
 
 // ---- アセット（tools/gen_art.py・tools/gen_sfx.py で生成） -------------------
-const IMG={},IMG_NAMES=['ship','enemy1','enemy2','enemy4','shot','boom','glyphs','slab','slab_lit','sand'];
+const IMG={},IMG_NAMES=['ship','enemy1','enemy2','enemy4','zako22','shot','boom','glyphs','slab','slab_lit','sand'];
 for(const n of IMG_NAMES){const im=new Image();im.src='assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
-const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','pickup','swap','place','match','clear','sq2','sq3','chain','deny','move','start'];
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','pickup','swap','place','match','clear','sq2','sq3','chain','deny','move','start','warn','bossdown'];
 // 読み込めない時（file:// 直開きなど）は矩形波の合成音に落とす。
 const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
  pickup:[880,.1,'square'],swap:[700,.06,'square'],place:[260,.09,'square'],match:[560,.12,'triangle'],
  clear:[780,.18,'triangle'],sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],
- deny:[140,.12,'square'],move:[1040,.02,'square'],start:[660,.3,'triangle']};
-let sfxLoaded=false;
+ deny:[140,.12,'square'],move:[1040,.02,'square'],start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square']};
+let ac,sound=true,sfxLoaded=false;
 function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
  fetch('assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b}).catch(()=>{})}
 function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
@@ -62,105 +73,213 @@ function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.
  o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
 function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
 
-let board,ship,enemies,shots,booms,particles,score,ink,phase='ready',time=0,spawn=0,fireCD=0,bombCD=0,
- chain=0,chainUntil=0,cleared=0,pending=null,moveCD=0,sound=true,ac,mode='swap',shake=0,scroll=0;
-const keys=new Set(),firePointers=new Set();let drag=null,padDrag=null,fireKey=false;
-function rnd(n){return Math.floor(Math.random()*n)}
+// ---- 状態 -------------------------------------------------------------------
+let ship,zako,shots,booms,particles,ink,boss,pending,
+    phase='ready',paused=false,stage=0,score=0,cleared=0,
+    chain=0,chainUntil=0,phaseT=0,spawnT=0,fireCD=0,bombCD=0,
+    time=0,scroll=0,shake=0,mode=0,messageUntil=0;
+const MODES=[{name:'横入れ替え',w:2,h:1},{name:'縦入れ替え',w:1,h:2},{name:'素材を刺す',w:1,h:1}];
+const keys=new Set(),firePointers=new Set();
+let padVec=null,padOrigin=null,dragPoint=null,fireKey=false;
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
-// ---- 成立判定 ---------------------------------------------------------------
-function matches(b=board){const found=new Set();
- for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const k=b[r][c];if(k<0)continue;
-  if(c+2<COLS&&b[r][c+1]===k&&b[r][c+2]===k){found.add(r*COLS+c);found.add(r*COLS+c+1);found.add(r*COLS+c+2)}
-  if(r+2<ROWS&&b[r+1][c]===k&&b[r+2][c]===k){found.add(r*COLS+c);found.add((r+1)*COLS+c);found.add((r+2)*COLS+c)}}
- for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS-1;c++){const k=b[r][c];
-  if(k>=0&&b[r][c+1]===k&&b[r+1][c]===k&&b[r+1][c+1]===k){for(let y=0;y<2;y++)for(let x=0;x<2;x++)found.add((r+y)*COLS+c+x)}}
+// ---- 盤面の判定（ボスの装甲パネル） -----------------------------------------
+function matchesIn(g){const n=g.length,found=new Set();
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++){const k=g[r][c];if(k<0)continue;
+  if(c+2<n&&g[r][c+1]===k&&g[r][c+2]===k){found.add(r*n+c);found.add(r*n+c+1);found.add(r*n+c+2)}
+  if(r+2<n&&g[r+1][c]===k&&g[r+2][c]===k){found.add(r*n+c);found.add((r+1)*n+c);found.add((r+2)*n+c)}}
+ for(let r=0;r<n-1;r++)for(let c=0;c<n-1;c++){const k=g[r][c];
+  if(k>=0&&g[r][c+1]===k&&g[r+1][c]===k&&g[r+1][c+1]===k)for(let y=0;y<2;y++)for(let x=0;x<2;x++)found.add((r+y)*n+c+x)}
  return found}
-function bestSquare(){let best=1;for(const n of [2,3])for(let r=0;r<=ROWS-n;r++)for(let c=0;c<=COLS-n;c++){
- const k=board[r][c];let ok=k>=0;for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(board[r+y][c+x]!==k)ok=false;if(ok)best=n}return best}
-function bestRun(){let best=0;
- for(let r=0;r<ROWS;r++)for(let c=0,run=1;c<COLS;c++){run=c&&board[r][c]===board[r][c-1]?run+1:1;if(run>best)best=run}
- for(let c=0;c<COLS;c++)for(let r=0,run=1;r<ROWS;r++){run=r&&board[r][c]===board[r-1][c]?run+1:1;if(run>best)best=run}
+function bestSquareIn(g){const n=g.length;let best=1;
+ for(const m of [2,3])for(let r=0;r<=n-m;r++)for(let c=0;c<=n-m;c++){
+  const k=g[r][c];let ok=k>=0;
+  for(let y=0;y<m;y++)for(let x=0;x<m;x++)if(g[r+y][c+x]!==k)ok=false;
+  if(ok)best=m}
+ return best}
+function bestRunIn(g){const n=g.length;let best=0;
+ for(let r=0;r<n;r++)for(let c=0,run=1;c<n;c++){run=c&&g[r][c]===g[r][c-1]?run+1:1;if(run>best)best=run}
+ for(let c=0;c<n;c++)for(let r=0,run=1;r<n;r++){run=r&&g[r][c]===g[r-1][c]?run+1:1;if(run>best)best=run}
  return best}
 function runBonus(n){return n>=5?300:n===4?80:0}
 
-function newBoard(){board=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>rnd(KINDS)));
- for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-  while((c>1&&board[r][c]===board[r][c-1]&&board[r][c]===board[r][c-2])||(r>1&&board[r][c]===board[r-1][c]&&board[r][c]===board[r-2][c]))board[r][c]=(board[r][c]+1)%KINDS;
-  if(r>0&&c>0&&board[r][c]===board[r-1][c]&&board[r][c]===board[r][c-1]&&board[r][c]===board[r-1][c-1])board[r][c]=(board[r][c]+1)%KINDS}
- board[4][1]=0;board[4][2]=0;board[4][3]=1;board[4][4]=0}
-function reset(){newBoard();ship={x:210,y:460};enemies=[];shots=[];booms=[];particles=[];score=0;ink=[];time=0;spawn=1;
- fireCD=0;bombCD=0;chain=0;chainUntil=0;cleared=0;pending=null;moveCD=0;mode='swap';shake=0;clearInput();ui()}
-function clearInput(){keys.clear();firePointers.clear();fireKey=false;padDrag=null;drag=null;$('fire').classList.remove('held')}
-function footprint(){return mode==='place'?(ink[0]||{w:1,h:1}):{w:2,h:1}}
-function target(){const p=footprint();return{
- c:Math.max(0,Math.min(COLS-p.w,Math.round((ship.x-GX-S/2)/S))),
- r:Math.max(0,Math.min(ROWS-p.h,Math.round((ship.y-150-GY-S/2)/S)))}}
-function burst(x,y,n=12,col=SAND.light){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*180,vy:(Math.random()-.5)*180,life:.4+Math.random()*.4,col})}
-function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
-function ui(){$('score').textContent='SCORE '+score;$('progress').textContent='消去 '+cleared;
- $('mode').textContent=mode==='swap'?'B：交換':'B：素材を置く';
- $('bLabel').textContent=mode==='swap'?'照準の2マスを交換':ink.length?'配置 '+ink[0].w+'×'+ink[0].h+' ／残'+ink.length:'素材なし（Aで獲得）'}
-let messageUntil=0;function message(s,secs=3){$('hint').textContent=s;messageUntil=time+secs}
+// ---- ボス -------------------------------------------------------------------
+function makeBoss(n){
+ const cells=Array.from({length:n},()=>Array.from({length:n},()=>rnd(KINDS)));
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++){   // 出現直後に勝手に成立しないようにずらす
+  while((c>1&&cells[r][c]===cells[r][c-1]&&cells[r][c]===cells[r][c-2])||
+        (r>1&&cells[r][c]===cells[r-1][c]&&cells[r][c]===cells[r-2][c]))cells[r][c]=(cells[r][c]+1)%KINDS;
+  if(r>0&&c>0&&cells[r][c]===cells[r-1][c]&&cells[r][c]===cells[r][c-1]&&cells[r][c]===cells[r-1][c-1])
+   cells[r][c]=(cells[r][c]+1)%KINDS}
+ const hp=n*n;
+ return {n,cells,x:(FIELD-n*S)/2,y:-n*S-30,targetY:PANEL_BOTTOM-n*S,hp,maxHp:hp,entering:true,dying:0}}
+function bossCell(r,c){return{x:boss.x+c*S,y:boss.y+r*S}}
 
-function resolve(){const hit=matches();if(!hit.size){pending=null;return false}
- const square=bestSquare(),run=bestRun();
- if(!pending){pending={hit,until:time+2.4,square,run};play('match');message('成立！ 消えるまで2.4秒。交換・配置で大きくしよう',2.4)}
+// ---- 進行 -------------------------------------------------------------------
+function reset(){
+ ship={x:FIELD/2,y:H-130,vx:0,vy:0};
+ zako=[];shots=[];booms=[];particles=[];ink=[];boss=null;pending=null;
+ stage=0;score=0;cleared=0;chain=0;chainUntil=0;fireCD=0;bombCD=0;mode=0;shake=0;
+ time=0;scroll=0;setPhase('wave');clearInput();ui()}
+function setPhase(p){phase=p;phaseT=0;spawnT=0;
+ if(p==='wave')message('STAGE '+(stage+1)+' 　上空の雑魚を撃って素材を集めよう',3);
+ if(p==='warn'){play('warn');message('WARNING 　地上に大型機',2.5)}
+ if(p==='boss'){boss=makeBoss(STAGES[Math.min(stage,STAGES.length-1)]);
+  message('ボスの装甲はパネルそのもの。Bで入れ替えて模様をそろえろ',4)}
+ if(p==='clear'){play('bossdown');message('STAGE '+(stage+1)+' CLEAR！',3)}}
+function clearInput(){keys.clear();firePointers.clear();fireKey=false;padVec=null;padOrigin=null;dragPoint=null;
+ $('fire').classList.remove('held')}
+function message(s,secs=3){$('hint').textContent=s;messageUntil=time+secs}
+function ui(){$('score').textContent='SCORE '+score;$('progress').textContent='STAGE '+(stage+1);
+ $('mode').textContent='B：'+MODES[mode].name;
+ $('bLabel').textContent=mode===2?(ink.length?'刺す '+ink[0].w+'×'+ink[0].h+' ／残'+ink.length:'素材なし（Aで獲得）'):MODES[mode].name;
+ $('bossInfo').textContent=boss?'ボス装甲 '+boss.hp+'/'+boss.maxHp:'ストック '+ink.length}
+
+// ---- 照準 -------------------------------------------------------------------
+function aimPoint(){return{x:ship.x,y:Math.max(8,ship.y-AIM)}}
+function footprint(){return mode===2?(ink[0]||{w:1,h:1}):MODES[mode]}
+function target(){ // 照準が乗っている装甲マス。アナログ位置を最も近いマスに丸める。
+ if(!boss)return null;
+ const a=aimPoint(),fp=footprint();
+ if(fp.w>boss.n||fp.h>boss.n)return null;
+ return{c:clamp(Math.round((a.x-boss.x-S/2)/S),0,boss.n-fp.w),
+        r:clamp(Math.round((a.y-boss.y-S/2)/S),0,boss.n-fp.h),
+        inside:a.x>=boss.x-S&&a.x<=boss.x+boss.n*S+S&&a.y>=boss.y-S&&a.y<=boss.y+boss.n*S+S}}
+
+// ---- 効果 -------------------------------------------------------------------
+function burst(x,y,n=12,col=SAND.light){for(let i=0;i<n;i++)
+ particles.push({x,y,vx:(Math.random()-.5)*190,vy:(Math.random()-.5)*190,life:.4+Math.random()*.4,col})}
+function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
+
+// ---- 地上（ボス）への攻撃 ---------------------------------------------------
+function resolve(){
+ if(!boss)return false;
+ const hit=matchesIn(boss.cells);
+ if(!hit.size){pending=null;return false}
+ const square=bestSquareIn(boss.cells),run=bestRunIn(boss.cells);
+ if(!pending){pending={hit,until:time+2.4,square,run};play('match');
+  message('成立！ 消えるまで2.4秒。まだ大きくできる',2.4)}
  else{pending.hit=hit;pending.square=square;pending.run=run}
  return true}
-function clearPending(){if(!pending)return;const {hit,square,run}=pending;pending=null;
+function clearPending(){
+ if(!pending||!boss)return;
+ const {hit,square,run}=pending,n=boss.n;pending=null;
  chain=time<chainUntil?chain+1:1;chainUntil=time+3.2;
- const bonus=(square===3?900:square===2?160:0)+runBonus(run);
- const gain=(hit.size*30+bonus)*chain;score+=gain;cleared+=hit.size;
- for(const id of hit){const r=Math.floor(id/COLS),c=id%COLS;boom(GX+c*S+24,GY+r*S+24,1.6);burst(GX+c*S+24,GY+r*S+24,8);board[r][c]=-1}
- for(let c=0;c<COLS;c++){const remain=board.map(r=>r[c]).filter(v=>v>=0);
-  while(remain.length<ROWS)remain.unshift(rnd(KINDS));for(let r=0;r<ROWS;r++)board[r][c]=remain[r]}
- shake=square===3?10:square===2?5:2;
+ const mult=square===3?3:square===2?2:1;
+ const damage=hit.size*mult;
+ const gain=(hit.size*30+(square===3?900:square===2?160:0)+runBonus(run))*chain;
+ score+=gain;cleared+=hit.size;boss.hp=Math.max(0,boss.hp-damage);
+ for(const id of hit){const r=Math.floor(id/n),c=id%n,p=bossCell(r,c);
+  boom(p.x+24,p.y+24,1.6);burst(p.x+24,p.y+24,8);boss.cells[r][c]=-1}
+ for(let c=0;c<n;c++){const remain=boss.cells.map(row=>row[c]).filter(v=>v>=0);
+  while(remain.length<n)remain.unshift(rnd(KINDS));
+  for(let r=0;r<n;r++)boss.cells[r][c]=remain[r]}
+ shake=square===3?12:square===2?6:3;
  play(square===3?'sq3':square===2?'sq2':'clear');
  if(chain>1)play('chain',Math.pow(1.12,Math.min(chain,8)));
- resolve();
- const what=square>1?square+'×'+square:run>=4?run+'連':'3個の直線';
- message(what+'！ '+chain+' CHAIN +'+gain,2);ui()}
+ if(boss.hp<=0){boss.dying=.01;setPhase('clear')}else resolve();
+ message((square>1?square+'×'+square:run>=4?run+'連':'3個の直線')+'！ 装甲 -'+damage+' / '+chain+' CHAIN +'+gain,2);
+ ui()}
+function act(){ // B：装甲の入れ替え／素材を刺す
+ if(bombCD>0)return;
+ if(phase!=='boss'||!boss){play('deny');
+  message('地上を狙えるのはボスが出ている間だけ。今は雑魚を撃って素材を集めよう',2.5);bombCD=.3;return}
+ if(boss.entering){play('deny');message('ボスが降りてくるまで待て',1.5);bombCD=.3;return}
+ const t=target();
+ if(!t){play('deny');return}
+ const {r,c}=t,n=boss.n;
+ if(mode===2){
+  if(!ink.length){play('deny');message('Aで上空の雑魚を倒すと、右のNEXTに素材が入ります');return}
+  const p=ink[0];
+  if(c+p.w>n||r+p.h>n){play('deny');message('この素材は盤面からはみ出します');return}
+  ink.shift();
+  for(let y=0;y<p.h;y++)for(let x=0;x<p.w;x++)boss.cells[r+y][c+x]=p.k;
+  play('place')}
+ else if(mode===0){[boss.cells[r][c],boss.cells[r][c+1]]=[boss.cells[r][c+1],boss.cells[r][c]];play('swap')}
+ else{[boss.cells[r][c],boss.cells[r+1][c]]=[boss.cells[r+1][c],boss.cells[r][c]];play('swap')}
+ bombCD=.16;const p0=bossCell(r,c);burst(p0.x+24,p0.y+24,6,SAND.hi);
+ if(!resolve())message(mode===2?'素材を刺した。同じ模様を縦横3つそろえる':'入れ替えた。同じ模様を縦横3つそろえる');
+ ui()}
 
-function moveShip(dx,dy){const x0=ship.x,y0=ship.y;
- ship.x=Math.max(GX+24,Math.min(GX+24+6*S,ship.x+dx*S));
- ship.y=Math.max(GY+24+150,Math.min(GY+24+150+6*S,ship.y+dy*S));
- if(ship.x!==x0||ship.y!==y0)play('move',1,.6)}
-function bomb(){if(phase!=='play'||bombCD>0)return;const {r,c}=target();
- if(mode==='place'){if(!ink.length){play('deny');message('Aで空中の敵を倒すと、右のNEXTにピースが入ります');return}
-  const p=ink.shift();for(let y=0;y<p.h;y++)for(let x=0;x<p.w;x++)board[r+y][c+x]=p.k;play('place')}
- else{[board[r][c],board[r][c+1]]=[board[r][c+1],board[r][c]];play('swap')}
- bombCD=.2;burst(GX+c*S+24,GY+r*S+24,6,SAND.hi);
- if(!resolve())message(mode==='swap'?'交換しました。同じ模様を縦横3つそろえる':'素材を刻みました');ui()}
-function kill(e){if(e.dead)return;e.dead=true;score+=100*e.w*e.h;
- boom(e.x,e.y,e.w*e.h>1?3.2:2);burst(e.x,e.y,10*e.w*e.h,SAND.hi);
- ink.push({w:e.w,h:e.h,k:e.k});message(e.w+'×'+e.h+'の「'+GLYPH_NAMES[e.k]+'」を獲得！ Bで配置',2.5);
- play(e.w*e.h>1?'boom_l':'boom_s');play('pickup',1,.6);ui()}
-function makeEnemy(w,h,x,y,k=rnd(KINDS)){return{w,h,x,y,k,hp:w*h+1,maxHp:w*h+1,age:0}}
-function spawnWave(){[[1,1,76],[2,1,198],[2,2,326]].forEach(([w,h,x],i)=>enemies.push(makeEnemy(w,h,x,-45-i*52)))}
+// ---- 上空の雑魚 -------------------------------------------------------------
+function spawnZako(){
+ const sh=SHAPES[rnd(SHAPES.length)],k=rnd(KINDS),count=1+rnd(3),gap=sh.w*32+10;
+ const x0=40+Math.random()*(FIELD-80-(count-1)*gap);
+ for(let i=0;i<count;i++)zako.push({
+  x:x0+i*gap,y:-40-i*8-Math.random()*40,w:sh.w,h:sh.h,
+  k:Math.random()<.7?k:rnd(KINDS),          // 7割は同じ模様＝誘爆しやすい編隊
+  hp:sh.w*sh.h+1,maxHp:sh.w*sh.h+1,vy:58+Math.random()*46,ph:Math.random()*6.28,sway:34+Math.random()*30,
+  dead:false,fuse:0})}
+function killZako(e,chained){
+ if(e.dead)return;
+ e.dead=true;score+=(chained?150:100)*e.w*e.h;
+ boom(e.x,e.y,e.w*e.h>1?3:2);burst(e.x,e.y,9*e.w*e.h,SAND.hi);
+ play(e.w*e.h>1?'boom_l':'boom_s');
+ ink.push({w:e.w,h:e.h,k:e.k});
+ if(!chained){play('pickup',1,.6);message(e.w+'×'+e.h+'の「'+GLYPH_NAMES[e.k]+'」を獲得！ Bで刺せる',2.2)}
+ // 空中パズル攻撃：同じ模様の雑魚が近くにいれば編隊ごと誘爆する
+ let n=0;
+ for(const o of zako)if(!o.dead&&o.k===e.k&&!o.fuse&&Math.hypot(o.x-e.x,o.y-e.y)<118){o.fuse=time+.12+ +(n++)*.08}
+ if(n)message('編隊誘爆！ 同じ「'+GLYPH_NAMES[e.k]+'」が'+n+'機',2);
+ ui()}
 
-function update(dt){time+=dt;scroll+=dt*26;spawn-=dt;fireCD-=dt;bombCD-=dt;shake=Math.max(0,shake-dt*25);
- let dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
-     dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
- if(padDrag){dx=Math.abs(padDrag.dx)>.3?Math.sign(padDrag.dx):0;dy=Math.abs(padDrag.dy)>.3?Math.sign(padDrag.dy):0}
- moveCD-=dt;if(dx||dy){if(moveCD<=0){moveShip(dx,dy);moveCD=.14}}else moveCD=0;
- if(pending&&time>=pending.until)clearPending();
- if((firePointers.size||fireKey)&&fireCD<=0){shots.push({x:ship.x,y:ship.y-20});fireCD=.12;play('shot',1,.45)}
- if(spawn<=0){spawnWave();spawn=5.5}
- for(const s of shots){const prev=s.y;s.y-=620*dt;
-  for(const e of enemies)if(!e.dead&&Math.abs(s.x-e.x)<e.w*16&&s.y<=e.y+e.h*16&&prev>=e.y-e.h*16){
-   s.y=-999;if(--e.hp<=0)kill(e);else{burst(s.x,e.y,3);play('hit',1,.5)}break}}
+// ---- 更新 -------------------------------------------------------------------
+function update(dt){
+ time+=dt;phaseT+=dt;scroll+=dt*30;fireCD-=dt;bombCD-=dt;shake=Math.max(0,shake-dt*26);
+
+ // 自機：マス単位ではなく速度で滑らかに動かす
+ let ix=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
+     iy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+ if(padVec){ix=padVec.x;iy=padVec.y}
+ const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
+ let tvx=ix*SHIP_SPEED,tvy=iy*SHIP_SPEED;
+ if(dragPoint){ // 画面ドラッグは指の位置へ滑らかに吸い寄せる
+  tvx=clamp((dragPoint.x-ship.x)*7,-SHIP_SPEED,SHIP_SPEED);
+  tvy=clamp((dragPoint.y-ship.y)*7,-SHIP_SPEED,SHIP_SPEED)}
+ const k=Math.min(1,dt*14);
+ ship.vx+=(tvx-ship.vx)*k;ship.vy+=(tvy-ship.vy)*k;
+ ship.x=clamp(ship.x+ship.vx*dt,18,FIELD-18);
+ ship.y=clamp(ship.y+ship.vy*dt,H*.38,H-26);
+
+ if((firePointers.size||fireKey)&&fireCD<=0){shots.push({x:ship.x,y:ship.y-22});fireCD=.1;play('shot',1,.4)}
+ for(const s of shots)s.y-=720*dt;
+ for(const s of shots)for(const e of zako)
+  if(!e.dead&&Math.abs(s.x-e.x)<e.w*16&&Math.abs(s.y-e.y)<e.h*16+6){
+   s.y=-999;if(--e.hp<=0)killZako(e,false);else{burst(s.x,e.y,3);play('hit',1,.5)}break}
  shots=shots.filter(s=>s.y>-30);
- for(const e of enemies){e.age+=dt;if(e.age>=.55){e.age-=.55;e.step=(e.step||0)+1;
-  if(e.step%3===0)e.x=Math.max(66,Math.min(354,e.x+(e.step%6===0?-48:48)));else e.y+=24}}
- enemies=enemies.filter(e=>!e.dead&&e.y<H+50);
+
+ for(const e of zako){ // 雑魚も滑らかに降りてくる
+  e.y+=e.vy*dt;e.x+=Math.cos(time*1.3+e.ph)*e.sway*dt;
+  e.x=clamp(e.x,e.w*16,FIELD-e.w*16);
+  if(e.fuse&&time>=e.fuse)killZako(e,true)}
+ zako=zako.filter(e=>!e.dead&&e.y<H+70);
+
+ if(phase==='wave'){
+  spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=1.5+Math.random()*1.1}
+  if(phaseT>16)setPhase('warn')}
+ else if(phase==='warn'){if(phaseT>2.4)setPhase('boss')}
+ else if(phase==='boss'){
+  spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=3.4+Math.random()*2}   // ボス中も補給は続く
+  if(boss.entering){boss.y=Math.min(boss.targetY,boss.y+150*dt);if(boss.y>=boss.targetY){boss.y=boss.targetY;boss.entering=false}}
+  else if(pending&&time>=pending.until)clearPending()}
+ else if(phase==='clear'){
+  boss.dying+=dt;
+  if(boss.dying<1.6&&Math.random()<dt*22){const p=bossCell(rnd(boss.n),rnd(boss.n));
+   boom(p.x+24+rnd(20)-10,p.y+24+rnd(20)-10,2.4);shake=Math.max(shake,4)}
+  if(boss.dying>2.4){stage++;boss=null;pending=null;setPhase('wave');ui()}}
+
  for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
- $('life').textContent=pending?'消去まで '+Math.max(0,pending.until-time).toFixed(1)+'秒':
-  time<chainUntil?chain+' CHAIN 継続中':'—';
- if(time>messageUntil)$('hint').textContent=time<chainUntil?'連鎖チャンス '+(chainUntil-time).toFixed(1)+'秒':'同じ線の模様を3直線／2×2／3×3にそろえよう。'}
+
+ $('life').textContent=pending?'消去まで '+Math.max(0,pending.until-time).toFixed(1)+'秒'
+  :time<chainUntil?chain+' CHAIN 継続中'
+  :phase==='wave'?'接敵まで '+Math.max(0,16-phaseT).toFixed(0)+'秒':phase==='boss'?'BOSS':'—';
+ if(time>messageUntil)$('hint').textContent=
+  phase==='boss'?'照準のガイドを見て、装甲パネルを入れ替えよう。':'上空の雑魚を撃って素材を集めよう。'}
 
 // ---- 描画 -------------------------------------------------------------------
-function glyph(k,x,y,size){ // 砂に刻まれた線。画像が無ければベクタで代用する。
+function glyph(k,x,y,size){
  if(has('glyphs')){ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size);return}
  ctx.save();ctx.translate(x,y);ctx.scale(size/24,size/24);ctx.translate(-12,-12);
  ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();
@@ -172,119 +291,162 @@ function glyph(k,x,y,size){ // 砂に刻まれた線。画像が無ければベ�
  else ctx.arc(12,12,8.5,0,Math.PI*2);
  ctx.stroke();ctx.restore()}
 
-function ground(){ // 砂漠。タイルを縦にスクロールさせる。
+function ground(){
  if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
   ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
- else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H);ctx.strokeStyle='#7a5a2e';
-  for(let y=-64;y<H;y+=42){ctx.beginPath();ctx.moveTo(0,y+scroll%42);ctx.lineTo(W,y+scroll%42);ctx.stroke()}}}
+ else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}}
 
-function drawBoard(){
- ctx.fillStyle='#00000055';ctx.fillRect(GX-6,GY-6,COLS*S+12,ROWS*S+12);
- ctx.strokeStyle=SAND.deep;ctx.lineWidth=2;ctx.strokeRect(GX-6,GY-6,COLS*S+12,ROWS*S+12);
- for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-  const x=GX+c*S,y=GY+r*S,k=board[r][c],lit=!!(pending&&pending.hit.has(r*COLS+c));
-  if(k<0)continue;
+function drawBoss(){
+ if(!boss)return;
+ const n=boss.n,px=boss.x,py=boss.y,size=n*S;
+ ctx.fillStyle='#00000066';ctx.fillRect(px-9,py-9,size+18,size+18);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=4;ctx.strokeRect(px-7,py-7,size+14,size+14);
+ ctx.fillStyle='#4a3520';                                   // 枠のリベット
+ for(let i=0;i<n;i++){ctx.fillRect(px+i*S+21,py-11,6,5);ctx.fillRect(px+i*S+21,py+size+6,6,5);
+  ctx.fillRect(px-11,py+i*S+21,5,6);ctx.fillRect(px+size+6,py+i*S+21,5,6)}
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++){
+  const k=boss.cells[r][c];if(k<0)continue;
+  const x=px+c*S,y=py+r*S,lit=!!(pending&&pending.hit.has(r*n+c));
   if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,0,0,24,24,x,y,S,S);
   else{ctx.fillStyle=lit?SAND.light:SAND.base;ctx.fillRect(x+1,y+1,S-2,S-2)}
   glyph(k,x+24,y+24,48);
   if(lit){ctx.strokeStyle='#fff6c8';ctx.lineWidth=2;ctx.globalAlpha=.5+Math.sin(time*14)*.35;
-   ctx.strokeRect(x+2,y+2,S-4,S-4);ctx.globalAlpha=1}}}
+   ctx.strokeRect(x+2,y+2,S-4,S-4);ctx.globalAlpha=1}}
+ if(has('enemy4'))ctx.drawImage(IMG.enemy4,Math.round(px+size/2-32),Math.round(py-88),64,64);  // 母艦の頭部（枠の上に出す）
+ const ratio=boss.hp/boss.maxHp;                             // 装甲ゲージ（盤面の上）
+ ctx.fillStyle='#00000088';ctx.fillRect(px,py-19,size,7);
+ ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(px,py-19,size*ratio,7)}
 
-function reticle(){ // ゼビウスのブラスター照準。自機の少し先に出る。
- const {r,c}=target(),tx=GX+c*S,ty=GY+r*S,fp=footprint(),w=S*fp.w,h=S*fp.h,arm=12;
- if(mode==='place'&&ink.length){ctx.globalAlpha=.5;
-  for(let yy=0;yy<fp.h;yy++)for(let xx=0;xx<fp.w;xx++)glyph(ink[0].k,tx+xx*S+24,ty+yy*S+24,48);ctx.globalAlpha=1}
- ctx.strokeStyle=Math.floor(time*8)%2?'#fff6c8':'#e0a93c';ctx.lineWidth=3;
- for(const [ox,oy,sx,sy] of [[0,0,1,1],[w,0,-1,1],[0,h,1,-1],[w,h,-1,-1]]){
-  ctx.beginPath();ctx.moveTo(tx+ox+sx*arm,ty+oy);ctx.lineTo(tx+ox,ty+oy);ctx.lineTo(tx+ox,ty+oy+sy*arm);ctx.stroke()}
- ctx.setLineDash([3,7]);ctx.lineWidth=1;ctx.globalAlpha=.6;ctx.beginPath();
- ctx.moveTo(ship.x,ship.y);ctx.lineTo(tx+w/2,ty+h/2);ctx.stroke();ctx.globalAlpha=1;ctx.setLineDash([])}
+function aimGuide(){ // 「今どこを狙っているか」を出すことで、滑らか移動でもマスを指定できる
+ const a=aimPoint();
+ ctx.setLineDash([3,6]);ctx.lineWidth=1;ctx.globalAlpha=.55;ctx.strokeStyle='#fff6c8';
+ ctx.beginPath();ctx.moveTo(ship.x,ship.y-14);ctx.lineTo(a.x,a.y);ctx.stroke();
+ ctx.globalAlpha=1;ctx.setLineDash([]);
+ const t=boss&&!boss.entering?target():null;
+ if(t){
+  const fp=footprint(),p=bossCell(t.r,t.c),w=S*fp.w,h=S*fp.h,arm=13;
+  if(mode===2&&ink.length){ctx.globalAlpha=.5;
+   for(let y=0;y<fp.h;y++)for(let x=0;x<fp.w;x++)glyph(ink[0].k,p.x+x*S+24,p.y+y*S+24,48);ctx.globalAlpha=1}
+  const corners=[[0,0,1,1],[w,0,-1,1],[0,h,1,-1],[w,h,-1,-1]];
+  for(const [col,lw] of [['#1a140e',7],[Math.floor(time*9)%2?'#fff6c8':'#e0a93c',3]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineCap='square';
+   for(const [ox,oy,sx,sy] of corners){
+    ctx.beginPath();ctx.moveTo(p.x+ox+sx*arm,p.y+oy);ctx.lineTo(p.x+ox,p.y+oy);ctx.lineTo(p.x+ox,p.y+oy+sy*arm);ctx.stroke()}}
+  // 枠の外に出る行／列マーカー。どのマスかが一目で分かる。
+  const size=boss.n*S;
+  for(const [col,o] of [['#1a140e',2],['#fff6c8',0]]){ctx.fillStyle=col;
+   ctx.beginPath();ctx.moveTo(p.x+w/2-6-o,boss.y-13-o);ctx.lineTo(p.x+w/2+6+o,boss.y-13-o);ctx.lineTo(p.x+w/2,boss.y-4+o);ctx.fill();
+   ctx.beginPath();ctx.moveTo(boss.x-13-o,p.y+h/2-6-o);ctx.lineTo(boss.x-13-o,p.y+h/2+6+o);ctx.lineTo(boss.x-4+o,p.y+h/2);ctx.fill()}
+  ctx.globalAlpha=.22;ctx.fillStyle='#fff6c8';ctx.fillRect(boss.x,p.y,size,h);ctx.fillRect(p.x,boss.y,w,size);ctx.globalAlpha=1}
+ for(const [col,lw] of [['#1a140e',5],['#fff6c8',2]]){   // 照準そのもの（実座標）
+  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();
+  ctx.moveTo(a.x-9,a.y);ctx.lineTo(a.x-3,a.y);ctx.moveTo(a.x+3,a.y);ctx.lineTo(a.x+9,a.y);
+  ctx.moveTo(a.x,a.y-9);ctx.lineTo(a.x,a.y-3);ctx.moveTo(a.x,a.y+3);ctx.lineTo(a.x,a.y+9);ctx.stroke()}}
 
-function drawEnemy(e){const w=e.w*32,h=e.h*32,x=Math.round(e.x-w/2),y=Math.round(e.y-h/2);
- const sprite=e.w===2&&e.h===2?'enemy4':e.w===2?'enemy2':'enemy1';
- if(has(sprite))ctx.drawImage(IMG[sprite],x,y,w,h);
+function drawZako(e){
+ const w=e.w*32,h=e.h*32,x=Math.round(e.x-w/2),y=Math.round(e.y-h/2);
+ const sprite=e.w===2&&e.h===2?'zako22':e.w===2?'enemy2':'enemy1';
+ if(e.w===3&&has('enemy1'))for(let i=0;i<3;i++)ctx.drawImage(IMG.enemy1,x+i*32,y,32,32);
+ else if(has(sprite))ctx.drawImage(IMG[sprite],x,y,w,h);
  else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,w,h)}
- for(let r=0;r<e.h;r++)for(let c=0;c<e.w;c++)glyph(e.k,x+c*32+16,y+r*32+16,24); // 落とすピースの模様
- ctx.fillStyle='#f6e27a';ctx.fillRect(x,y-6,w*e.hp/e.maxHp,3)}
+ for(let r=0;r<e.h;r++)for(let c=0;c<e.w;c++)glyph(e.k,x+c*32+16,y+r*32+16,24);
+ if(e.fuse){ctx.globalAlpha=.55+Math.sin(time*40)*.4;ctx.fillStyle='#fff6c8';ctx.fillRect(x,y,w,h);ctx.globalAlpha=1}
+ if(e.hp<e.maxHp){ctx.fillStyle='#f6e27a';ctx.fillRect(x,y-6,w*e.hp/e.maxHp,3)}}
 
-function drawShip(){const x=Math.round(ship.x-16),y=Math.round(ship.y-16);
+function drawShip(){
+ const x=Math.round(ship.x-16),y=Math.round(ship.y-16);
  ctx.globalAlpha=.3;ctx.fillStyle='#2a1c0a';ctx.fillRect(x+6,y+26,26,8);ctx.globalAlpha=1;
  if(has('ship'))ctx.drawImage(IMG.ship,x,y,32,32);
  else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(ship.x,ship.y-16);ctx.lineTo(ship.x+14,ship.y+14);
   ctx.lineTo(ship.x-14,ship.y+14);ctx.closePath();ctx.fill()}
  ctx.fillStyle='#5fd6e6';ctx.fillRect(Math.round(ship.x-2),y+30,4,3+Math.random()*7)}
 
-function scanlines(){ctx.globalAlpha=.10;ctx.fillStyle='#000';
+function scanlines(){ctx.globalAlpha=.1;ctx.fillStyle='#000';
  for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
-function draw(){ctx.clearRect(0,0,W,H);ctx.save();
+
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.save();
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
  ground();
  ctx.font='11px monospace';ctx.fillStyle='#2a1c0a';
- ctx.fillText('AIR / 編隊を撃って素材を回収',GX,26);ctx.fillText('EARTH / 3直線・2×2・3×3',GX,80);
- drawBoard();reticle();
+ if(!boss)ctx.fillText('AIR / 雑魚を撃って素材を集める',14,22);
+ drawBoss();
+ if(phase!=='clear')aimGuide();
  for(const s of shots){if(has('shot'))ctx.drawImage(IMG.shot,Math.round(s.x-4),Math.round(s.y-24),8,24);
   else{ctx.fillStyle='#f6e27a';ctx.fillRect(s.x-2,s.y-12,4,17)}}
- for(const e of enemies)drawEnemy(e);
+ for(const e of zako)drawZako(e);
  drawShip();
- for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}ctx.globalAlpha=1;
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
+ ctx.globalAlpha=1;
  for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
   if(has('boom'))ctx.drawImage(IMG.boom,f*24,0,24,24,Math.round(b.x-d/2),Math.round(b.y-d/2),d,d);
   else{ctx.globalAlpha=1-b.t/.3;ctx.fillStyle='#f6e27a';ctx.fillRect(b.x-d/2,b.y-d/2,d,d);ctx.globalAlpha=1}}
- if(pending||time<chainUntil){const w=COLS*S,y=GY+ROWS*S+10;
-  ctx.fillStyle='#00000077';ctx.fillRect(GX-2,y-2,w+4,10);
+ if(phase==='warn'&&Math.floor(time*6)%2){ctx.font='bold 26px monospace';ctx.fillStyle='#e2624a';
+  ctx.textAlign='center';ctx.fillText('WARNING',FIELD/2,H/2);ctx.textAlign='left'}
+ if(pending||time<chainUntil){const bx=boss?boss.x:40,bw=boss?boss.n*S:FIELD-80,
+   y=boss?boss.y-30:H-14;
+  ctx.fillStyle='#00000077';ctx.fillRect(bx-2,y-2,bw+4,10);
   ctx.fillStyle=pending?'#f6e27a':'#c8e6a0';
-  ctx.fillRect(GX,y,w*(pending?Math.max(0,pending.until-time)/2.4:(chainUntil-time)/3.2),6)}
+  ctx.fillRect(bx,y,bw*(pending?Math.max(0,pending.until-time)/2.4:(chainUntil-time)/3.2),6)}
  ctx.restore();drawNext();scanlines()}
 
-function drawNext(){ctx.fillStyle='#2a1c0a';ctx.fillRect(FIELD,0,W-FIELD,H);
+function drawNext(){
+ ctx.fillStyle='#2a1c0a';ctx.fillRect(FIELD,0,W-FIELD,H);
  ctx.strokeStyle='#7a5a2e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(FIELD,0);ctx.lineTo(FIELD,H);ctx.stroke();
  ctx.textAlign='center';ctx.font='bold 14px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('NEXT',464,28);
  ctx.font='11px monospace';ctx.fillText('ストック '+ink.length,464,47);
  if(!ink.length){ctx.fillStyle='#b79b6c';ctx.fillText('Aで撃破',464,90);ctx.fillText('して獲得',464,109)}
  ink.slice(0,6).forEach((p,i)=>{const y=64+i*82;
   ctx.strokeStyle=i===0?'#f2d9a4':'#7a5a2e';ctx.lineWidth=i===0?2:1;ctx.strokeRect(430,y,68,75);
-  ctx.fillStyle='#d4bd8e';ctx.font='10px monospace';ctx.fillText(i===0?'次に置く':String(i+1),464,y+13);
-  const size=24,x=464-p.w*size/2;
+  ctx.fillStyle='#d4bd8e';ctx.font='10px monospace';ctx.fillText(i===0?'次に刺す':String(i+1),464,y+13);
+  const size=20,x=464-p.w*size/2;
   for(let r=0;r<p.h;r++)for(let c=0;c<p.w;c++){
    if(has('slab'))ctx.drawImage(IMG.slab,0,0,24,24,x+c*size,y+20+r*size,size,size);
    else{ctx.fillStyle=SAND.base;ctx.fillRect(x+c*size,y+20+r*size,size-1,size-1)}
-   glyph(p.k,x+c*size+12,y+32+r*size,24)}});
- if(ink.length>6){ctx.fillStyle='#d4bd8e';ctx.fillText('ほか '+(ink.length-6)+'個',464,580)}ctx.textAlign='left'}
+   glyph(p.k,x+c*size+10,y+30+r*size,20)}});
+ if(ink.length>6){ctx.fillStyle='#d4bd8e';ctx.fillText('ほか '+(ink.length-6)+'個',464,580)}
+ ctx.textAlign='left'}
 
 // ---- 入力 -------------------------------------------------------------------
 function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
-canvas.addEventListener('pointerdown',e=>{if(phase!=='play'||drag||point(e).x>=FIELD)return;
- canvas.setPointerCapture(e.pointerId);drag={id:e.pointerId,p:point(e)}});
-canvas.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;const p=point(e);
- const dx=p.x-drag.p.x,dy=p.y-drag.p.y;if(Math.abs(dx)>=S*.6||Math.abs(dy)>=S*.6){
-  moveShip(Math.abs(dx)>=S*.6?Math.sign(dx):0,Math.abs(dy)>=S*.6?Math.sign(dy):0);drag.p=p}});
-for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,e=>{if(drag&&drag.id===e.pointerId)drag=null});
-$('pad').addEventListener('pointerdown',e=>{if(phase!=='play'||padDrag)return;$('pad').setPointerCapture(e.pointerId);
- padDrag={id:e.pointerId,x:e.clientX,y:e.clientY,dx:0,dy:0}});
-$('pad').addEventListener('pointermove',e=>{if(!padDrag||padDrag.id!==e.pointerId)return;
- padDrag.dx=Math.max(-1,Math.min(1,(e.clientX-padDrag.x)/35));padDrag.dy=Math.max(-1,Math.min(1,(e.clientY-padDrag.y)/35))});
-for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('pad').addEventListener(ev,e=>{if(padDrag&&padDrag.id===e.pointerId)padDrag=null});
-$('fire').addEventListener('pointerdown',e=>{if(phase!=='play')return;audio();$('fire').setPointerCapture(e.pointerId);
- firePointers.add(e.pointerId);$('fire').classList.add('held')});
-for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('fire').addEventListener(ev,e=>{
- firePointers.delete(e.pointerId);if(!firePointers.size)$('fire').classList.remove('held')});
-$('bomb').addEventListener('pointerdown',e=>{e.preventDefault();audio();bomb()});
-window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','z','x'].includes(e.key))e.preventDefault();
- keys.add(e.key);if(e.key===' '||e.key==='z')fireKey=true;if(e.key==='x'&&!e.repeat)bomb()});
+canvas.addEventListener('pointerdown',e=>{if(phase==='ready'||paused)return;const p=point(e);if(p.x>=FIELD)return;
+ canvas.setPointerCapture(e.pointerId);dragPoint={id:e.pointerId,x:p.x,y:p.y}});
+canvas.addEventListener('pointermove',e=>{if(!dragPoint||dragPoint.id!==e.pointerId)return;
+ const p=point(e);dragPoint.x=p.x;dragPoint.y=p.y});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])
+ canvas.addEventListener(ev,e=>{if(dragPoint&&dragPoint.id===e.pointerId)dragPoint=null});
+$('pad').addEventListener('pointerdown',e=>{if(phase==='ready'||paused||padOrigin)return;
+ $('pad').setPointerCapture(e.pointerId);padOrigin={id:e.pointerId,x:e.clientX,y:e.clientY};padVec={x:0,y:0}});
+$('pad').addEventListener('pointermove',e=>{if(!padOrigin||padOrigin.id!==e.pointerId)return;
+ padVec={x:clamp((e.clientX-padOrigin.x)/40,-1,1),y:clamp((e.clientY-padOrigin.y)/40,-1,1)}});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])
+ $('pad').addEventListener(ev,e=>{if(padOrigin&&padOrigin.id===e.pointerId){padOrigin=null;padVec=null}});
+$('fire').addEventListener('pointerdown',e=>{if(phase==='ready')return;audio();
+ $('fire').setPointerCapture(e.pointerId);firePointers.add(e.pointerId);$('fire').classList.add('held')});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])
+ $('fire').addEventListener(ev,e=>{firePointers.delete(e.pointerId);if(!firePointers.size)$('fire').classList.remove('held')});
+$('bomb').addEventListener('pointerdown',e=>{e.preventDefault();audio();act()});
+window.addEventListener('keydown',e=>{
+ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','z','x','c'].includes(e.key))e.preventDefault();
+ keys.add(e.key);if(e.key===' '||e.key==='z')fireKey=true;
+ if(e.key==='x'&&!e.repeat)act();
+ if(e.key==='c'&&!e.repeat)cycleMode()});
 window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireKey=false});
-function togglePause(){if(phase==='play'){phase='pause';clearInput();$('pause').textContent='再開';message('一時停止中')}
- else if(phase==='pause'){phase='play';$('pause').textContent='一時停止'}}
-window.addEventListener('blur',()=>{clearInput();if(phase==='play')togglePause()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play')togglePause()});
-function restart(){audio();reset();phase='play';$('overlay').classList.add('hidden');$('pause').textContent='一時停止';
- play('start');message('自機はマス移動。Bで交換し、同じ線の模様をそろえよう。',5)}
+function cycleMode(){mode=(mode+1)%MODES.length;ui()}
+function togglePause(){if(phase==='ready')return;paused=!paused;
+ if(paused){clearInput();$('pause').textContent='再開';message('一時停止中',999)}
+ else{$('pause').textContent='一時停止';message('',0)}}
+window.addEventListener('blur',()=>{clearInput();if(!paused)togglePause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&phase!=='ready')togglePause()});
+function restart(){audio();reset();paused=false;$('overlay').classList.add('hidden');$('pause').textContent='一時停止';play('start')}
 $('start').onclick=restart;$('reset').onclick=restart;$('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
-$('mode').onclick=()=>{mode=mode==='swap'?'place':'swap';ui()};
+$('mode').onclick=cycleMode;
 function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
  ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
-window.addEventListener('resize',resize);resize();reset();
+window.addEventListener('resize',resize);resize();reset();phase='ready';
 let last=performance.now();
-function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;if(phase==='play')update(dt);draw();requestAnimationFrame(frame)}
+function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
+ if(phase!=='ready'&&!paused)update(dt);draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 </script></body></html>
