@@ -1,0 +1,16 @@
+# 静的サイト。ビルド不要でリポジトリ直下をそのまま配信する。
+[build]
+  publish = "."
+  command = ""
+
+# 効果音の WAV はブラウザに decodeAudioData させるので、型を明示しておく。
+[[headers]]
+  for = "/assets/sfx/*"
+  [headers.values]
+    Content-Type = "audio/wav"
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/assets/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
