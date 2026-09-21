@@ -63,14 +63,28 @@ const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#fa
 const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy4'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
-const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3','chain','deny','start','warn','bossdown'];
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3','chain','deny','start','warn','bossdown','launch','bgm'];
 const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
  place:[260,.09,'square'],swap:[700,.06,'square'],match:[560,.12,'triangle'],clear:[780,.18,'triangle'],
  sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],deny:[140,.12,'square'],
- start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square']};
+ start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square'],launch:[1200,.3,'square']};
 let ac,sound=true,sfxLoaded=false,rotFlash=null;
 function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
- fetch('../assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b}).catch(()=>{})}
+ fetch('../assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
+  .then(b=>{SFX[n]=b;if(n==='bgm'&&phase==='play')startBgm()}).catch(()=>{})}
+// BGM。効果音と同じ仕組みでループ再生する
+let bgmSrc=null,bgmGain=null;
+function startBgm(){
+ if(!ac||!SFX.bgm||bgmSrc)return;
+ bgmGain=ac.createGain();bgmGain.gain.value=sound?.28:0;
+ bgmSrc=ac.createBufferSource();bgmSrc.buffer=SFX.bgm;bgmSrc.loop=true;
+ bgmSrc.connect(bgmGain);bgmGain.connect(ac.destination);bgmSrc.start()}
+function bgmVolume(v){if(bgmGain)bgmGain.gain.value=v}
+// iPhone は着信スイッチが「消音」だと WebAudio まで黙るので、
+// 無音の <audio> を一度鳴らして再生扱いにしておく。
+const silentEl=new Audio('data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEAIlYAACJWAAABAAgAZGF0YQACAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
+silentEl.loop=true;silentEl.volume=0;silentEl.setAttribute('playsinline','');
+function unlockAudio(){try{const p=silentEl.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
 function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
  if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
  const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
@@ -78,7 +92,9 @@ function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
 function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
  o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
  o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
-function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
+function audio(){unlockAudio();
+ if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+ ac.resume().catch(()=>{});loadSfx()}
 
 // ---- 状態 -------------------------------------------------------------------
 let grid,queue,massY,ship,shots,slabs,booms,particles,boss,nextK,
@@ -235,7 +251,7 @@ function update(dt){
   s.y+=s.vy*dt;
   if(!s.hitDone&&s.y<=GY-10){s.hitDone=true;
    boss.hp=Math.max(0,boss.hp-s.power);boss.flash=.18;shake=Math.max(shake,7);
-   boom(s.x+s.w*CELL/2,GY-10,3);play(s.power>=20?'boom_l':'boom_s');
+   boom(s.x+s.w*CELL/2,GY-10,3);play('launch',1,.7);play(s.power>=20?'boom_l':'boom_s');
    if(boss.hp<=0){score+=2000*stage;boom(W/2,40,5);play('bossdown');nextStage()}}}
  slabs=slabs.filter(s=>s.y>-s.h*CELL-40);
 
@@ -361,13 +377,15 @@ window.addEventListener('keydown',e=>{
   if(ar!==null&&ar-1>=0)rotate(clamp(ar-1,0,ROWS-2),clamp(c,0,COLS-2));else play('deny')}});
 window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireHeld=false});
 function togglePause(){if(phase!=='play')return;paused=!paused;
- $('pause').textContent=paused?'再開':'停止';if(paused){pointer=null;fireHeld=false}}
+ $('pause').textContent=paused?'再開':'停止';bgmVolume(paused||!sound?0:.28);
+ if(paused){pointer=null;fireHeld=false}}
 window.addEventListener('blur',()=>{pointer=null;fireHeld=false;if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
 function restart(){audio();goFullscreen();keepAwake();reset();paused=false;$('overlay').classList.add('hidden');
- $('pause').textContent='停止';play('start')}
+ $('pause').textContent='停止';play('start');startBgm()}
 $('start').onclick=restart;$('pause').onclick=togglePause;
-$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
+ if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.28:0)};
 // ---- 全画面と誤タッチ対策 ---------------------------------------------------
 // スマホでブラウザのUIや画面端のシステムジェスチャーに触ってしまうのを防ぐ。
 const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);

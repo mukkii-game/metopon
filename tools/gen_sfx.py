@@ -69,6 +69,55 @@ def save(name, sig, peak=0.85):
     return path, len(data)
 
 
+# --- BGM --------------------------------------------------------------------
+BPM = 138
+BEAT = 60.0 / BPM
+STEP = BEAT / 4          # 16分
+
+def note(semi):
+    """A3=0 を基準にした半音番号 → 周波数。None は休符。"""
+    return None if semi is None else 220.0 * (2 ** (semi / 12.0))
+
+def lay(track, seq, sec_per, synth):
+    """seq の各要素を順に鳴らして track に足し込む。"""
+    pos = 0
+    for item in seq:
+        n = int(SR * sec_per)
+        if item is not None:
+            wave = synth(item, sec_per)
+            end = min(len(track), pos + len(wave))
+            track[pos:end] += wave[:end - pos]
+        pos += n
+    return track
+
+
+def bgm():
+    """砂漠を進む感じの8bitループ。ベース＋アルペジオ＋ノイズのリズム。"""
+    bars = 8
+    total = int(SR * STEP * 16 * bars) + 1
+    track = np.zeros(total)
+
+    # コード進行（Am - F - C - G を2周）
+    prog = [(-12, [0, 3, 7]), (-16, [-4, 0, 5]), (-21, [-9, -5, 0]), (-17, [-5, -1, 2])] * 2
+
+    bass, lead, perc = [], [], []
+    for root, chord in prog:
+        for step in range(16):                      # 1小節＝16ステップ
+            bass.append(root if step % 4 == 0 else (root + 12 if step % 8 == 6 else None))
+            lead.append(chord[(step // 2) % len(chord)] + (12 if step % 8 >= 4 else 0)
+                        if step % 2 == 0 else None)
+            perc.append('h' if step % 2 == 0 else ('s' if step % 8 == 4 else None))
+
+    lay(track, bass, STEP,
+        lambda s, d: square(note(s), d * 0.9, 0.5) * env(d * 0.9, curve=1.4) * 0.55)
+    lay(track, lead, STEP,
+        lambda s, d: square(note(s + 12), d * 1.6, 0.25) * env(d * 1.6, curve=2.2) * 0.26)
+    lay(track, perc, STEP,
+        lambda s, d: noise(d * 0.6, seed=hash(s) % 97, step=3 if s == 'h' else 6)
+        * env(d * 0.6, curve=4.0 if s == 'h' else 2.2) * (0.16 if s == 'h' else 0.3))
+    return track
+
+
 def build():
     os.makedirs(OUT, exist_ok=True)
     out = {}
@@ -129,10 +178,19 @@ def build():
                               seq([392, 523, 659, 784], 0.32, duty=0.5),
                               blip(1047, 0.4, 0.25, curve=0.8))
 
+    # 撃ち上げ（塊が発射される瞬間）
+    out['launch.wav'] = (square((300, 1500), 0.34, 0.25) * env(0.34, curve=1.2)
+                         + noise(0.34, seed=7, step=2) * env(0.34, curve=2.4) * 0.35)
+
+    # チャージ音（押している間に段が上がる合図）
+    out['charge.wav'] = blip(1200, 0.06, 0.125, curve=2.0)
+
     # スタートのジングル
     out['start.wav'] = cat(seq([392, 523, 659], 0.21, duty=0.5),
                            blip(784, 0.12, 0.25, curve=1.4),
                            blip(1047, 0.26, 0.25, curve=1.0))
+
+    out['bgm.wav'] = bgm()
 
     total = 0
     for name, sig in sorted(out.items()):

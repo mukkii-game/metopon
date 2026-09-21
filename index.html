@@ -72,15 +72,29 @@ const SHAPES=[{w:1,h:1},{w:2,h:1},{w:2,h:2},{w:3,h:1}];   // 雑魚の形＝落�
 const IMG={},IMG_NAMES=['ship','enemy1','enemy2','enemy4','zako22','shot','boom','glyphs','slab','slab_lit','sand'];
 for(const n of IMG_NAMES){const im=new Image();im.src='assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
-const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','pickup','swap','place','match','clear','sq2','sq3','chain','deny','move','start','warn','bossdown'];
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','pickup','swap','place','match','clear','sq2','sq3','chain','deny','move','start','warn','bossdown','launch','bgm'];
 // 読み込めない時（file:// 直開きなど）は矩形波の合成音に落とす。
 const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
  pickup:[880,.1,'square'],swap:[700,.06,'square'],place:[260,.09,'square'],match:[560,.12,'triangle'],
  clear:[780,.18,'triangle'],sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],
- deny:[140,.12,'square'],move:[1040,.02,'square'],start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square']};
+ deny:[140,.12,'square'],move:[1040,.02,'square'],start:[660,.3,'triangle'],warn:[740,.4,'square'],
+ bossdown:[80,.5,'square'],launch:[1200,.3,'square']};
 let ac,sound=true,sfxLoaded=false;
 function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
- fetch('assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b}).catch(()=>{})}
+ fetch('assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b;if(n==='bgm'&&phase!=='ready')startBgm()}).catch(()=>{})}
+// BGM。効果音と同じ仕組みでループ再生する
+let bgmSrc=null,bgmGain=null;
+function startBgm(){
+ if(!ac||!SFX.bgm||bgmSrc)return;
+ bgmGain=ac.createGain();bgmGain.gain.value=sound?.28:0;
+ bgmSrc=ac.createBufferSource();bgmSrc.buffer=SFX.bgm;bgmSrc.loop=true;
+ bgmSrc.connect(bgmGain);bgmGain.connect(ac.destination);bgmSrc.start()}
+function bgmVolume(v){if(bgmGain)bgmGain.gain.value=v}
+// iPhone は着信スイッチが「消音」だと WebAudio まで黙るので、
+// 無音の <audio> を一度鳴らして再生扱いにしておく。
+const silentEl=new Audio('data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEAIlYAACJWAAABAAgAZGF0YQACAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
+silentEl.loop=true;silentEl.volume=0;silentEl.setAttribute('playsinline','');
+function unlockAudio(){try{const p=silentEl.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
 function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
  if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
  const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
@@ -88,7 +102,9 @@ function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
 function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
  o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
  o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
-function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
+function audio(){unlockAudio();
+ if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+ ac.resume().catch(()=>{});loadSfx()}
 
 // ---- 状態 -------------------------------------------------------------------
 let ship,zako,grounds,shots,booms,particles,ink,boss,pending,hintT,hint,
@@ -568,13 +584,15 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='z')fireKey=false});
 function cycleMode(){mode=(mode+1)%MODES.length;ui()}
 function togglePause(){if(phase==='ready')return;paused=!paused;
+ bgmVolume(paused||!sound?0:.28);
  if(paused){clearInput();$('pause').textContent='再開';message('一時停止中',999)}
  else{$('pause').textContent='停止';message('',0)}}
 window.addEventListener('blur',()=>{clearInput();if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&phase!=='ready')togglePause()});
-function restart(){audio();goFullscreen();keepAwake();reset();paused=false;$('overlay').classList.add('hidden');$('pause').textContent='停止';play('start')}
+function restart(){audio();goFullscreen();keepAwake();reset();paused=false;$('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');startBgm()}
 $('start').onclick=restart;$('reset').onclick=restart;$('pause').onclick=togglePause;
-$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
+ if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.28:0)};
 $('mode').onclick=cycleMode;
 // ---- 全画面と誤タッチ対策 ---------------------------------------------------
 // スマホでブラウザのUIや画面端のシステムジェスチャーに触ってしまうのを防ぐ。
