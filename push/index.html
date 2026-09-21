@@ -48,8 +48,9 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <p>自機は<b>外周のレール</b>を走る。底辺を左右に、<br>左右の端まで行くとそのまま上下に動ける。<br>画面の<b>左右と下の暗い帯</b>を<b>なぞる</b>と、<br>自機がその位置へ回り込む。帯の中で動かせば<br>指で自機が隠れない。</p>
 <p><b>タップすると1発出る</b>。押したままにすると<br>弾がたまり、<b>離した時に</b>ためた分が出る。<br>軽く連打すれば1マスずつ、ためて離せば<br><b>一度に最大3マス</b>まとめて押せる。<br>なぞって移動しただけでは<b>撃たない</b>。<br>端から出たマスは反対側に戻ってくる。</p>
 <p>同じ模様が縦か横に3つ以上そろうと<b>輪郭が光る</b>。<br><b>そこをタップ</b>すると発射準備に入り、<br>数秒後に上空のボスへ飛んでいく。</p>
-<p>同じ模様が<b>4×4</b>にそろうと、そこが<br><b>でっかいナス</b>になる。タップで撃ち上げると<br>装甲を大きく削り、雑魚も一掃する。<br><b>ナスの模様で4×4</b>ならさらに威力2倍。</p>
-<p>弾は<b>降りてくる雑魚</b>にも当たる。<br>撃ち落とさないとレーンに届かない。</p>
+<p>敵は<b>3〜5体の編隊</b>で飛んでくる。<br><b>編隊を全滅させる</b>とピースが出て、<br>画面下の<b>2つの枠</b>に入る。<br>枠から盤面へ<b>ドラッグ</b>すると、<br>そのマスと<b>入れ替わる</b>。大きなコンボの種になる。</p>
+<p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になり、<br>その場に<b>固定</b>される（押しても動かない）。<br>タップすると<b>ナス攻撃</b>で装甲を大きく削る。</p>
+
 <button id="start">あそぶ</button></div></div></div>
 <div id="ios" class="hidden"></div>
 <div id="hint">なぞって移動 ／ タップで発射（押したままためられる） ／ 光った塊をタップで撃ち上げ</div>
@@ -108,8 +109,9 @@ function audio(){unlockAudio();
  ac.resume().catch(()=>{});loadSfx()}
 
 // ---- 状態 -------------------------------------------------------------------
-let grid,N,S,gx,shipT,shipTarget,shots,zako,slabs,booms,particles,boss,
-    holdT,charged,wave,score,combo,comboUntil,phase='ready',paused=false,
+let grid,N,S,gx,shipT,shipTarget,shots,zako,forms,flyers,slots,carry,pops,banner,
+    locked,giants,slabs,booms,particles,boss,
+    holdT,charged,wave,score,combo,comboUntil,nextFid,phase='ready',paused=false,
     time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0,flash=0;
 const keys=new Set();
 let pointer=null,fireHeld=false;
@@ -162,13 +164,20 @@ function findGroups(){ // そろっているマスを、同じ模様の隣接ご
 function refill(cells){ // 持ち上げた跡を埋める。すぐにまた成立しない模様を選ぶ
  for(const id of cells){const r=Math.floor(id/N),c=id%N;
   for(let t=0;t<14;t++){grid[r][c]=rnd(KINDS);if(!matched().has(id))break}}}
+function laneLocked(side,i){
+ for(let j=0;j<N;j++)if(locked.has(side==='up'?idx(j,i):idx(i,j)))return true;
+ return false}
 function push(side,i,n=1){                     // チャージの段数だけまとめて押す
+ if(laneLocked(side,i)){play('deny');
+  pop(laneAnchor(side,i).x,laneAnchor(side,i).y,'固定','#e2624a',14);
+  message('でっかいナスが固定しているレーンは押せない',2);return}
  for(let t=0;t<n;t++){
   if(side==='up'){const col=[];for(let r=0;r<N;r++)col.push(grid[r][i]);
    col.push(col.shift());for(let r=0;r<N;r++)grid[r][i]=col[r]}      // 端は反対側へ回る
   else if(side==='right'){const row=grid[i].slice();row.unshift(row.pop());grid[i]=row}
   else{const row=grid[i].slice();row.push(row.shift());grid[i]=row}}
  play('place',1+ (n-1)*.12);shake=Math.max(shake,2+n*1.5);
+ checkNasu();
  const g=findGroups();
  if(g.length)play('match',1,.7);
  message(n+'マス押した'+(g.length?'　光った塊をタップして撃ち上げ':''),1.6)}
@@ -178,17 +187,28 @@ function newGrid(n){
  for(let t=0;t<400&&matched().size;t++){const set=[...matched()];
   const id=set[rnd(set.length)];grid[Math.floor(id/N)][id%N]=rnd(KINDS)}}
 
-function findBig(){ // 同じ模様が4×4にそろっているか
+function findBig(){ // ナスが4×4にそろっているか（固定済みの場所は除く）
  for(let r=0;r+4<=N;r++)for(let c=0;c+4<=N;c++){
-  const k=grid[r][c];let ok=k>=0;
-  for(let y=0;y<4&&ok;y++)for(let x=0;x<4;x++)if(grid[r+y][c+x]!==k){ok=false;break}
-  if(ok)return{r,c,k}}
+  let ok=grid[r][c]===NASU;
+  for(let y=0;y<4&&ok;y++)for(let x=0;x<4;x++){
+   if(grid[r+y][c+x]!==NASU||locked.has(idx(r+y,c+x))){ok=false;break}}
+  if(ok)return{r,c,k:NASU}}
  return null}
+function checkNasu(){ // そろった瞬間に固定する。以後この16マスは押しても動かない
+ const b=findBig();if(!b)return false;
+ for(let y=0;y<4;y++)for(let x=0;x<4;x++)locked.add(idx(b.r+y,b.c+x));
+ giants.push({r:b.r,c:b.c,t:0});
+ play('bossdown',1.5,.7);shake=Math.max(shake,10);flash=.3;
+ burst(cellX(b.c)+2*S,cellY(b.r)+2*S,34,'#c698e8');
+ pop(cellX(b.c)+2*S,cellY(b.r)+2*S-10,'でっかいナス 固定','#c698e8',17);
+ message('ナスが4×4！ でっかいナスになって固定された。タップでナス攻撃',3.5);
+ return true}
+function giantAt(r,c){return giants.find(g=>r>=g.r&&r<g.r+4&&c>=g.c&&c<g.c+4)}
 
 // ---- 撃ち上げ ---------------------------------------------------------------
 function armGroup(r,c){
- const big=findBig();
- if(big&&r>=big.r&&r<big.r+4&&c>=big.c&&c<big.c+4)return armGiant(big);
+ const g0=giantAt(r,c);
+ if(g0)return armGiant(g0);
  const g=findGroups().find(G=>G.cells.includes(idx(r,c)));
  if(!g){play('deny');return false}
  const cells=g.cells.map(id=>({x:cellX(id%N),y:cellY(Math.floor(id/N))}));
@@ -197,36 +217,42 @@ function armGroup(r,c){
  refill(g.cells);
  play('warn',1.4,.6);message(g.cells.length+'マスを発射準備　'+ARM.toFixed(1)+'秒後に発射',2);
  return true}
-function armGiant(b){ // 4×4 は「でっかいナス」になって強力攻撃する
- const ids=[];for(let y=0;y<4;y++)for(let x=0;x<4;x++)ids.push(idx(b.r+y,b.c+x));
- const ox=cellX(b.c),oy=cellY(b.r);
- slabs.push({giant:true,nasu:b.k===NASU,cells:[{x:ox,y:oy}],ox,oy,
-  k:b.k,n:16,t:0,y:0,vy:0,fired:false,size:S});
+function armGiant(g){ // 固定されたでっかいナスを、特別なナス攻撃として撃ち上げる
+ const ids=[];for(let y=0;y<4;y++)for(let x=0;x<4;x++){
+  ids.push(idx(g.r+y,g.c+x));locked.delete(idx(g.r+y,g.c+x))}
+ giants=giants.filter(o=>o!==g);
+ const ox=cellX(g.c),oy=cellY(g.r);
+ slabs.push({giant:true,nasu:true,cells:[{x:ox,y:oy}],ox,oy,
+  k:NASU,n:16,t:0,y:0,vy:0,fired:false,size:S});
  refill(ids);
- play('bossdown',1.3,.8);shake=Math.max(shake,12);flash=.35;
+ play('warn',.8,.9);shake=Math.max(shake,12);flash=.35;
  burst(ox+2*S,oy+2*S,30,'#c698e8');
- message('4×4成立　でっかいナス！'+(b.k===NASU?'　ナス揃いで威力2倍！':''),3);
+ message('ナス攻撃　発射準備！',3);
  return true}
 function launch(s){
  s.fired=true;s.vy=s.giant?-420:-620;play('launch',s.giant?.7:1,s.giant?1:.8);
  combo=time<comboUntil?combo+1:1;comboUntil=time+COMBO_WIN;
  if(combo>1)play('chain',Math.pow(1.12,Math.min(combo,8)))}
 function slabHit(s){
- let dmg;
- if(s.giant){                                   // でっかいナスの強力攻撃
-  dmg=Math.round(boss.maxHp*.4)*(s.nasu?2:1)*combo;
-  score+=(s.nasu?3000:1500)*combo;
-  shake=Math.max(shake,18);flash=.55;
+ let dmg,gain;
+ if(s.giant){                                   // ナス攻撃
+  dmg=Math.round(boss.maxHp*.8)*combo;gain=4000*combo;
+  shake=Math.max(shake,20);flash=.6;
   for(const z of zako){z.dead=true;boom(z.x,z.y,2.6);burst(z.x,z.y,8,'#c698e8')}
-  for(let i=0;i<7;i++)boom(40+Math.random()*(W-80),40+Math.random()*90,3.4);
+  forms.length=0;
+  for(let i=0;i<8;i++)boom(40+Math.random()*(W-80),40+Math.random()*90,3.6);
   play('bossdown');play('boom_l');
-  message('でっかいナスが直撃！'+(s.nasu?'（ナス揃い×2）':'')+
-   (combo>1?'　'+combo+' COMBO':'')+'　装甲 -'+dmg,3)}
+  pop(W/2,150,'ナス攻撃！','#c698e8',26);
+  message('ナス攻撃が直撃！'+(combo>1?'　'+combo+' COMBO':'')+'　装甲 -'+dmg,3)}
  else{
-  dmg=Math.round(s.n*s.n/2)*combo;
-  score+=s.n*80*combo;shake=Math.max(shake,8);
-  boom(s.ox+S/2,90,3);play(dmg>=12?'boom_l':'boom_s');
+  dmg=Math.min(45,Math.round(s.n*s.n/2))*combo;gain=s.n*s.n*40*combo;
+  shake=Math.max(shake,6+s.n);boom(s.ox+S/2,90,3);play(dmg>=12?'boom_l':'boom_s');
+  pop(s.ox+S/2,150,s.n+'マス','#f6e27a',15);
   message(s.n+'マスで撃ち抜いた　'+(combo>1?combo+' COMBO　':'')+'装甲 -'+dmg,2)}
+ score+=gain;
+ popDamage(W/2+(Math.random()-.5)*70,92,dmg);       // ボスの上にガガガと数字
+ pop(W/2+(Math.random()-.5)*90,178,'+'+gain,'#c8e6a0',15);
+ if(combo>1)bannerCombo(combo);
  boss.hp=Math.max(0,boss.hp-dmg);boss.flash=.18;
  if(boss.hp<=0)nextWave();
  ui()}
@@ -234,16 +260,71 @@ function slabHit(s){
 // ---- 敵 ---------------------------------------------------------------------
 function makeBoss(){const hp=32+wave*22;
  return{hp,maxHp:hp,size:64+Math.min(wave,6)*14,flash:0}}
-function spawnZako(){
+// 編隊は盤面より下の帯を横切る。盤面を隠さず、レールから撃てる高さに居座る。
+const FORM_TOP=()=>GY+N*S+34;
+function spawnFormation(){
+ if(forms.length>=2)return;
+ const count=3+rnd(3);                        // 必ず3〜5体
  const kinds=[{w:1,h:1,s:'enemy1'},{w:2,h:1,s:'enemy2'},{w:2,h:2,s:'zako22'}];
  const z=kinds[rnd(Math.min(kinds.length,1+Math.floor(wave/2)))];
- zako.push({x:40+Math.random()*(W-80),y:100,w:z.w,h:z.h,sprite:z.s,
-  hp:z.w*z.h+1,maxHp:z.w*z.h+1,vy:34+Math.random()*26+wave*3,ph:Math.random()*6.3})}
+ const f={id:nextFid++,k:rnd(KINDS),count,killed:0,
+  x:W/2,y:FORM_TOP()+rnd(30),vy:7+wave*1.6,ph:Math.random()*6.3,
+  sway:70+Math.random()*40};
+ forms.push(f);
+ const span=(count-1)*(z.w*32+10);
+ for(let i=0;i<count;i++){
+  const ox=-span/2+i*(z.w*32+10),oy=(i%2)*14-7;
+  const side=Math.random()<.5?-1:1;
+  zako.push({fid:f.id,ox,oy,w:z.w,h:z.h,sprite:z.s,
+   hp:z.w*z.h+1,maxHp:z.w*z.h+1,
+   x:W/2+side*(W*.7),y:H+40,                  // 画面外から弧を描いて入場
+   sx:W/2+side*(W*.7),sy:H+40,arc:side*(60+Math.random()*70),
+   e:0,delay:i*.13})}}
+function formOf(z){return forms.find(f=>f.id===z.fid)}
+function killZako(z){
+ if(z.dead)return;
+ z.dead=true;score+=120*z.w*z.h;boom(z.x,z.y,2);burst(z.x,z.y,10,SAND.hi);play('boom_s');
+ const f=formOf(z);
+ if(f&&++f.killed>=f.count)clearFormation(f);}
+function clearFormation(f){                    // 編隊を全滅させるとピースが出る
+ f.done=true;score+=600;
+ boom(f.x,f.y,3.4);burst(f.x,f.y,26,'#f6e27a');play('pickup');
+ flyers.push({k:f.k,x:f.x,y:f.y,t:0,slot:-1});
+ pop(f.x,f.y-26,'編隊全滅 +600','#f6e27a',16);
+ message('編隊を全滅！ '+GLYPH_NAMES[f.k]+'のピースが出た。下の枠から盤面へドラッグ',3)}
 // 雑魚を逃した時のペナルティは今は無し。
 // （レーンが勝手に押されるのは理不尽なのでやめた。別の形をあとで考える）
 // stun は残してあるので、次のペナルティで使い回せる。
 
+// 画面下の2つの枠。ここから盤面へドラッグすると、その1マスと入れ替わる。
+const SLOT_W=52,SLOT_Y=()=>H-58;
+function slotX(i){return W/2+(i===0?-SLOT_W-8:8)}
+function slotAt(px,py){
+ for(let i=0;i<2;i++){const x=slotX(i),y=SLOT_Y();
+  if(slots[i]!==null&&px>=x-6&&px<=x+SLOT_W+6&&py>=y-6&&py<=y+SLOT_W+6)return i}
+ return -1}
+function stow(k){                              // 空いている枠へ。両方埋まっていたら古い方を押し出す
+ if(slots[0]===null)return 0;
+ if(slots[1]===null)return 1;
+ slots[0]=slots[1];return 1}
+function dropPiece(slot,r,c){                  // 枠のピースと盤面の1マスを入れ替える
+ const k=slots[slot];if(k===null)return false;
+ if(locked.has(idx(r,c))){play('deny');message('でっかいナスは固定されていて入れ替えられない',2);return false}
+ slots[slot]=null;grid[r][c]=k;
+ play('place',1.3);burst(cellX(c)+S/2,cellY(r)+S/2,10,'#f6e27a');
+ pop(cellX(c)+S/2,cellY(r)-4,'入れ替え','#f6e27a',13);
+ checkNasu();
+ const g=findGroups();
+ if(g.length)play('match',1,.7);
+ message('ピースを入れ替えた'+(g.length?'　光った塊をタップして撃ち上げ':''),1.8);
+ ui();return true}
+
 // ---- 効果・UI ---------------------------------------------------------------
+function pop(x,y,text,col='#f6e27a',size=15,count){ // 画面に飛び出す数字・文字
+ pops.push({x,y,text,col,size,t:0,life:1.1,count:count||null})}
+function popDamage(x,y,value){                    // 0からガガガと上がって着地する
+ pops.push({x,y,text:'',col:'#ffd0c0',size:26,t:0,life:1.4,count:value})}
+function bannerCombo(n){banner={t:0,n}}
 function burst(x,y,n=10,col=SAND.light){for(let i=0;i<n;i++)
  particles.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.35+Math.random()*.4,col})}
 function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
@@ -255,13 +336,15 @@ function ui(){$('score').textContent='SCORE '+score;$('wave').textContent='WAVE 
 function nextWave(){
  score+=1500*wave;play('bossdown');wave++;
  newGrid(5);boss=makeBoss();
- holdT=0;slabs=[];zako=[];
+ holdT=0;slabs=[];zako=[];forms=[];flyers=[];
+ locked=new Set();giants=[];pops=[];banner=null;carry=null;
  message('WAVE '+wave+'　ボスの装甲が増えて大きくなった',3.4);ui()}
 function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;
  newGrid(5);boss=makeBoss();
  shipT=railTotal()/2;shipTarget=shipT;
- shots=[];zako=[];slabs=[];booms=[];particles=[];
+ shots=[];zako=[];forms=[];flyers=[];slots=[null,null];carry=null;pops=[];banner=null;
+ locked=new Set();giants=[];slabs=[];booms=[];particles=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
  message('帯をなぞって移動。タップで1発、押したままためて離すとまとめて押す',5);ui()}
 
@@ -284,18 +367,45 @@ function update(dt){
  for(const s of shots){
   s.x+=s.dx*760*dt;s.y+=s.dy*760*dt;
   for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<z.w*16&&Math.abs(s.y-z.y)<z.h*16){
-   s.dead=true;z.hp-=s.power;if(z.hp<=0){z.dead=true;score+=120*z.w*z.h;boom(z.x,z.y,2);
-    burst(z.x,z.y,10,SAND.hi);play('boom_s')}else{burst(s.x,s.y,3);play('hit',1,.5)}break}
+   s.dead=true;z.hp-=s.power;
+   if(z.hp<=0)killZako(z);else{burst(s.x,s.y,3);play('hit',1,.5)}break}
   if(s.dead)continue;
   const inGrid=(s.side==='up'&&s.y<=GY+N*S)||(s.side==='right'&&s.x>=gx)||(s.side==='left'&&s.x<=gx+N*S);
   if(inGrid){s.dead=true;hitLane(s.side,s.i,s.power)}
   else if(s.x<-20||s.x>W+20||s.y<-20||s.y>H+20)s.dead=true}
  shots=shots.filter(s=>!s.dead);
 
- spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=Math.max(1,3.4-wave*.25)+Math.random()}
- for(const z of zako){z.y+=z.vy*dt;z.x+=Math.cos(time*1.2+z.ph)*26*dt;
-  z.x=clamp(z.x,z.w*16,W-z.w*16)}
- zako=zako.filter(z=>!z.dead&&z.y<H+40);      // 逃した雑魚は下へ抜けるだけ
+ spawnT-=dt;if(spawnT<=0){spawnFormation();spawnT=Math.max(3,7-wave*.3)+Math.random()*2}
+ for(const f of forms){                       // 編隊ごと左右に振れながら下がる
+  f.y+=f.vy*dt;f.x=W/2+Math.sin(time*.55+f.ph)*f.sway}
+ forms=forms.filter(f=>!f.done&&f.y<H+70);
+ for(const z of zako){
+  const f=formOf(z);
+  if(!f){z.dead=true;continue}
+  const tx=f.x+z.ox,ty=f.y+z.oy;
+  if(z.e<1){                                  // 画面外から弧を描いて編隊に合流
+   if(z.delay>0){z.delay-=dt}
+   else{z.e=Math.min(1,z.e+dt*.85);
+    const p=z.e,ease=1-Math.pow(1-p,3);
+    z.x=z.sx+(tx-z.sx)*ease+Math.sin(p*Math.PI)*z.arc;
+    z.y=z.sy+(ty-z.sy)*ease}}
+  else{z.x=tx;z.y=ty}}
+ zako=zako.filter(z=>!z.dead&&formOf(z));
+
+ for(const fl of flyers){                     // 出たピースが下の枠へ降りていく
+  fl.t+=dt;
+  if(fl.t>.7){
+   if(fl.slot<0){fl.slot=stow(fl.k);slots[fl.slot]=null}
+   const tx=slotX(fl.slot)+SLOT_W/2,ty=SLOT_Y()+SLOT_W/2,k=Math.min(1,(fl.t-.7)*2.4);
+   fl.x+=(tx-fl.x)*k;fl.y+=(ty-fl.y)*k;
+   if(fl.t>1.35){slots[fl.slot]=fl.k;fl.done=true;play('pickup',1.3,.7);ui()}}}
+ flyers=flyers.filter(fl=>!fl.done);
+
+ for(const pp of pops){pp.t+=dt;pp.y-=26*dt}
+ pops=pops.filter(pp=>pp.t<pp.life);
+ if(banner){banner.t+=dt;if(banner.t>1.1)banner=null}
+ for(const g of giants.slice()){g.t+=dt;
+  if(g.t>8)armGiant(g)}                      // 放置しても詰まないよう、8秒で自動発射
 
  for(const s of slabs){
   s.t+=dt;
@@ -395,18 +505,6 @@ function drawGrid(){
  ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.strokeRect(gx-6,GY-6,N*S+12,N*S+12);
  const set=matched();
  for(let r=0;r<N;r++)for(let c=0;c<N;c++)block(grid[r][c],cellX(c),cellY(r),S,set.has(idx(r,c)));
- const big=findBig();
- if(big){                                              // 4×4 は別格に見せる
-  const x=cellX(big.c),y=cellY(big.r),d=4*S;
-  ctx.globalAlpha=.2+Math.sin(time*7)*.12;ctx.fillStyle=big.k===NASU?'#f6e27a':'#c698e8';
-  ctx.fillRect(x,y,d,d);ctx.globalAlpha=1;
-  for(const [col,lw] of [['#1a140e',9],[big.k===NASU?'#f6e27a':'#c698e8',5]]){
-   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x+3,y+3,d-6,d-6)}
-  ctx.font='bold 12px monospace';ctx.textAlign='center';
-  const ly=y-20<GY?y+d+18:y-8;
-  ctx.fillStyle='#1a140e';ctx.fillText('タップででっかいナス',x+d/2+1,ly+1);
-  ctx.fillStyle=big.k===NASU?'#f6e27a':'#c698e8';ctx.fillText('タップででっかいナス',x+d/2,ly);
-  ctx.textAlign='left'}
  for(const g of findGroups()){                         // そろった塊の輪郭を光らせる
   ctx.globalAlpha=.55+Math.sin(time*9)*.35;
   for(const [col,lw] of [['#1a140e',7],['#8fe0ff',3]]){
@@ -463,6 +561,71 @@ function drawShip(){
   ctx.globalAlpha=.35+Math.sin(time*18)*.25;ctx.fillStyle=lv>=MAXC?'#8fe0ff':'#f6e27a';
   ctx.beginPath();ctx.arc(p.x,p.y,15+lv*3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}}
 
+function drawSlots(){                          // 画面下の2つの枠
+ for(let i=0;i<2;i++){
+  const x=slotX(i),y=SLOT_Y(),k=slots[i];
+  ctx.fillStyle='#00000066';ctx.fillRect(x,y,SLOT_W,SLOT_W);
+  ctx.strokeStyle=k===null?'#5a4326':'#f6e27a';ctx.lineWidth=k===null?2:3;
+  ctx.strokeRect(x,y,SLOT_W,SLOT_W);
+  if(k!==null&&!(carry&&carry.slot===i))block(k,x+2,y+2,SLOT_W-4);}
+ ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#b79b6c';
+ ctx.fillText(slots[0]===null&&slots[1]===null?'編隊を全滅させるとここにピースが入る'
+  :'盤面へドラッグして1マスと入れ替え',W/2,SLOT_Y()-8);ctx.textAlign='left'}
+
+function drawFlyers(){                         // 出た直後のピース
+ for(const fl of flyers){
+  const grow=fl.t<.7?1.5+Math.sin(fl.t*9)*.25:1.5-Math.min(1,(fl.t-.7)*2)*.6;
+  const d=S*grow;
+  ctx.globalAlpha=.5+Math.sin(fl.t*14)*.3;ctx.fillStyle='#f6e27a';
+  ctx.beginPath();ctx.arc(fl.x,fl.y,d*.7,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  block(fl.k,fl.x-d/2,fl.y-d/2,d)}}
+
+function drawPops(){                           // 数字と文字
+ ctx.textAlign='center';
+ for(const pp of pops){
+  const f=pp.t/pp.life,scale=pp.t<.12?pp.t/.12*1.25:1.25-Math.min(.25,(pp.t-.12)*1.2);
+  let txt=pp.text;
+  if(pp.count!==null&&pp.count!==undefined){   // 0からガガガと数え上げる
+   const r=Math.min(1,pp.t/.38);
+   txt='-'+Math.max(1,Math.round(pp.count*r*r))}
+  ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.55)/.45);
+  ctx.font='bold '+Math.round(pp.size*scale)+'px monospace';
+  ctx.fillStyle='#1a140e';ctx.fillText(txt,pp.x+2,pp.y+2);
+  ctx.fillStyle=pp.col;ctx.fillText(txt,pp.x,pp.y)}
+ if(banner){                                   // COMBO ×n
+  const f=banner.t/1.1,sc=banner.t<.15?banner.t/.15*1.3:1.3-Math.min(.3,(banner.t-.15)*1.1);
+  ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.5)/.5);
+  ctx.font='bold '+Math.round(34*sc)+'px monospace';
+  ctx.fillStyle='#1a140e';ctx.fillText('COMBO ×'+banner.n,W/2+3,H/2-56+3);
+  ctx.fillStyle='#f6e27a';ctx.fillText('COMBO ×'+banner.n,W/2,H/2-56)}
+ ctx.globalAlpha=1;ctx.textAlign='left'}
+
+function drawGiants(){                         // 盤面に固定されたでっかいナス
+ for(const g of giants){
+  const x=cellX(g.c),y=cellY(g.r),d=4*S;
+  ctx.globalAlpha=.25+Math.sin(g.t*4)*.12;ctx.fillStyle='#c698e8';
+  ctx.fillRect(x,y,d,d);ctx.globalAlpha=1;
+  if(has('nasu'))ctx.drawImage(IMG.nasu,Math.round(x),Math.round(y),d,d);
+  for(const [col,lw] of [['#1a140e',9],['#c698e8',5]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x+3,y+3,d-6,d-6)}
+  const ly=y-20<GY?y+d+18:y-8,left=Math.max(0,8-g.t);
+  ctx.font='bold 12px monospace';ctx.textAlign='center';
+  const t='タップでナス攻撃（'+left.toFixed(1)+'秒で自動）';
+  ctx.fillStyle='#1a140e';ctx.fillText(t,x+d/2+1,ly+1);
+  ctx.fillStyle='#c698e8';ctx.fillText(t,x+d/2,ly);
+  ctx.textAlign='left'}}
+
+function drawCarry(){                          // 指でつまんでいるピース
+ if(!carry)return;
+ const d=S*1.1;
+ ctx.globalAlpha=.4;ctx.fillStyle='#f6e27a';
+ ctx.beginPath();ctx.arc(carry.x,carry.y,d*.72,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+ block(carry.k,carry.x-d/2,carry.y-d/2,d);
+ const cell=gridCell({x:carry.x,y:carry.y});
+ if(cell){const x=cellX(cell.c),y=cellY(cell.r),bad=locked.has(idx(cell.r,cell.c));
+  for(const [col,lw] of [['#1a140e',7],[bad?'#e2624a':'#f6e27a',3]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x+2,y+2,S-4,S-4)}}}
+
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.save();
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
@@ -470,7 +633,7 @@ function draw(){
   ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
  else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
  drawZones();drawRail();
- drawGrid();
+ drawGrid();drawGiants();
  if(phase==='play')drawLaneGuide();
  drawSlabs();
  for(const s of shots){const a=Math.atan2(s.dy,s.dx)+Math.PI/2,w=6+s.power*4,h=22+s.power*6;
@@ -483,13 +646,14 @@ function draw(){
   if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,w,h);
   else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,w,h)}
   if(z.hp<z.maxHp){ctx.fillStyle='#f6e27a';ctx.fillRect(x,y-6,w*z.hp/z.maxHp,3)}}
- drawShip();drawBoss();
+ drawShip();drawSlots();drawFlyers();drawCarry();drawBoss();
  for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
  ctx.globalAlpha=1;
  for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
   if(has('boom'))ctx.drawImage(IMG.boom,f*24,0,24,24,Math.round(b.x-d/2),Math.round(b.y-d/2),d,d)}
  if(time<comboUntil&&combo>1){ctx.font='bold 14px monospace';ctx.fillStyle='#f6e27a';
   ctx.fillText(combo+' COMBO',gx,GY-14)}
+ drawPops();
  ctx.restore();
  if(flash>0){ctx.globalAlpha=Math.min(.85,flash);ctx.fillStyle='#e6d0ff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
  ctx.globalAlpha=.1;ctx.fillStyle='#000';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
@@ -503,15 +667,30 @@ const DRAG=14;                                  // これ以上動かしたら�
 function onDown(e){
  if(phase!=='play'||paused)return;
  audio();canvas.setPointerCapture(e.pointerId);
- const p=point(e),cell=gridCell(p);
- if(cell&&matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}  // 光った塊
+ const p=point(e);
+ const si=slotAt(p.x,p.y);
+ if(si>=0){carry={id:e.pointerId,slot:si,k:slots[si],x:p.x,y:p.y};  // 枠からつまむ
+  play('swap',1.3,.5);return}
+ const cell=gridCell(p);
+ if(cell){
+  const g0=giantAt(cell.r,cell.c);
+  if(g0){armGiant(g0);return}                                       // 固定ナス
+  if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}  // 光った塊
  pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,dragged:false};
  holdT=0;fireHeld=true}
-function onMove(e){if(!pointer||pointer.id!==e.pointerId)return;
+function onMove(e){
+ if(carry&&carry.id===e.pointerId){const p=point(e);carry.x=p.x;carry.y=p.y;return}
+ if(!pointer||pointer.id!==e.pointerId)return;
  const p=point(e);pointer.x=p.x;pointer.y=p.y;
  if(!pointer.dragged&&Math.hypot(p.x-pointer.sx,p.y-pointer.sy)>DRAG){
   pointer.dragged=true;fireHeld=false;holdT=0}}                // 動かしたら撃たない
 function onUp(e){
+ if(carry&&carry.id===e.pointerId){                            // 盤面へ落とす
+  const cell=gridCell({x:carry.x,y:carry.y});
+  if(cell)dropPiece(carry.slot,cell.r,cell.c);
+  else play('deny');
+  carry=null;return}
+ if(carry)return;
  if(pointer&&pointer.id!==e.pointerId)return;
  // pointerup のあと lostpointercapture でもここへ来るので、
  // 指が残っている1回目だけ判定する（2回目に holdT を消さない）
