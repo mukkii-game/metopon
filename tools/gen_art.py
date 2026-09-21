@@ -278,6 +278,24 @@ def shot_sprite():
     return img
 
 
+def app_icon(kind=3, blast=False, n=64):
+    """ホーム画面に追加した時のアイコン。64pxのドット絵を整数倍に拡大して使う。"""
+    img = sand_tile(n)
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, n - 1, n - 1], outline=PAL['o'], width=3)
+    d.rectangle([3, 3, n - 4, n - 4], outline=PAL['S'], width=1)
+    if blast:
+        # 四角を上へ撃ち返す、という図
+        for (x, y) in ((16, 30), (34, 30), (16, 48), (34, 48)):
+            d.rectangle([x, y, x + 14, y + 14], fill=PAL['S'], outline=PAL['O'], width=2)
+        d.polygon([(32, 8), (48, 26), (38, 26), (38, 30), (26, 30), (26, 26), (16, 26)],
+                  fill=PAL['W'], outline=PAL['o'])
+    else:
+        g = draw_glyph(kind, 24).resize((48, 48), Image.NEAREST)
+        img.paste(g, (8, 8), g)
+    return img
+
+
 def contact_sheet(images, scale=4):
     """目視確認用の一覧（リポジトリには入れない）。"""
     pad = 6
@@ -306,6 +324,10 @@ def build():
         'slab.png': slab(False),
         'slab_lit.png': slab(True),
         'sand.png': sand_tile(),
+        'icon-192.png': app_icon().resize((192, 192), Image.NEAREST),
+        'icon-512.png': app_icon().resize((512, 512), Image.NEAREST),
+        'icon-blast-192.png': app_icon(blast=True).resize((192, 192), Image.NEAREST),
+        'icon-blast-512.png': app_icon(blast=True).resize((512, 512), Image.NEAREST),
     }
     for name, img in made.items():
         save(img, name)

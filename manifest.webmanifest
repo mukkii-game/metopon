@@ -1,0 +1,17 @@
+{
+  "name": "METOPON",
+  "short_name": "METOPON",
+  "description": "砂漠の上を滑らかに飛び、上空の雑魚を撃ち、地上の装甲パネルをそろえて剥がす8ビット風シューティング×マッチ3。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#1a1109",
+  "theme_color": "#1a1109",
+  "icons": [
+    { "src": "assets/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

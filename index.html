@@ -1,22 +1,35 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1109">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="assets/img/icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M3 12h18M12 3v18' stroke='%233a2a1a' stroke-width='3'/%3E%3C/svg%3E">
 <meta name="description" content="砂漠の上を滑らかに飛び、上空の雑魚を撃ち、地上の巨大ボスの装甲パネルを入れ替えてそろえて崩す8ビット風シューティング×マッチ3。">
 <title>METOPON</title>
 <style>
 *{box-sizing:border-box}
+html{height:100%;overscroll-behavior:none;background:#1a1109}
+body{overflow:hidden;touch-action:none;overscroll-behavior:none;
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+ -webkit-tap-highlight-color:transparent}
 body{margin:0;background:#1a1109;color:#f4e6c8;font-family:system-ui,sans-serif;overscroll-behavior:none}
-main{max-width:480px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:8px 12px max(8px,env(safe-area-inset-bottom));gap:6px}
-header{display:flex;align-items:center;justify-content:space-between}
+main{max-width:480px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:max(8px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom));gap:6px}
+header{display:flex;align-items:center;justify-content:space-between;gap:6px}
+header>div:first-child{min-width:0}
 h1{font-size:20px;letter-spacing:3px;margin:0;color:#f2d9a4}
-small{font-size:10px;color:#b79b6c}
+small{font-size:10px;color:#b79b6c;white-space:nowrap;overflow:hidden;
+ text-overflow:ellipsis;display:block}
 button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;border-radius:12px;padding:8px;touch-action:none}
 button:active,.held{background:#8a6528!important}
-#top{display:flex;gap:5px}#top button{font-size:12px}
+#top{display:flex;gap:4px;flex:0 0 auto}
+#top button{font-size:11px;padding:7px 8px;white-space:nowrap}
 #status{font-size:12px;display:flex;justify-content:space-between;min-height:18px;color:#e5cf9f}
 #stage{position:relative;flex:1;min-height:160px;overflow:hidden;border-radius:16px;border:1px solid #7a5a2e;background:#8f6d38}
 canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
-#overlay{position:absolute;inset:0;background:#1a1109ee;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center}
+#overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;background:#1a1109ee;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center}
 #overlay h2{font-size:25px;margin:12px 0;color:#f2d9a4}
 #overlay p{font-size:13px;line-height:1.75;color:#d9c49a}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:14px 28px;border-color:#f2d9a4}
@@ -28,14 +41,16 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #options{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#b79b6c;gap:5px}
 #options button{font-size:11px;padding:5px 8px}
 .hidden{display:none!important}
+#ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 </style></head><body><main>
-<header><div><h1>METOPON</h1><small>AIR ZAKO × EARTH BOSS / SMOOTH 05</small></div><div id="top"><button id="sound">音 ON</button><button id="pause">一時停止</button></div></header>
+<header><div><h1>METOPON</h1><small>AIR × EARTH / SMOOTH 05</small></div><div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="progress">STAGE 1</span><span id="life">—</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div><small>滑らか移動 × 砂の模様そろえ</small><h2>地上のボスを、<br>入れ替えて崩す。</h2>
 <p>自機はマス単位ではなく<b>滑らかに動く</b>。<br>Aを押し続けて上空の雑魚を撃つ。<br>同じ模様の雑魚は編隊ごと誘爆する。</p>
 <p>自機の少し先に出る照準が地上の狙い。<br>どのマスを狙っているかはガイドが出るので、<br>アナログ移動でも狙った所を指定できる。</p>
 <p>地上のボスは装甲パネルそのもの。<br><b>B</b>でパネルを入れ替え／素材を刺して、<br>同じ模様をそろえた分だけ装甲を剥がす。</p>
 <button id="start">試作をあそぶ</button></div></div></div>
+<div id="ios" class="hidden"></div>
 <div id="hint">上空で集める → 地上のボスに刺す → そろえて装甲を剥がす</div>
 <div id="controls"><div id="pad">↕ ↔<br>アナログパッド</div><button id="fire"><b>A</b><span>押し続けて連射</span></button><button id="bomb"><b>B</b><span id="bLabel">横に入れ替え</span></button></div>
 <div id="options"><button id="mode">B：横入れ替え</button><span id="bossInfo">—</span><button id="reset">最初から</button></div>
@@ -554,13 +569,63 @@ window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='
 function cycleMode(){mode=(mode+1)%MODES.length;ui()}
 function togglePause(){if(phase==='ready')return;paused=!paused;
  if(paused){clearInput();$('pause').textContent='再開';message('一時停止中',999)}
- else{$('pause').textContent='一時停止';message('',0)}}
+ else{$('pause').textContent='停止';message('',0)}}
 window.addEventListener('blur',()=>{clearInput();if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&phase!=='ready')togglePause()});
-function restart(){audio();reset();paused=false;$('overlay').classList.add('hidden');$('pause').textContent='一時停止';play('start')}
+function restart(){audio();goFullscreen();keepAwake();reset();paused=false;$('overlay').classList.add('hidden');$('pause').textContent='停止';play('start')}
 $('start').onclick=restart;$('reset').onclick=restart;$('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');if(sound)audio()};
 $('mode').onclick=cycleMode;
+// ---- 全画面と誤タッチ対策 ---------------------------------------------------
+// スマホでブラウザのUIや画面端のシステムジェスチャーに触ってしまうのを防ぐ。
+const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+const isStandalone=window.matchMedia('(display-mode: fullscreen)').matches||
+ window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||
+ (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+function enterFullscreen(){
+ const el=document.documentElement,r=el.requestFullscreen||el.webkitRequestFullscreen;
+ if(!r)return Promise.resolve(false);
+ try{return Promise.resolve(r.call(el,{navigationUI:'hide'})).then(()=>true).catch(()=>false)}
+ catch(e){return Promise.resolve(false)}}
+function leaveFullscreen(){const x=document.exitFullscreen||document.webkitExitFullscreen;
+ if(x)try{x.call(document)}catch(e){}}
+function lockPortrait(){try{const o=screen.orientation;
+ if(o&&o.lock)o.lock('portrait').catch(()=>{})}catch(e){}}
+let wakeLock=null;
+function keepAwake(){                       // 遊んでいる間に画面が消えないように
+ if(!('wakeLock'in navigator)||wakeLock)return;
+ navigator.wakeLock.request('screen').then(w=>{wakeLock=w;
+  w.addEventListener('release',()=>{wakeLock=null})}).catch(()=>{})}
+function syncFullBtn(){const b=$('full');if(!b)return;
+ if(isStandalone){b.classList.add('hidden');return}
+ if(!canFullscreen){b.classList.toggle('hidden',isIOS);return}
+ b.textContent=inFullscreen()?'解除':'全画面'}
+function goFullscreen(){                    // 操作（タップ）の中からでないと効かない
+ if(isStandalone)return;
+ enterFullscreen().then(ok=>{if(ok)lockPortrait();syncFullBtn()})}
+if($('full'))$('full').onclick=()=>{
+ audio();
+ if(inFullscreen())leaveFullscreen();else goFullscreen();
+ setTimeout(syncFullBtn,120)};
+for(const ev of ['fullscreenchange','webkitfullscreenchange'])
+ document.addEventListener(ev,syncFullBtn);
+// 長押しメニュー・ピンチ/ダブルタップ拡大・引っぱって更新を止める
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault());
+for(const ev of ['gesturestart','gesturechange','gestureend'])
+ document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener('touchmove',e=>{
+ if(e.target&&e.target.closest&&e.target.closest('#overlay'))return;
+ if(e.cancelable)e.preventDefault()},{passive:false});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake()});
+// iPhone の Safari は全画面APIが無いので、ホーム画面に追加してもらう
+if($('ios')&&isIOS&&!isStandalone&&!canFullscreen){
+ $('ios').textContent='iPhoneは 共有 →「ホーム画面に追加」で全画面';
+ $('ios').onclick=()=>$('ios').classList.add('hidden');
+ $('ios').classList.remove('hidden')}
+syncFullBtn();
 function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
  ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
 window.addEventListener('resize',resize);resize();reset();phase='ready';

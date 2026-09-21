@@ -22,6 +22,14 @@
 
 操作: 移動＝アナログパッド／矢印・WASD、A＝Space・Z（連射）、B＝X（地上操作）、C＝Bモード切替
 
+## スマホで遊ぶ
+全画面で起動し、画面端のシステムジェスチャー・引っぱって更新・長押しメニュー・
+ダブルタップ拡大を抑止している。遊んでいる間は画面が消えない。
+
+- **Android / PC** … 「あそぶ」を押した時点で自動的に全画面になる。上部の「全画面」でも切替。
+- **iPhone** … Safari に全画面APIが無いので、**共有 →「ホーム画面に追加」**で全画面になる
+  （manifest と apple-touch-icon を置いてある）。画面にも案内を出す。
+
 ## 公開
 `main` へプッシュすると GitHub Actions（[.github/workflows/pages.yml](.github/workflows/pages.yml)）が
 GitHub Pages へ自動でデプロイする。ビルドはなく、リポジトリ直下をそのまま配信している。
