@@ -109,7 +109,7 @@ function audio(){unlockAudio();
  ac.resume().catch(()=>{});loadSfx()}
 
 // ---- 状態 -------------------------------------------------------------------
-let grid,N,S,gx,shipT,shipTarget,shots,zako,forms,flyers,slots,carry,pops,banner,
+let grid,N,S,gx,shipT,shipTarget,shots,zako,forms,flyers,slots,carry,pops,
     locked,giants,slabs,booms,particles,boss,
     holdT,charged,wave,score,combo,comboUntil,nextFid,phase='ready',paused=false,
     time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0,flash=0;
@@ -212,7 +212,9 @@ function armGroup(r,c){
  const g=findGroups().find(G=>G.cells.includes(idx(r,c)));
  if(!g){play('deny');return false}
  const cells=g.cells.map(id=>({x:cellX(id%N),y:cellY(Math.floor(id/N))}));
- slabs.push({cells,ox:Math.min(...cells.map(p=>p.x)),oy:Math.min(...cells.map(p=>p.y)),
+ const ox=Math.min(...cells.map(p=>p.x)),oy=Math.min(...cells.map(p=>p.y));
+ const mult=bumpCombo(ox+S,oy-14);
+ slabs.push({cells,ox,oy,mult,
   k:g.k,n:g.cells.length,t:0,y:0,vy:0,fired:false,size:S});
  refill(g.cells);
  play('warn',1.4,.6);message(g.cells.length+'マスを発射準備　'+ARM.toFixed(1)+'秒後に発射',2);
@@ -222,7 +224,8 @@ function armGiant(g){ // 固定されたでっかいナスを、特別なナス�
   ids.push(idx(g.r+y,g.c+x));locked.delete(idx(g.r+y,g.c+x))}
  giants=giants.filter(o=>o!==g);
  const ox=cellX(g.c),oy=cellY(g.r);
- slabs.push({giant:true,nasu:true,cells:[{x:ox,y:oy}],ox,oy,
+ const mult=bumpCombo(ox+2*S,oy-14);
+ slabs.push({giant:true,nasu:true,cells:[{x:ox,y:oy}],ox,oy,mult,
   k:NASU,n:16,t:0,y:0,vy:0,fired:false,size:S});
  refill(ids);
  play('warn',.8,.9);shake=Math.max(shake,12);flash=.35;
@@ -230,30 +233,33 @@ function armGiant(g){ // 固定されたでっかいナスを、特別なナス�
  message('ナス攻撃　発射準備！',3);
  return true}
 function launch(s){
- s.fired=true;s.vy=s.giant?-420:-620;play('launch',s.giant?.7:1,s.giant?1:.8);
- combo=time<comboUntil?combo+1:1;comboUntil=time+COMBO_WIN;
- if(combo>1)play('chain',Math.pow(1.12,Math.min(combo,8)))}
+ s.fired=true;s.vy=s.giant?-460:-660;play('launch',s.giant?.7:1,s.giant?1:.8);
+ shake=Math.max(shake,6)}
 function slabHit(s){
- let dmg,gain;
+ const m=s.mult||1;let dmg,gain;
+ const hx=clamp(s.ox+(s.giant?2*S:S/2),70,W-70);
  if(s.giant){                                   // ナス攻撃
-  dmg=Math.round(boss.maxHp*.8)*combo;gain=4000*combo;
-  shake=Math.max(shake,20);flash=.6;
+  dmg=Math.round(boss.maxHp*.8)*m;gain=4000*m;
+  shake=Math.max(shake,24);flash=.75;
   for(const z of zako){z.dead=true;boom(z.x,z.y,2.6);burst(z.x,z.y,8,'#c698e8')}
   forms.length=0;
-  for(let i=0;i<8;i++)boom(40+Math.random()*(W-80),40+Math.random()*90,3.6);
+  for(let i=0;i<10;i++)boom(30+Math.random()*(W-60),24+Math.random()*96,3.8);
   play('bossdown');play('boom_l');
-  pop(W/2,150,'ナス攻撃！','#c698e8',26);
-  message('ナス攻撃が直撃！'+(combo>1?'　'+combo+' COMBO':'')+'　装甲 -'+dmg,3)}
+  popBig(W/2,168,'ナス攻撃！','#c698e8',30);
+  message('ナス攻撃が直撃！'+(m>1?'　×'+m:'')+'　装甲 -'+dmg,3)}
  else{
-  dmg=Math.min(45,Math.round(s.n*s.n/2))*combo;gain=s.n*s.n*40*combo;
-  shake=Math.max(shake,6+s.n);boom(s.ox+S/2,90,3);play(dmg>=12?'boom_l':'boom_s');
-  pop(s.ox+S/2,150,s.n+'マス','#f6e27a',15);
-  message(s.n+'マスで撃ち抜いた　'+(combo>1?combo+' COMBO　':'')+'装甲 -'+dmg,2)}
+  dmg=Math.min(45,Math.round(s.n*s.n/2))*m;gain=s.n*s.n*40*m;
+  shake=Math.max(shake,10+s.n);play(dmg>=12?'boom_l':'boom_s');flash=.3;
+  for(let i=0;i<5;i++)boom(hx+(Math.random()-.5)*100,40+Math.random()*70,2.8+Math.random());
+  pop(hx,182,s.n+'マス','#f6e27a',16);
+  message(s.n+'マスで撃ち抜いた　'+(m>1?'×'+m+'　':'')+'装甲 -'+dmg,2)}
+ for(let i=0;i<26;i++)                             // 上で弾ける火花
+  particles.push({x:hx,y:96,vx:(Math.random()-.5)*420,vy:(Math.random()-.6)*300,
+   life:.35+Math.random()*.4,col:i%2?'#ffe0a0':'#ffffff'});
  score+=gain;
- popDamage(W/2+(Math.random()-.5)*70,92,dmg);       // ボスの上にガガガと数字
- pop(W/2+(Math.random()-.5)*90,178,'+'+gain,'#c8e6a0',15);
- if(combo>1)bannerCombo(combo);
- boss.hp=Math.max(0,boss.hp-dmg);boss.flash=.18;
+ popDamage(hx,74,dmg);                             // ボスのすぐ近くに特大で
+ pop(hx,206,'+'+gain,'#c8e6a0',16);
+ boss.hp=Math.max(0,boss.hp-dmg);boss.flash=.28;
  if(boss.hp<=0)nextWave();
  ui()}
 
@@ -329,10 +335,17 @@ function swapPair(slot,r,c){                   // 重ねた2マスを入れ替�
 
 // ---- 効果・UI ---------------------------------------------------------------
 function pop(x,y,text,col='#f6e27a',size=15,count){ // 画面に飛び出す数字・文字
- pops.push({x,y,text,col,size,t:0,life:1.1,count:count||null})}
-function popDamage(x,y,value){                    // 0からガガガと上がって着地する
- pops.push({x,y,text:'',col:'#ffd0c0',size:26,t:0,life:1.4,count:value})}
-function bannerCombo(n){banner={t:0,n}}
+ pops.push({x,y,text,col,size,t:0,life:1.1,count:count||null,rise:26})}
+function popBig(x,y,text,col,size){               // バンと出て少しだけ動く大文字
+ pops.push({x,y,text,col,size,t:0,life:1.5,count:null,rise:8,punch:true})}
+function popDamage(x,y,value){                    // ボスの近くに特大でガガガと数え上げる
+ pops.push({x,y,text:'',col:'#ffe0a0',size:56,t:0,life:1.7,count:value,rise:10,punch:true})}
+function bumpCombo(x,y){                          // 塊を選んだ瞬間にコンボが上がる
+ combo=time<comboUntil?combo+1:1;comboUntil=time+COMBO_WIN;
+ if(combo>1){play('chain',Math.pow(1.12,Math.min(combo,8)));
+  popBig(clamp(x,60,W-60),Math.max(GY+30,y),'×'+combo+' COMBO','#8fe0ff',34);
+  shake=Math.max(shake,5)}
+ return combo}
 function burst(x,y,n=10,col=SAND.light){for(let i=0;i<n;i++)
  particles.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.35+Math.random()*.4,col})}
 function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
@@ -345,13 +358,13 @@ function nextWave(){
  score+=1500*wave;play('bossdown');wave++;
  newGrid(5);boss=makeBoss();
  holdT=0;slabs=[];zako=[];forms=[];flyers=[];
- locked=new Set();giants=[];pops=[];banner=null;carry=null;
+ locked=new Set();giants=[];pops=[];carry=null;
  message('WAVE '+wave+'　ボスの装甲が増えて大きくなった',3.4);ui()}
 function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;
  newGrid(5);boss=makeBoss();
  shipT=railTotal()/2;shipTarget=shipT;
- shots=[];zako=[];forms=[];flyers=[];slots=[false,false];carry=null;pops=[];banner=null;
+ shots=[];zako=[];forms=[];flyers=[];slots=[false,false];carry=null;pops=[];
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
  message('帯をなぞって移動。タップで1発、押したままためて離すとまとめて押す',5);ui()}
@@ -408,9 +421,8 @@ function update(dt){
    if(fl.t>1.35){slots[fl.slot]=true;fl.done=true;play('pickup',1.3,.7);ui()}}}
  flyers=flyers.filter(fl=>!fl.done);
 
- for(const pp of pops){pp.t+=dt;pp.y-=26*dt}
+ for(const pp of pops){pp.t+=dt;pp.y-=(pp.rise||26)*dt}
  pops=pops.filter(pp=>pp.t<pp.life);
- if(banner){banner.t+=dt;if(banner.t>1.1)banner=null}
  for(const g of giants.slice()){g.t+=dt;
   if(g.t>8)armGiant(g)}                      // 放置しても詰まないよう、8秒で自動発射
 
@@ -418,6 +430,12 @@ function update(dt){
   s.t+=dt;
   if(!s.fired){s.y=-12*Math.min(1,s.t*5)+Math.sin(s.t*9)*3;if(s.t>=ARM)launch(s)}
   else{s.y+=s.vy*dt;
+   const w=(s.giant?4:Math.max(1,Math.round((Math.max(...s.cells.map(c=>c.x))-s.ox)/S)+1))*S;
+   const by=s.giant?s.oy+s.y+4*S:Math.max(...s.cells.map(c=>c.y))+s.y+S;
+   for(let i=0;i<3;i++)                        // 噴射のあと
+    particles.push({x:s.ox+Math.random()*w,y:by+6,
+     vx:(Math.random()-.5)*70,vy:170+Math.random()*200,
+     life:.18+Math.random()*.25,col:Math.random()<.5?'#ffe0a0':'#e07a3a'});
    if(!s.hitDone&&s.oy+s.y<=110){s.hitDone=true;slabHit(s)}}}
  slabs=slabs.filter(s=>!s.hitDone||s.oy+s.y>-260);
 
@@ -526,6 +544,19 @@ function drawGrid(){
 function drawSlabs(){
  for(const s of slabs){
   const prog=Math.min(1,s.t/ARM);
+  if(s.fired){                                 // 下面のマスごとに噴射口をつける
+   let noz=[];
+   if(s.giant){const by=s.oy+s.y+4*S;
+    for(let i=0;i<4;i++)noz.push({x:s.ox+i*S+S/2,y:by})}
+   else{const my=Math.max(...s.cells.map(c=>c.y));
+    for(const c of s.cells)if(c.y===my)noz.push({x:c.x+S/2,y:c.y+s.y+S})}
+   for(const nz of noz){
+    ctx.fillStyle='#2a1c0a';ctx.fillRect(nz.x-S*.26,nz.y-3,S*.52,7);   // 噴射口
+    const fl=30+Math.random()*34;
+    for(const [col,sc] of [['#e07a3a',1],['#ffe0a0',.6],['#ffffff',.3]]){
+     ctx.fillStyle=col;ctx.beginPath();
+     ctx.moveTo(nz.x-S*.2*sc,nz.y+3);ctx.lineTo(nz.x+S*.2*sc,nz.y+3);
+     ctx.lineTo(nz.x,nz.y+3+fl*sc);ctx.closePath();ctx.fill()}}}
   if(s.giant){                                        // でっかいナス
    const d=4*S,x=s.ox,y=s.oy+s.y;
    ctx.globalAlpha=.3+Math.sin(s.t*12)*.2;ctx.fillStyle=s.nasu?'#f6e27a':'#c698e8';
@@ -601,21 +632,27 @@ function drawFlyers(){                         // 出た直後の入れ替え枠
 function drawPops(){                           // 数字と文字
  ctx.textAlign='center';
  for(const pp of pops){
-  const f=pp.t/pp.life,scale=pp.t<.12?pp.t/.12*1.25:1.25-Math.min(.25,(pp.t-.12)*1.2);
+  const f=pp.t/pp.life;
+  let scale;
+  if(pp.punch)                                 // 一気に大きくなって、少し縮んで落ち着く
+   scale=pp.t<.09?pp.t/.09*1.55:1.55-Math.min(.55,(pp.t-.09)*3.4);
+  else scale=pp.t<.12?pp.t/.12*1.25:1.25-Math.min(.25,(pp.t-.12)*1.2);
   let txt=pp.text;
   if(pp.count!==null&&pp.count!==undefined){   // 0からガガガと数え上げる
    const r=Math.min(1,pp.t/.38);
    txt='-'+Math.max(1,Math.round(pp.count*r*r))}
-  ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.55)/.45);
-  ctx.font='bold '+Math.round(pp.size*scale)+'px monospace';
-  ctx.fillStyle='#1a140e';ctx.fillText(txt,pp.x+2,pp.y+2);
+  ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.6)/.4);
+  const sz=Math.round(pp.size*Math.max(.05,scale));
+  ctx.font='bold '+sz+'px monospace';
+  if(pp.punch&&pp.t<.3){                       // 出た瞬間の閃光
+   ctx.globalAlpha*=1;ctx.fillStyle='#ffffff';
+   ctx.globalAlpha=Math.max(0,.5-pp.t*1.7);
+   ctx.fillText(txt,pp.x,pp.y);
+   ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.6)/.4)}
+  const o=pp.punch?3:2;
+  ctx.fillStyle='#1a140e';
+  for(const [dx,dy] of [[o,o],[-o,o],[o,-o],[-o,-o]])ctx.fillText(txt,pp.x+dx,pp.y+dy);
   ctx.fillStyle=pp.col;ctx.fillText(txt,pp.x,pp.y)}
- if(banner){                                   // COMBO ×n
-  const f=banner.t/1.1,sc=banner.t<.15?banner.t/.15*1.3:1.3-Math.min(.3,(banner.t-.15)*1.1);
-  ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.5)/.5);
-  ctx.font='bold '+Math.round(34*sc)+'px monospace';
-  ctx.fillStyle='#1a140e';ctx.fillText('COMBO ×'+banner.n,W/2+3,H/2-56+3);
-  ctx.fillStyle='#f6e27a';ctx.fillText('COMBO ×'+banner.n,W/2,H/2-56)}
  ctx.globalAlpha=1;ctx.textAlign='left'}
 
 function drawGiants(){                         // 盤面に固定されたでっかいナス
