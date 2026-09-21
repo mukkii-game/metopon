@@ -45,14 +45,14 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <small>押して、そろえて、撃ち上げる</small>
 <h2>レーンを押して、<br>塊をボスへ撃ち上げる。</h2>
-<p>自機は<b>外周のレール</b>を走る。底辺を左右に、<br>左右の端まで行くとそのまま上下に動ける。<br>画面の<b>左右と下の暗い帯</b>に指を置くと、<br>自機がその位置へ回り込む。帯の中で動かせば<br>指で自機が隠れない。</p>
-<p><b>押している間、弾がたまる</b>。<b>離すと1発出る</b>。<br>軽く連打すれば1マスずつ、ためて離せば<br><b>一度に最大3マス</b>まとめて押せる。<br>端から出たマスは反対側に戻ってくる。</p>
+<p>自機は<b>外周のレール</b>を走る。底辺を左右に、<br>左右の端まで行くとそのまま上下に動ける。<br>画面の<b>左右と下の暗い帯</b>を<b>なぞる</b>と、<br>自機がその位置へ回り込む。帯の中で動かせば<br>指で自機が隠れない。</p>
+<p><b>タップすると1発出る</b>。押したままにすると<br>弾がたまり、<b>離した時に</b>ためた分が出る。<br>軽く連打すれば1マスずつ、ためて離せば<br><b>一度に最大3マス</b>まとめて押せる。<br>なぞって移動しただけでは<b>撃たない</b>。<br>端から出たマスは反対側に戻ってくる。</p>
 <p>同じ模様が縦か横に3つ以上そろうと<b>輪郭が光る</b>。<br><b>そこをタップ</b>すると発射準備に入り、<br>数秒後に上空のボスへ飛んでいく。</p>
 <p>同じ模様が<b>4×4</b>にそろうと、そこが<br><b>でっかいナス</b>になる。タップで撃ち上げると<br>装甲を大きく削り、雑魚も一掃する。<br><b>ナスの模様で4×4</b>ならさらに威力2倍。</p>
 <p>弾は<b>降りてくる雑魚</b>にも当たる。<br>撃ち落とさないとレーンに届かない。</p>
 <button id="start">あそぶ</button></div></div></div>
 <div id="ios" class="hidden"></div>
-<div id="hint">押してためる → 離して押し出す ／ 光った塊をタップ → 撃ち上げ</div>
+<div id="hint">なぞって移動 ／ タップで発射（押したままためられる） ／ 光った塊をタップで撃ち上げ</div>
 </main><script>
 'use strict';
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
@@ -257,16 +257,16 @@ function ui(){$('score').textContent='SCORE '+score;$('wave').textContent='WAVE 
 
 function nextWave(){
  score+=1500*wave;play('bossdown');wave++;
- newGrid(Math.min(8,4+wave));boss=makeBoss();
+ newGrid(5);boss=makeBoss();
  holdT=0;slabs=[];zako=[];
- message('WAVE '+wave+'　盤面は '+N+'×'+N+'　ボスも大きくなった',3.4);ui()}
+ message('WAVE '+wave+'　ボスの装甲が増えて大きくなった',3.4);ui()}
 function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;
  newGrid(5);boss=makeBoss();
  shipT=railTotal()/2;shipTarget=shipT;
  shots=[];zako=[];slabs=[];booms=[];particles=[];
  time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
- message('左右と下の帯に指を置いて移動。押してためて、離すと押し出す',4.5);ui()}
+ message('帯をなぞって移動。タップで1発、押したままためて離すとまとめて押す',5);ui()}
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
@@ -310,7 +310,7 @@ function update(dt){
 
  for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
- if(time>messageUntil)$('hint').textContent='押してためる → 離して押し出す ／ 光った塊をタップ → 撃ち上げ';
+ if(time>messageUntil)$('hint').textContent='なぞって移動 ／ タップで発射（押したままためられる） ／ 光った塊をタップで撃ち上げ';
  ui()}
 
 function chargeLevel(){return Math.min(MAXC,1+Math.floor(holdT/CSTEP))}
@@ -503,15 +503,24 @@ function point(e){const b=canvas.getBoundingClientRect();
  return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
 function gridCell(p){const c=Math.floor((p.x-gx)/S),r=Math.floor((p.y-GY)/S);
  return(r>=0&&r<N&&c>=0&&c<N)?{r,c}:null}
+const DRAG=14;                                  // これ以上動かしたら「移動」扱い
 function onDown(e){
  if(phase!=='play'||paused)return;
  audio();canvas.setPointerCapture(e.pointerId);
  const p=point(e),cell=gridCell(p);
  if(cell&&matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}  // 光った塊
- pointer={id:e.pointerId,x:p.x,y:p.y};fireHeld=true}
+ pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,dragged:false};
+ holdT=0;fireHeld=true}
 function onMove(e){if(!pointer||pointer.id!==e.pointerId)return;
- const p=point(e);pointer.x=p.x;pointer.y=p.y}
-function onUp(e){if(pointer&&pointer.id!==e.pointerId)return;pointer=null;fireHeld=false}
+ const p=point(e);pointer.x=p.x;pointer.y=p.y;
+ if(!pointer.dragged&&Math.hypot(p.x-pointer.sx,p.y-pointer.sy)>DRAG){
+  pointer.dragged=true;fireHeld=false;holdT=0}}                // 動かしたら撃たない
+function onUp(e){
+ if(pointer&&pointer.id!==e.pointerId)return;
+ // pointerup のあと lostpointercapture でもここへ来るので、
+ // 指が残っている1回目だけ判定する（2回目に holdT を消さない）
+ if(pointer)holdT=pointer.dragged?0:Math.max(holdT,.001);      // タップなら必ず1発出る
+ pointer=null;fireHeld=false}
 canvas.addEventListener('pointerdown',onDown);
 canvas.addEventListener('pointermove',onMove);
 for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,onUp);
