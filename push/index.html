@@ -48,7 +48,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <p>自機は<b>外周のレール</b>を走る。底辺を左右に、<br>左右の端まで行くとそのまま上下に動ける。<br>画面の<b>左右と下の暗い帯</b>を<b>なぞる</b>と、<br>自機がその位置へ回り込む。帯の中で動かせば<br>指で自機が隠れない。</p>
 <p><b>タップすると1発出る</b>。押したままにすると<br>弾がたまり、<b>離した時に</b>ためた分が出る。<br>軽く連打すれば1マスずつ、ためて離せば<br><b>一度に最大3マス</b>まとめて押せる。<br>なぞって移動しただけでは<b>撃たない</b>。<br>端から出たマスは反対側に戻ってくる。</p>
 <p>同じ模様が縦か横に3つ以上そろうと<b>輪郭が光る</b>。<br><b>そこをタップ</b>すると発射準備に入り、<br>数秒後に上空のボスへ飛んでいく。</p>
-<p>敵は<b>3〜5体の編隊</b>で飛んでくる。<br><b>編隊を全滅させる</b>とピースが出て、<br>画面下の<b>2つの枠</b>に入る。<br>枠から盤面へ<b>ドラッグ</b>すると、<br>そのマスと<b>入れ替わる</b>。大きなコンボの種になる。</p>
+<p>敵は<b>3〜5体の編隊</b>で飛んでくる。弾1発で落ちる。<br><b>編隊を全滅させる</b>と<b>入れ替え枠</b>が出て、<br>画面下のストックに入る。<br>枠を盤面へ<b>ドラッグ</b>して重ねると、<br><b>重なった横2マスが入れ替わる</b>。<br>押し出しでは作れない形の種になる。</p>
 <p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になり、<br>その場に<b>固定</b>される（押しても動かない）。<br>タップすると<b>ナス攻撃</b>で装甲を大きく削る。</p>
 
 <button id="start">あそぶ</button></div></div></div>
@@ -60,7 +60,7 @@ const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('
 const W=440,H=680,KINDS=5;
 const GRID=240;                 // 盤面の見た目の大きさは一定。ウェーブで割る数が増える
 const GY=138;                   // 盤面の上端
-const RAIL_GAP=18,RAIL_Y=558;   // レールは盤面のすぐ外。指はさらに外側に置ける
+const RAIL_GAP=26,RAIL_Y=558;   // レールは盤面のすぐ外。指はさらに外側に置ける
 const MAXC=3,CSTEP=.3;          // チャージの段数と、1段あがる秒数
 const ARM=1.8;                  // タップしてから発射までの秒数
 const COMBO_WIN=3.2;
@@ -265,58 +265,66 @@ const FORM_TOP=()=>GY+N*S+34;
 function spawnFormation(){
  if(forms.length>=2)return;
  const count=3+rnd(3);                        // 必ず3〜5体
- const kinds=[{w:1,h:1,s:'enemy1'},{w:2,h:1,s:'enemy2'},{w:2,h:2,s:'zako22'}];
- const z=kinds[rnd(Math.min(kinds.length,1+Math.floor(wave/2)))];
- const f={id:nextFid++,k:rnd(KINDS),count,killed:0,
+ const sprite=['enemy1','zako22'][rnd(2)];    // どれもピースと同じ1マス分
+ const f={id:nextFid++,count,killed:0,
   x:W/2,y:FORM_TOP()+rnd(30),vy:7+wave*1.6,ph:Math.random()*6.3,
-  sway:70+Math.random()*40};
+  sway:60+Math.random()*40};
  forms.push(f);
- const span=(count-1)*(z.w*32+10);
+ const gap=S+8,span=(count-1)*gap;
+ f.sway=Math.min(f.sway,Math.max(10,(W-span-S-20)/2));   // 端からはみ出さない振れ幅
  for(let i=0;i<count;i++){
-  const ox=-span/2+i*(z.w*32+10),oy=(i%2)*14-7;
+  const ox=-span/2+i*gap,oy=(i%2)*16-8;
   const side=Math.random()<.5?-1:1;
-  zako.push({fid:f.id,ox,oy,w:z.w,h:z.h,sprite:z.s,
-   hp:z.w*z.h+1,maxHp:z.w*z.h+1,
-   x:W/2+side*(W*.7),y:H+40,                  // 画面外から弧を描いて入場
+  zako.push({fid:f.id,ox,oy,sprite,                 // 弾1発で死ぬ
+   x:W/2+side*(W*.7),y:H+40,                        // 画面外から弧を描いて入場
    sx:W/2+side*(W*.7),sy:H+40,arc:side*(60+Math.random()*70),
    e:0,delay:i*.13})}}
 function formOf(z){return forms.find(f=>f.id===z.fid)}
 function killZako(z){
  if(z.dead)return;
- z.dead=true;score+=120*z.w*z.h;boom(z.x,z.y,2);burst(z.x,z.y,10,SAND.hi);play('boom_s');
+ z.dead=true;score+=120;boom(z.x,z.y,2.2);burst(z.x,z.y,12,SAND.hi);play('boom_s');
  const f=formOf(z);
  if(f&&++f.killed>=f.count)clearFormation(f);}
 function clearFormation(f){                    // 編隊を全滅させるとピースが出る
  f.done=true;score+=600;
  boom(f.x,f.y,3.4);burst(f.x,f.y,26,'#f6e27a');play('pickup');
- flyers.push({k:f.k,x:f.x,y:f.y,t:0,slot:-1});
- pop(f.x,f.y-26,'編隊全滅 +600','#f6e27a',16);
- message('編隊を全滅！ '+GLYPH_NAMES[f.k]+'のピースが出た。下の枠から盤面へドラッグ',3)}
+ flyers.push({x:f.x,y:f.y,t:0,slot:-1});
+ pop(f.x,f.y-30,'編隊全滅 +600','#f6e27a',16);
+ message('編隊を全滅！ 入れ替え枠を獲得。下から盤面へドラッグして2マスを入れ替え',3.4)}
 // 雑魚を逃した時のペナルティは今は無し。
 // （レーンが勝手に押されるのは理不尽なのでやめた。別の形をあとで考える）
 // stun は残してあるので、次のペナルティで使い回せる。
 
-// 画面下の2つの枠。ここから盤面へドラッグすると、その1マスと入れ替わる。
-const SLOT_W=52,SLOT_Y=()=>H-58;
+// 画面下のストックは「ピース横2つ分の白い枠」。
+// 盤面へドラッグして重ねた2マスが入れ替わる。ピースそのものは持たない。
+const SLOT_W=80,SLOT_H=42,SLOT_Y=()=>H-56;
 function slotX(i){return W/2+(i===0?-SLOT_W-8:8)}
 function slotAt(px,py){
  for(let i=0;i<2;i++){const x=slotX(i),y=SLOT_Y();
-  if(slots[i]!==null&&px>=x-6&&px<=x+SLOT_W+6&&py>=y-6&&py<=y+SLOT_W+6)return i}
+  if(slots[i]&&px>=x-8&&px<=x+SLOT_W+8&&py>=y-10&&py<=y+SLOT_H+10)return i}
  return -1}
-function stow(k){                              // 空いている枠へ。両方埋まっていたら古い方を押し出す
- if(slots[0]===null)return 0;
- if(slots[1]===null)return 1;
+function stow(){                               // 空いている枠へ。両方埋まっていたら古い方を押し出す
+ if(!slots[0])return 0;
+ if(!slots[1])return 1;
  slots[0]=slots[1];return 1}
-function dropPiece(slot,r,c){                  // 枠のピースと盤面の1マスを入れ替える
- const k=slots[slot];if(k===null)return false;
- if(locked.has(idx(r,c))){play('deny');message('でっかいナスは固定されていて入れ替えられない',2);return false}
- slots[slot]=null;grid[r][c]=k;
- play('place',1.3);burst(cellX(c)+S/2,cellY(r)+S/2,10,'#f6e27a');
- pop(cellX(c)+S/2,cellY(r)-4,'入れ替え','#f6e27a',13);
+function pairAt(px,py){                        // 枠が重なる、横に並んだ2マス
+ if(px<gx-S*.6||px>gx+N*S+S*.6||py<GY-S*.6||py>GY+N*S+S*.6)return null;
+ return{r:clamp(Math.round((py-GY-S/2)/S),0,N-1),
+        c:clamp(Math.round((px-gx-S)/S),0,N-2)}}
+function swapPair(slot,r,c){                   // 重ねた2マスを入れ替える
+ if(!slots[slot])return false;
+ if(locked.has(idx(r,c))||locked.has(idx(r,c+1))){
+  play('deny');message('でっかいナスは固定されていて入れ替えられない',2);return false}
+ if(grid[r][c]===grid[r][c+1]){
+  play('deny');message('同じ模様どうしなので入れ替えても変わらない',1.8);return false}
+ slots[slot]=false;
+ [grid[r][c],grid[r][c+1]]=[grid[r][c+1],grid[r][c]];
+ play('swap',1.2);burst(cellX(c)+S,cellY(r)+S/2,12,'#ffffff');
+ pop(cellX(c)+S,cellY(r)-4,'入れ替え','#ffffff',13);
  checkNasu();
  const g=findGroups();
  if(g.length)play('match',1,.7);
- message('ピースを入れ替えた'+(g.length?'　光った塊をタップして撃ち上げ':''),1.8);
+ message('2マスを入れ替えた'+(g.length?'　光った塊をタップして撃ち上げ':''),1.8);
  ui();return true}
 
 // ---- 効果・UI ---------------------------------------------------------------
@@ -343,7 +351,7 @@ function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;
  newGrid(5);boss=makeBoss();
  shipT=railTotal()/2;shipTarget=shipT;
- shots=[];zako=[];forms=[];flyers=[];slots=[null,null];carry=null;pops=[];banner=null;
+ shots=[];zako=[];forms=[];flyers=[];slots=[false,false];carry=null;pops=[];banner=null;
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
  message('帯をなぞって移動。タップで1発、押したままためて離すとまとめて押す',5);ui()}
@@ -366,9 +374,8 @@ function update(dt){
 
  for(const s of shots){
   s.x+=s.dx*760*dt;s.y+=s.dy*760*dt;
-  for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<z.w*16&&Math.abs(s.y-z.y)<z.h*16){
-   s.dead=true;z.hp-=s.power;
-   if(z.hp<=0)killZako(z);else{burst(s.x,s.y,3);play('hit',1,.5)}break}
+  for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<S/2&&Math.abs(s.y-z.y)<S/2){
+   s.dead=true;killZako(z);break}                   // 弾1発で死ぬ
   if(s.dead)continue;
   const inGrid=(s.side==='up'&&s.y<=GY+N*S)||(s.side==='right'&&s.x>=gx)||(s.side==='left'&&s.x<=gx+N*S);
   if(inGrid){s.dead=true;hitLane(s.side,s.i,s.power)}
@@ -395,10 +402,10 @@ function update(dt){
  for(const fl of flyers){                     // 出たピースが下の枠へ降りていく
   fl.t+=dt;
   if(fl.t>.7){
-   if(fl.slot<0){fl.slot=stow(fl.k);slots[fl.slot]=null}
-   const tx=slotX(fl.slot)+SLOT_W/2,ty=SLOT_Y()+SLOT_W/2,k=Math.min(1,(fl.t-.7)*2.4);
+   if(fl.slot<0){fl.slot=stow();slots[fl.slot]=false}
+   const tx=slotX(fl.slot)+SLOT_W/2,ty=SLOT_Y()+SLOT_H/2,k=Math.min(1,(fl.t-.7)*2.4);
    fl.x+=(tx-fl.x)*k;fl.y+=(ty-fl.y)*k;
-   if(fl.t>1.35){slots[fl.slot]=fl.k;fl.done=true;play('pickup',1.3,.7);ui()}}}
+   if(fl.t>1.35){slots[fl.slot]=true;fl.done=true;play('pickup',1.3,.7);ui()}}}
  flyers=flyers.filter(fl=>!fl.done);
 
  for(const pp of pops){pp.t+=dt;pp.y-=26*dt}
@@ -475,7 +482,7 @@ function drawZones(){ // 指を置く場所。レールより外側なので自�
  ctx.moveTo(0,RAIL_Y+14);ctx.lineTo(W,RAIL_Y+14);ctx.stroke();ctx.setLineDash([]);
  if(time<9){ctx.globalAlpha=Math.max(0,Math.min(1,(9-time)/2));
   ctx.font='bold 11px monospace';ctx.textAlign='center';
-  for(const [tx,ty] of [[(l-8)/2,RAIL_Y-30],[(r+8+W)/2,RAIL_Y-30],[W/2,H-24]]){
+  for(const [tx,ty] of [[(l-8)/2,RAIL_Y-30],[(r+8+W)/2,RAIL_Y-30]]){   // 下はストック枠があるので出さない
    ctx.fillStyle='#1a140e';ctx.fillText('指はここ',tx+1,ty+1);
    ctx.fillStyle='#f6e27a';ctx.fillText('指はここ',tx,ty)}
   ctx.textAlign='left';ctx.globalAlpha=1}}
@@ -548,8 +555,9 @@ function drawShip(){
  ctx.save();ctx.translate(p.x,p.y);
  ctx.rotate(p.seg===0?Math.PI/2:p.seg===2?-Math.PI/2:0);   // 撃つ向きに機首を向ける
  if(stun>0){ctx.globalAlpha=.4+Math.sin(time*40)*.3}
- if(has('ship'))ctx.drawImage(IMG.ship,-16,-16,32,32);
- else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(14,14);ctx.lineTo(-14,14);ctx.closePath();ctx.fill()}
+ if(has('ship'))ctx.drawImage(IMG.ship,-S/2,-S/2,S,S);
+ else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(0,-S/2);ctx.lineTo(S*.44,S*.44);
+  ctx.lineTo(-S*.44,S*.44);ctx.closePath();ctx.fill()}
  ctx.globalAlpha=1;ctx.restore();
  if(holdT>0&&stun<=0){                                  // ためている量
   const lv=chargeLevel();
@@ -561,24 +569,34 @@ function drawShip(){
   ctx.globalAlpha=.35+Math.sin(time*18)*.25;ctx.fillStyle=lv>=MAXC?'#8fe0ff':'#f6e27a';
   ctx.beginPath();ctx.arc(p.x,p.y,15+lv*3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}}
 
-function drawSlots(){                          // 画面下の2つの枠
- for(let i=0;i<2;i++){
-  const x=slotX(i),y=SLOT_Y(),k=slots[i];
-  ctx.fillStyle='#00000066';ctx.fillRect(x,y,SLOT_W,SLOT_W);
-  ctx.strokeStyle=k===null?'#5a4326':'#f6e27a';ctx.lineWidth=k===null?2:3;
-  ctx.strokeRect(x,y,SLOT_W,SLOT_W);
-  if(k!==null&&!(carry&&carry.slot===i))block(k,x+2,y+2,SLOT_W-4);}
- ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#b79b6c';
- ctx.fillText(slots[0]===null&&slots[1]===null?'編隊を全滅させるとここにピースが入る'
-  :'盤面へドラッグして1マスと入れ替え',W/2,SLOT_Y()-8);ctx.textAlign='left'}
+function swapFrame(x,y,w,h,col='#ffffff',lw=4){ // ピース横2つ分の白い枠
+ ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+4;ctx.strokeRect(x,y,w,h);
+ ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
+ ctx.beginPath();ctx.moveTo(x+w/2,y+3);ctx.lineTo(x+w/2,y+h-3);ctx.stroke();
+ const cy=y+h/2,a=Math.min(12,w*.13);           // 左右に入れ替えの矢印
+ ctx.beginPath();
+ ctx.moveTo(x+w*.22,cy);ctx.lineTo(x+w*.22+a,cy-a*.6);ctx.moveTo(x+w*.22,cy);ctx.lineTo(x+w*.22+a,cy+a*.6);
+ ctx.moveTo(x+w*.78,cy);ctx.lineTo(x+w*.78-a,cy-a*.6);ctx.moveTo(x+w*.78,cy);ctx.lineTo(x+w*.78-a,cy+a*.6);
+ ctx.stroke()}
 
-function drawFlyers(){                         // 出た直後のピース
+function drawSlots(){                          // 画面下のストック枠
+ for(let i=0;i<2;i++){
+  const x=slotX(i),y=SLOT_Y(),on=slots[i];
+  ctx.fillStyle='#00000066';ctx.fillRect(x-4,y-4,SLOT_W+8,SLOT_H+8);
+  if(!on){ctx.strokeStyle='#5a4326';ctx.lineWidth=2;
+   ctx.setLineDash([5,5]);ctx.strokeRect(x,y,SLOT_W,SLOT_H);ctx.setLineDash([])}
+  else if(!(carry&&carry.slot===i))swapFrame(x,y,SLOT_W,SLOT_H)}
+ ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#b79b6c';
+ ctx.fillText(!slots[0]&&!slots[1]?'編隊を全滅させるとここに入れ替え枠が入る'
+  :'盤面へドラッグして、重ねた2マスを入れ替え',W/2,SLOT_Y()-10);ctx.textAlign='left'}
+
+function drawFlyers(){                         // 出た直後の入れ替え枠
  for(const fl of flyers){
-  const grow=fl.t<.7?1.5+Math.sin(fl.t*9)*.25:1.5-Math.min(1,(fl.t-.7)*2)*.6;
-  const d=S*grow;
-  ctx.globalAlpha=.5+Math.sin(fl.t*14)*.3;ctx.fillStyle='#f6e27a';
-  ctx.beginPath();ctx.arc(fl.x,fl.y,d*.7,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-  block(fl.k,fl.x-d/2,fl.y-d/2,d)}}
+  const grow=fl.t<.7?1.7+Math.sin(fl.t*9)*.3:1.7-Math.min(1,(fl.t-.7)*2)*.8;
+  const w=SLOT_W*grow*.8,h=SLOT_H*grow*.8;
+  ctx.globalAlpha=.45+Math.sin(fl.t*14)*.3;ctx.fillStyle='#ffffff';
+  ctx.fillRect(fl.x-w/2-6,fl.y-h/2-6,w+12,h+12);ctx.globalAlpha=1;
+  swapFrame(fl.x-w/2,fl.y-h/2,w,h)}}
 
 function drawPops(){                           // 数字と文字
  ctx.textAlign='center';
@@ -615,16 +633,16 @@ function drawGiants(){                         // 盤面に固定されたでっ
   ctx.fillStyle='#c698e8';ctx.fillText(t,x+d/2,ly);
   ctx.textAlign='left'}}
 
-function drawCarry(){                          // 指でつまんでいるピース
+function drawCarry(){                          // 指でつまんでいる入れ替え枠
  if(!carry)return;
- const d=S*1.1;
- ctx.globalAlpha=.4;ctx.fillStyle='#f6e27a';
- ctx.beginPath();ctx.arc(carry.x,carry.y,d*.72,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
- block(carry.k,carry.x-d/2,carry.y-d/2,d);
- const cell=gridCell({x:carry.x,y:carry.y});
- if(cell){const x=cellX(cell.c),y=cellY(cell.r),bad=locked.has(idx(cell.r,cell.c));
-  for(const [col,lw] of [['#1a140e',7],[bad?'#e2624a':'#f6e27a',3]]){
-   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x+2,y+2,S-4,S-4)}}}
+ const pr=pairAt(carry.x,carry.y);
+ if(pr){                                       // 盤面の上ではマスにぴたりと吸着
+  const x=cellX(pr.c),y=cellY(pr.r),
+   bad=locked.has(idx(pr.r,pr.c))||locked.has(idx(pr.r,pr.c+1))||grid[pr.r][pr.c]===grid[pr.r][pr.c+1];
+  ctx.globalAlpha=.25;ctx.fillStyle=bad?'#e2624a':'#ffffff';
+  ctx.fillRect(x,y,S*2,S);ctx.globalAlpha=1;
+  swapFrame(x+2,y+2,S*2-4,S-4,bad?'#e2624a':'#ffffff',5)}
+ else swapFrame(carry.x-SLOT_W/2,carry.y-SLOT_H/2,SLOT_W,SLOT_H)}
 
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.save();
@@ -642,10 +660,9 @@ function draw(){
    ctx.fillRect(-w/2-2,-h/2-2,w+4,h+4);ctx.globalAlpha=1}
   if(has('shot'))ctx.drawImage(IMG.shot,-w/2,-h/2,w,h);
   else{ctx.fillStyle='#f6e27a';ctx.fillRect(-w/2,-h/2,w,h)}ctx.restore()}
- for(const z of zako){const w=z.w*32,h=z.h*32,x=Math.round(z.x-w/2),y=Math.round(z.y-h/2);
-  if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,w,h);
-  else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,w,h)}
-  if(z.hp<z.maxHp){ctx.fillStyle='#f6e27a';ctx.fillRect(x,y-6,w*z.hp/z.maxHp,3)}}
+ for(const z of zako){const x=Math.round(z.x-S/2),y=Math.round(z.y-S/2);
+  if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,S,S);
+  else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,S,S)}}
  drawShip();drawSlots();drawFlyers();drawCarry();drawBoss();
  for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
  ctx.globalAlpha=1;
@@ -669,7 +686,7 @@ function onDown(e){
  audio();canvas.setPointerCapture(e.pointerId);
  const p=point(e);
  const si=slotAt(p.x,p.y);
- if(si>=0){carry={id:e.pointerId,slot:si,k:slots[si],x:p.x,y:p.y};  // 枠からつまむ
+ if(si>=0){carry={id:e.pointerId,slot:si,x:p.x,y:p.y};              // 入れ替え枠をつまむ
   play('swap',1.3,.5);return}
  const cell=gridCell(p);
  if(cell){
@@ -686,8 +703,8 @@ function onMove(e){
   pointer.dragged=true;fireHeld=false;holdT=0}}                // 動かしたら撃たない
 function onUp(e){
  if(carry&&carry.id===e.pointerId){                            // 盤面へ落とす
-  const cell=gridCell({x:carry.x,y:carry.y});
-  if(cell)dropPiece(carry.slot,cell.r,cell.c);
+  const pr=pairAt(carry.x,carry.y);
+  if(pr)swapPair(carry.slot,pr.r,pr.c);
   else play('deny');
   carry=null;return}
  if(carry)return;
