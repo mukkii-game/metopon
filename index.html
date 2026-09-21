@@ -47,6 +47,8 @@ const PANEL_BOTTOM=404;        // ボス盤面の下端（照準の届く範囲�
 const AIM=190;                 // 照準は自機のこれだけ前方（上）に出る
 const SHIP_SPEED=265;          // 滑らか移動の最高速度（px/秒）
 const STAGES=[3,5,7];          // 面ごとのボス装甲パネルの一辺
+const GS=40;                   // 地上雑魚のマス（ボスより一回り小さい）
+const GROUND_SPEED=34;         // 地上物が流れていく速さ
 const GLYPH_NAMES=['二条線','十字','稲妻','渦','輪'];
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 const SHAPES=[{w:1,h:1},{w:2,h:1},{w:2,h:2},{w:3,h:1}];   // 雑魚の形＝落とすピースの形
@@ -74,10 +76,10 @@ function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.
 function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();ac.resume().catch(()=>{});loadSfx()}
 
 // ---- 状態 -------------------------------------------------------------------
-let ship,zako,shots,booms,particles,ink,boss,pending,
+let ship,zako,grounds,shots,booms,particles,ink,boss,pending,hintT,hint,
     phase='ready',paused=false,stage=0,score=0,cleared=0,
     chain=0,chainUntil=0,phaseT=0,spawnT=0,fireCD=0,bombCD=0,
-    time=0,scroll=0,shake=0,mode=0,messageUntil=0;
+    time=0,scroll=0,shake=0,mode=0,messageUntil=0,groundT=0;
 const MODES=[{name:'横入れ替え',w:2,h:1},{name:'縦入れ替え',w:1,h:2},{name:'素材を刺す',w:1,h:1}];
 const keys=new Set(),firePointers=new Set();
 let padVec=null,padOrigin=null,dragPoint=null,fireKey=false;
@@ -85,12 +87,12 @@ const rnd=n=>Math.floor(Math.random()*n);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
 // ---- 盤面の判定（ボスの装甲パネル） -----------------------------------------
-function matchesIn(g){const n=g.length,found=new Set();
- for(let r=0;r<n;r++)for(let c=0;c<n;c++){const k=g[r][c];if(k<0)continue;
-  if(c+2<n&&g[r][c+1]===k&&g[r][c+2]===k){found.add(r*n+c);found.add(r*n+c+1);found.add(r*n+c+2)}
-  if(r+2<n&&g[r+1][c]===k&&g[r+2][c]===k){found.add(r*n+c);found.add((r+1)*n+c);found.add((r+2)*n+c)}}
- for(let r=0;r<n-1;r++)for(let c=0;c<n-1;c++){const k=g[r][c];
-  if(k>=0&&g[r][c+1]===k&&g[r+1][c]===k&&g[r+1][c+1]===k)for(let y=0;y<2;y++)for(let x=0;x<2;x++)found.add((r+y)*n+c+x)}
+function matchesIn(g){const h=g.length,w=g[0].length,found=new Set();
+ for(let r=0;r<h;r++)for(let c=0;c<w;c++){const k=g[r][c];if(k<0)continue;
+  if(c+2<w&&g[r][c+1]===k&&g[r][c+2]===k){found.add(r*w+c);found.add(r*w+c+1);found.add(r*w+c+2)}
+  if(r+2<h&&g[r+1][c]===k&&g[r+2][c]===k){found.add(r*w+c);found.add((r+1)*w+c);found.add((r+2)*w+c)}}
+ for(let r=0;r<h-1;r++)for(let c=0;c<w-1;c++){const k=g[r][c];
+  if(k>=0&&g[r][c+1]===k&&g[r+1][c]===k&&g[r+1][c+1]===k)for(let y=0;y<2;y++)for(let x=0;x<2;x++)found.add((r+y)*w+c+x)}
  return found}
 function bestSquareIn(g){const n=g.length;let best=1;
  for(const m of [2,3])for(let r=0;r<=n-m;r++)for(let c=0;c<=n-m;c++){
@@ -104,6 +106,44 @@ function bestRunIn(g){const n=g.length;let best=0;
  return best}
 function runBonus(n){return n>=5?300:n===4?80:0}
 
+// ---- 地上雑魚（ゼビウスの対地物）-------------------------------------------
+// 完成形を作ってから一手だけ崩す。だから必ず一手で壊せる。
+// 'hole' …… 正しい模様を1マス刺せば成立　/　'swap' …… 隣り合う2マスを1回入れ替えれば成立
+const GFORMS={hole:[[2,2],[3,1],[1,3],[3,2],[2,3]],swap:[[3,2],[2,3],[3,3]]};
+function makeGround(){
+ for(let t=0;t<60;t++){
+  const kind=Math.random()<.5?'hole':'swap';
+  const [w,h]=GFORMS[kind][rnd(GFORMS[kind].length)];
+  const cells=Array.from({length:h},()=>Array.from({length:w},()=>rnd(KINDS)));
+  const k=rnd(KINDS);
+  let spots;                                   // ここを揃えれば壊れる、という並び
+  if(w>=3){const r=rnd(h),c=rnd(w-2);spots=[[r,c],[r,c+1],[r,c+2]]}
+  else if(h>=3){const c=rnd(w),r=rnd(h-2);spots=[[r,c],[r+1,c],[r+2,c]]}
+  else{spots=[[0,0],[0,1],[1,0],[1,1]]}
+  for(const [r,c] of spots)cells[r][c]=k;
+  if(kind==='hole'){const [r,c]=spots[rnd(spots.length)];cells[r][c]=-1}
+  else{
+   const [r,c]=spots[rnd(spots.length)];
+   const cand=[[r,c+1],[r,c-1],[r+1,c],[r-1,c]]
+    .filter(([y,x])=>y>=0&&y<h&&x>=0&&x<w&&cells[y][x]!==k&&cells[y][x]>=0);
+   if(!cand.length)continue;
+   const [y,x]=cand[rnd(cand.length)];
+   [cells[r][c],cells[y][x]]=[cells[y][x],cells[r][c]]}
+  if(matchesIn(cells).size)continue;           // 出た瞬間に成立していたらやり直し
+  return{w,h,cells,kind,x:12+Math.random()*(FIELD-24-w*GS),y:-h*GS-12,hitT:0}}
+ return null}
+function spawnGround(){const g=makeGround();if(g)grounds.push(g)}
+function groundHit(g){
+ const n=g.w*g.h;score+=n*60;cleared+=n;
+ for(let r=0;r<g.h;r++)for(let c=0;c<g.w;c++){
+  if(g.cells[r][c]<0)continue;
+  boom(g.x+c*GS+GS/2,g.y+r*GS+GS/2,1.6);burst(g.x+c*GS+GS/2,g.y+r*GS+GS/2,6)}
+ g.dead=true;shake=Math.max(shake,5);play('sq2');
+ if(g.kind==='swap'){ink.push({w:1,h:1,k:g.cells.flat().find(v=>v>=0)});  // 入れ替えで壊すと素材が1個出る
+  message('地上物を破壊！ 素材を1個回収',2)}
+ else message('地上物を破壊！ 穴に刺して成立',2);
+ ui()}
+
 // ---- ボス -------------------------------------------------------------------
 function makeBoss(n){
  const cells=Array.from({length:n},()=>Array.from({length:n},()=>rnd(KINDS)));
@@ -115,17 +155,39 @@ function makeBoss(n){
  const hp=n*n;
  return {n,cells,x:(FIELD-n*S)/2,y:-n*S-30,targetY:PANEL_BOTTOM-n*S,hp,maxHp:hp,entering:true,dying:0}}
 function bossCell(r,c){return{x:boss.x+c*S,y:boss.y+r*S}}
+function findHint(){ // 入れ替え一手で成立を作れる場所を探す
+ if(!boss)return null;
+ const n=boss.n,g=boss.cells;
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++){
+  if(c+1<n){[g[r][c],g[r][c+1]]=[g[r][c+1],g[r][c]];
+   const ok=matchesIn(g).size;[g[r][c],g[r][c+1]]=[g[r][c+1],g[r][c]];
+   if(ok)return{r,c,dir:'h'}}
+  if(r+1<n){[g[r][c],g[r+1][c]]=[g[r+1][c],g[r][c]];
+   const ok=matchesIn(g).size;[g[r][c],g[r+1][c]]=[g[r+1][c],g[r][c]];
+   if(ok)return{r,c,dir:'v'}}}
+ return null}
+function ensureSolvable(){ // 一手も無い盤面（詰み）にならないようにする
+ if(!boss||pending)return;
+ if(matchesIn(boss.cells).size||findHint())return;
+ const n=boss.n;
+ for(let t=0;t<80;t++){
+  const flat=boss.cells.flat();
+  for(let i=flat.length-1;i>0;i--){const j=rnd(i+1);[flat[i],flat[j]]=[flat[j],flat[i]]}
+  let i=0;for(let r=0;r<n;r++)for(let c=0;c<n;c++)boss.cells[r][c]=flat[i++];
+  if(!matchesIn(boss.cells).size&&findHint())break}
+ play('warn');shake=7;hintT=0;hint=null;
+ message('入れ替えで作れる形が無い。装甲が組み替わった',3)}
 
 // ---- 進行 -------------------------------------------------------------------
 function reset(){
  ship={x:FIELD/2,y:H-130,vx:0,vy:0};
- zako=[];shots=[];booms=[];particles=[];ink=[];boss=null;pending=null;
+ zako=[];grounds=[];shots=[];booms=[];particles=[];ink=[];boss=null;pending=null;hintT=0;hint=null;groundT=1;
  stage=0;score=0;cleared=0;chain=0;chainUntil=0;fireCD=0;bombCD=0;mode=0;shake=0;
  time=0;scroll=0;setPhase('wave');clearInput();ui()}
 function setPhase(p){phase=p;phaseT=0;spawnT=0;
- if(p==='wave')message('STAGE '+(stage+1)+' 　上空の雑魚を撃って素材を集めよう',3);
+ if(p==='wave')message('STAGE '+(stage+1)+' 　地上物は「あと一手」で壊せる。上空で素材を集めよう',4);
  if(p==='warn'){play('warn');message('WARNING 　地上に大型機',2.5)}
- if(p==='boss'){boss=makeBoss(STAGES[Math.min(stage,STAGES.length-1)]);
+ if(p==='boss'){boss=makeBoss(STAGES[Math.min(stage,STAGES.length-1)]);hintT=0;hint=null;ensureSolvable();
   message('ボスの装甲はパネルそのもの。Bで入れ替えて模様をそろえろ',4)}
  if(p==='clear'){play('bossdown');message('STAGE '+(stage+1)+' CLEAR！',3)}}
 function clearInput(){keys.clear();firePointers.clear();fireKey=false;padVec=null;padOrigin=null;dragPoint=null;
@@ -139,13 +201,19 @@ function ui(){$('score').textContent='SCORE '+score;$('progress').textContent='S
 // ---- 照準 -------------------------------------------------------------------
 function aimPoint(){return{x:ship.x,y:Math.max(8,ship.y-AIM)}}
 function footprint(){return mode===2?(ink[0]||{w:1,h:1}):MODES[mode]}
-function target(){ // 照準が乗っている装甲マス。アナログ位置を最も近いマスに丸める。
- if(!boss)return null;
+function target(){ // 照準が乗っている対象。アナログ位置を最も近いマスに丸める。
  const a=aimPoint(),fp=footprint();
- if(fp.w>boss.n||fp.h>boss.n)return null;
- return{c:clamp(Math.round((a.x-boss.x-S/2)/S),0,boss.n-fp.w),
-        r:clamp(Math.round((a.y-boss.y-S/2)/S),0,boss.n-fp.h),
-        inside:a.x>=boss.x-S&&a.x<=boss.x+boss.n*S+S&&a.y>=boss.y-S&&a.y<=boss.y+boss.n*S+S}}
+ for(const g of grounds){                       // 地上雑魚のほうが近いので優先
+  if(g.dead||fp.w>g.w||fp.h>g.h)continue;
+  if(a.x<g.x-8||a.x>g.x+g.w*GS+8||a.y<g.y-8||a.y>g.y+g.h*GS+8)continue;
+  return{g,cell:GS,x:g.x,y:g.y,cells:g.cells,
+   c:clamp(Math.round((a.x-g.x-GS/2)/GS),0,g.w-fp.w),
+   r:clamp(Math.round((a.y-g.y-GS/2)/GS),0,g.h-fp.h)}}
+ if(boss&&!boss.entering&&fp.w<=boss.n&&fp.h<=boss.n)
+  return{g:null,cell:S,x:boss.x,y:boss.y,cells:boss.cells,
+   c:clamp(Math.round((a.x-boss.x-S/2)/S),0,boss.n-fp.w),
+   r:clamp(Math.round((a.y-boss.y-S/2)/S),0,boss.n-fp.h)};
+ return null}
 
 // ---- 効果 -------------------------------------------------------------------
 function burst(x,y,n=12,col=SAND.light){for(let i=0;i<n;i++)
@@ -178,28 +246,36 @@ function clearPending(){
  shake=square===3?12:square===2?6:3;
  play(square===3?'sq3':square===2?'sq2':'clear');
  if(chain>1)play('chain',Math.pow(1.12,Math.min(chain,8)));
- if(boss.hp<=0){boss.dying=.01;setPhase('clear')}else resolve();
+ if(boss.hp<=0){boss.dying=.01;setPhase('clear')}else{resolve();ensureSolvable()}
  message((square>1?square+'×'+square:run>=4?run+'連':'3個の直線')+'！ 装甲 -'+damage+' / '+chain+' CHAIN +'+gain,2);
  ui()}
-function act(){ // B：装甲の入れ替え／素材を刺す
+function act(){ // B：入れ替え／素材を刺す。地上雑魚とボスの両方に効く
  if(bombCD>0)return;
- if(phase!=='boss'||!boss){play('deny');
-  message('地上を狙えるのはボスが出ている間だけ。今は雑魚を撃って素材を集めよう',2.5);bombCD=.3;return}
- if(boss.entering){play('deny');message('ボスが降りてくるまで待て',1.5);bombCD=.3;return}
  const t=target();
- if(!t){play('deny');return}
- const {r,c}=t,n=boss.n;
+ if(!t){play('deny');
+  message(boss&&boss.entering?'ボスが降りてくるまで待て':'照準を地上物かボスに合わせよう',1.8);
+  bombCD=.3;return}
+ const {r,c,cells,cell}=t,W2=cells[0].length,H2=cells.length;
  if(mode===2){
-  if(!ink.length){play('deny');message('Aで上空の雑魚を倒すと、右のNEXTに素材が入ります');return}
+  if(!ink.length){play('deny');message('Aで上空の雑魚を倒すと、右のNEXTに素材が入ります',2.5);return}
   const p=ink[0];
-  if(c+p.w>n||r+p.h>n){play('deny');message('この素材は盤面からはみ出します');return}
+  if(c+p.w>W2||r+p.h>H2){play('deny');message('この素材は対象からはみ出します',2);return}
   ink.shift();
-  for(let y=0;y<p.h;y++)for(let x=0;x<p.w;x++)boss.cells[r+y][c+x]=p.k;
+  for(let y=0;y<p.h;y++)for(let x=0;x<p.w;x++)cells[r+y][c+x]=p.k;
   play('place')}
- else if(mode===0){[boss.cells[r][c],boss.cells[r][c+1]]=[boss.cells[r][c+1],boss.cells[r][c]];play('swap')}
- else{[boss.cells[r][c],boss.cells[r+1][c]]=[boss.cells[r+1][c],boss.cells[r][c]];play('swap')}
- bombCD=.16;const p0=bossCell(r,c);burst(p0.x+24,p0.y+24,6,SAND.hi);
- if(!resolve())message(mode===2?'素材を刺した。同じ模様を縦横3つそろえる':'入れ替えた。同じ模様を縦横3つそろえる');
+ else if(mode===0){
+  if(c+1>=W2){play('deny');return}
+  [cells[r][c],cells[r][c+1]]=[cells[r][c+1],cells[r][c]];play('swap')}
+ else{
+  if(r+1>=H2){play('deny');return}
+  [cells[r][c],cells[r+1][c]]=[cells[r+1][c],cells[r][c]];play('swap')}
+ bombCD=.16;hintT=0;hint=null;
+ burst(t.x+c*cell+cell/2,t.y+r*cell+cell/2,6,SAND.hi);
+ if(t.g){                                        // 地上雑魚は成立した瞬間に壊れる
+  if(matchesIn(t.g.cells).size)groundHit(t.g);
+  else message(mode===2?'刺したが、まだ形になっていない':'入れ替えたが、まだ形になっていない',1.6)}
+ else if(!resolve()){ensureSolvable();
+  message(mode===2?'素材を刺した。同じ模様を縦横3つそろえる':'入れ替えた。同じ模様を縦横3つそろえる')}
  ui()}
 
 // ---- 上空の雑魚 -------------------------------------------------------------
@@ -255,14 +331,20 @@ function update(dt){
   if(e.fuse&&time>=e.fuse)killZako(e,true)}
  zako=zako.filter(e=>!e.dead&&e.y<H+70);
 
+ for(const g of grounds)g.y+=GROUND_SPEED*dt;      // 地上物は地面と一緒に流れる
+ grounds=grounds.filter(g=>!g.dead&&g.y<H+40);
  if(phase==='wave'){
-  spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=1.5+Math.random()*1.1}
-  if(phaseT>16)setPhase('warn')}
+  spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=1.8+Math.random()*1.2}
+  groundT-=dt;if(groundT<=0){spawnGround();groundT=1.9+Math.random()*1.4}
+  if(phaseT>26)setPhase('warn')}
  else if(phase==='warn'){if(phaseT>2.4)setPhase('boss')}
  else if(phase==='boss'){
   spawnT-=dt;if(spawnT<=0){spawnZako();spawnT=3.4+Math.random()*2}   // ボス中も補給は続く
   if(boss.entering){boss.y=Math.min(boss.targetY,boss.y+150*dt);if(boss.y>=boss.targetY){boss.y=boss.targetY;boss.entering=false}}
-  else if(pending&&time>=pending.until)clearPending()}
+  else{
+   if(pending&&time>=pending.until)clearPending();
+   if(!pending){hintT+=dt;if(hintT>5.5){if(!hint||hintT%0.5<dt)hint=findHint()}}
+   else{hintT=0;hint=null}}}
  else if(phase==='clear'){
   boss.dying+=dt;
   if(boss.dying<1.6&&Math.random()<dt*22){const p=bossCell(rnd(boss.n),rnd(boss.n));
@@ -274,9 +356,10 @@ function update(dt){
 
  $('life').textContent=pending?'消去まで '+Math.max(0,pending.until-time).toFixed(1)+'秒'
   :time<chainUntil?chain+' CHAIN 継続中'
-  :phase==='wave'?'接敵まで '+Math.max(0,16-phaseT).toFixed(0)+'秒':phase==='boss'?'BOSS':'—';
+  :phase==='wave'?'接敵まで '+Math.max(0,26-phaseT).toFixed(0)+'秒':phase==='boss'?'BOSS':'—';
  if(time>messageUntil)$('hint').textContent=
-  phase==='boss'?'照準のガイドを見て、装甲パネルを入れ替えよう。':'上空の雑魚を撃って素材を集めよう。'}
+  phase==='boss'?'照準のガイドを見て、装甲パネルを入れ替えよう。'
+   :'地上物は入れ替え1回か、穴に素材を1つ刺すだけで壊れる。'}
 
 // ---- 描画 -------------------------------------------------------------------
 function glyph(k,x,y,size){
@@ -317,27 +400,55 @@ function drawBoss(){
  ctx.fillStyle='#00000088';ctx.fillRect(px,py-19,size,7);
  ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(px,py-19,size*ratio,7)}
 
+function drawGrounds(){
+ for(const g of grounds){
+  ctx.fillStyle='#00000055';ctx.fillRect(g.x-4,g.y-4,g.w*GS+8,g.h*GS+8);
+  ctx.strokeStyle=SAND.deep;ctx.lineWidth=2;ctx.strokeRect(g.x-4,g.y-4,g.w*GS+8,g.h*GS+8);
+  for(let r=0;r<g.h;r++)for(let c=0;c<g.w;c++){
+   const x=g.x+c*GS,y=g.y+r*GS,k=g.cells[r][c];
+   if(k<0){                                   // 穴＝ここに素材を刺す
+    ctx.fillStyle='#241a10';ctx.fillRect(x+1,y+1,GS-2,GS-2);
+    ctx.strokeStyle='#e0a93c';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+    ctx.globalAlpha=.5+Math.sin(time*6)*.3;ctx.strokeRect(x+4,y+4,GS-8,GS-8);
+    ctx.globalAlpha=1;ctx.setLineDash([]);continue}
+   if(has('slab'))ctx.drawImage(IMG.slab,0,0,24,24,Math.round(x),Math.round(y),GS,GS);
+   else{ctx.fillStyle=SAND.base;ctx.fillRect(x+1,y+1,GS-2,GS-2)}
+   glyph(k,x+GS/2,y+GS/2,GS)}
+  ctx.font='9px monospace';ctx.fillStyle='#2a1c0a';
+  ctx.fillText(g.kind==='hole'?'あと1つ刺す':'1回入れ替え',g.x-3,g.y-8)}}
+
+function drawHint(){ // 詰まった時、入れ替えで成立する場所を教える
+ if(!hint||!boss)return;
+ const a=bossCell(hint.r,hint.c),b=hint.dir==='h'?bossCell(hint.r,hint.c+1):bossCell(hint.r+1,hint.c);
+ ctx.globalAlpha=.4+Math.sin(time*8)*.3;
+ for(const p of [a,b]){ctx.strokeStyle='#8fe0ff';ctx.lineWidth=4;ctx.strokeRect(p.x+4,p.y+4,S-8,S-8)}
+ ctx.strokeStyle='#8fe0ff';ctx.lineWidth=3;ctx.beginPath();
+ ctx.moveTo(a.x+24,a.y+24);ctx.lineTo(b.x+24,b.y+24);ctx.stroke();ctx.globalAlpha=1;
+ ctx.font='10px monospace';ctx.fillStyle='#8fe0ff';ctx.fillText('ここを入れ替え',a.x-6,a.y-6)}
+
 function aimGuide(){ // 「今どこを狙っているか」を出すことで、滑らか移動でもマスを指定できる
  const a=aimPoint();
  ctx.setLineDash([3,6]);ctx.lineWidth=1;ctx.globalAlpha=.55;ctx.strokeStyle='#fff6c8';
  ctx.beginPath();ctx.moveTo(ship.x,ship.y-14);ctx.lineTo(a.x,a.y);ctx.stroke();
  ctx.globalAlpha=1;ctx.setLineDash([]);
- const t=boss&&!boss.entering?target():null;
+ const t=target();
  if(t){
-  const fp=footprint(),p=bossCell(t.r,t.c),w=S*fp.w,h=S*fp.h,arm=13;
+  const fp=footprint(),cell=t.cell,p={x:t.x+t.c*cell,y:t.y+t.r*cell},
+        w=cell*fp.w,h=cell*fp.h,arm=Math.round(cell*.28);
   if(mode===2&&ink.length){ctx.globalAlpha=.5;
-   for(let y=0;y<fp.h;y++)for(let x=0;x<fp.w;x++)glyph(ink[0].k,p.x+x*S+24,p.y+y*S+24,48);ctx.globalAlpha=1}
+   for(let y=0;y<fp.h;y++)for(let x=0;x<fp.w;x++)
+    glyph(ink[0].k,p.x+x*cell+cell/2,p.y+y*cell+cell/2,cell);ctx.globalAlpha=1}
   const corners=[[0,0,1,1],[w,0,-1,1],[0,h,1,-1],[w,h,-1,-1]];
   for(const [col,lw] of [['#1a140e',7],[Math.floor(time*9)%2?'#fff6c8':'#e0a93c',3]]){
    ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineCap='square';
    for(const [ox,oy,sx,sy] of corners){
     ctx.beginPath();ctx.moveTo(p.x+ox+sx*arm,p.y+oy);ctx.lineTo(p.x+ox,p.y+oy);ctx.lineTo(p.x+ox,p.y+oy+sy*arm);ctx.stroke()}}
   // 枠の外に出る行／列マーカー。どのマスかが一目で分かる。
-  const size=boss.n*S;
-  for(const [col,o] of [['#1a140e',2],['#fff6c8',0]]){ctx.fillStyle=col;
-   ctx.beginPath();ctx.moveTo(p.x+w/2-6-o,boss.y-13-o);ctx.lineTo(p.x+w/2+6+o,boss.y-13-o);ctx.lineTo(p.x+w/2,boss.y-4+o);ctx.fill();
-   ctx.beginPath();ctx.moveTo(boss.x-13-o,p.y+h/2-6-o);ctx.lineTo(boss.x-13-o,p.y+h/2+6+o);ctx.lineTo(boss.x-4+o,p.y+h/2);ctx.fill()}
-  ctx.globalAlpha=.22;ctx.fillStyle='#fff6c8';ctx.fillRect(boss.x,p.y,size,h);ctx.fillRect(p.x,boss.y,w,size);ctx.globalAlpha=1}
+  if(!t.g&&boss){const size=boss.n*S;
+   for(const [col,o] of [['#1a140e',2],['#fff6c8',0]]){ctx.fillStyle=col;
+    ctx.beginPath();ctx.moveTo(p.x+w/2-6-o,boss.y-13-o);ctx.lineTo(p.x+w/2+6+o,boss.y-13-o);ctx.lineTo(p.x+w/2,boss.y-4+o);ctx.fill();
+    ctx.beginPath();ctx.moveTo(boss.x-13-o,p.y+h/2-6-o);ctx.lineTo(boss.x-13-o,p.y+h/2+6+o);ctx.lineTo(boss.x-4+o,p.y+h/2);ctx.fill()}
+   ctx.globalAlpha=.22;ctx.fillStyle='#fff6c8';ctx.fillRect(boss.x,p.y,size,h);ctx.fillRect(p.x,boss.y,w,size);ctx.globalAlpha=1}}
  for(const [col,lw] of [['#1a140e',5],['#fff6c8',2]]){   // 照準そのもの（実座標）
   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();
   ctx.moveTo(a.x-9,a.y);ctx.lineTo(a.x-3,a.y);ctx.moveTo(a.x+3,a.y);ctx.lineTo(a.x+9,a.y);
@@ -369,9 +480,9 @@ function draw(){
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
  ground();
  ctx.font='11px monospace';ctx.fillStyle='#2a1c0a';
- if(!boss)ctx.fillText('AIR / 雑魚を撃って素材を集める',14,22);
- drawBoss();
- if(phase!=='clear')aimGuide();
+ if(!boss)ctx.fillText('AIR 雑魚を撃つ / EARTH 地上物を一手で壊す',14,22);
+ drawBoss();drawGrounds();
+ if(phase!=='clear'){drawHint();aimGuide()}
  for(const s of shots){if(has('shot'))ctx.drawImage(IMG.shot,Math.round(s.x-4),Math.round(s.y-24),8,24);
   else{ctx.fillStyle='#f6e27a';ctx.fillRect(s.x-2,s.y-12,4,17)}}
  for(const e of zako)drawZako(e);
@@ -394,8 +505,9 @@ function drawNext(){
  ctx.fillStyle='#2a1c0a';ctx.fillRect(FIELD,0,W-FIELD,H);
  ctx.strokeStyle='#7a5a2e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(FIELD,0);ctx.lineTo(FIELD,H);ctx.stroke();
  ctx.textAlign='center';ctx.font='bold 14px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('NEXT',464,28);
- ctx.font='11px monospace';ctx.fillText('ストック '+ink.length,464,47);
- if(!ink.length){ctx.fillStyle='#b79b6c';ctx.fillText('Aで撃破',464,90);ctx.fillText('して獲得',464,109)}
+ ctx.font='10px monospace';ctx.fillText('地上物の穴を',464,44);ctx.fillText('この形で埋める',464,57);
+ if(!ink.length){ctx.fillStyle='#b79b6c';ctx.fillText('Aで上空の',464,96);ctx.fillText('雑魚を撃破',464,111);
+  ctx.fillText('して獲得',464,126)}
  ink.slice(0,6).forEach((p,i)=>{const y=64+i*82;
   ctx.strokeStyle=i===0?'#f2d9a4':'#7a5a2e';ctx.lineWidth=i===0?2:1;ctx.strokeRect(430,y,68,75);
   ctx.fillStyle='#d4bd8e';ctx.font='10px monospace';ctx.fillText(i===0?'次に刺す':String(i+1),464,y+13);
@@ -404,12 +516,19 @@ function drawNext(){
    if(has('slab'))ctx.drawImage(IMG.slab,0,0,24,24,x+c*size,y+20+r*size,size,size);
    else{ctx.fillStyle=SAND.base;ctx.fillRect(x+c*size,y+20+r*size,size-1,size-1)}
    glyph(p.k,x+c*size+10,y+30+r*size,20)}});
- if(ink.length>6){ctx.fillStyle='#d4bd8e';ctx.fillText('ほか '+(ink.length-6)+'個',464,580)}
+ if(ink.length>6){ctx.fillStyle='#d4bd8e';ctx.fillText('ほか '+(ink.length-6)+'個',464,576)}
+ if(ink.length>1){ctx.fillStyle='#8fb0c0';ctx.font='10px monospace';
+  ctx.fillText('タップで',464,600);ctx.fillText('次の形へ',464,613)}
  ctx.textAlign='left'}
 
 // ---- 入力 -------------------------------------------------------------------
 function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
-canvas.addEventListener('pointerdown',e=>{if(phase==='ready'||paused)return;const p=point(e);if(p.x>=FIELD)return;
+canvas.addEventListener('pointerdown',e=>{if(phase==='ready'||paused)return;const p=point(e);
+ if(p.x>=FIELD){                              // NEXT 欄をタップ＝使えない素材を後ろに回す
+  if(ink.length>1){ink.push(ink.shift());play('swap',1.2,.5);ui();
+   message('素材を後ろに回した。先頭は '+ink[0].w+'×'+ink[0].h+' の「'+GLYPH_NAMES[ink[0].k]+'」',2)}
+  else play('deny');
+  return}
  canvas.setPointerCapture(e.pointerId);dragPoint={id:e.pointerId,x:p.x,y:p.y}});
 canvas.addEventListener('pointermove',e=>{if(!dragPoint||dragPoint.id!==e.pointerId)return;
  const p=point(e);dragPoint.x=p.x;dragPoint.y=p.y});
