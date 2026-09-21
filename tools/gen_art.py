@@ -32,6 +32,10 @@ PAL = {
     'P': (148, 162, 190, 255),   # 敵・鋼
     'p': (72, 84, 110, 255),
     'y': (246, 226, 122, 255),   # 発光
+    'n': (72, 36, 102, 255),     # ナス・最暗
+    'v': (108, 58, 150, 255),    # ナス・暗
+    'V': (152, 94, 198, 255),    # ナス・中
+    'U': (198, 152, 232, 255),   # ナス・明
 }
 
 
@@ -155,6 +159,37 @@ def zako22(n=32):
     return img
 
 
+def nasu_big(n=64):
+    """強力攻撃の「でっかいナス」。地上絵ではなく実体として描く。"""
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    cx = n / 2
+    top, bot = 15, n - 2
+    for y in range(top, bot):
+        f = (y - top) / float(bot - top - 1)
+        # 上は細く、下2/3でふくらんで、底で少しすぼまる：ナスの輪郭
+        w = 4.0 + 12.5 * math.sin(min(1.0, f * 1.12) * math.pi * 0.78 + 0.30)
+        if f > 0.93:
+            w *= 1 - (f - 0.93) * 7
+        w = max(1.5, w)
+        d.line([(cx - w, y), (cx + w, y)], fill=PAL['o'])
+        d.line([(cx - w + 2, y), (cx + w - 2, y)], fill=PAL['v'])
+        d.line([(cx - w + 3, y), (cx + w - 5, y)], fill=PAL['V'])
+    d.line([(cx - 6, 28), (cx - 7, 44)], fill=PAL['U'], width=3)      # 縦のつや
+    d.line([(cx - 6, 30), (cx - 7, 41)], fill=PAL['W'], width=1)
+    for y in range(bot - 7, bot):                                     # 底の影
+        f = (y - (bot - 7)) / 7.0
+        w = 15 - f * 12
+        d.line([(cx - w, y), (cx + w, y)], fill=PAL['n'])
+    for a in (-1, 1):                                                 # へた
+        d.polygon([(cx, 11), (cx + a * 13, 12), (cx + a * 7, 21), (cx + a * 2, 18)],
+                  fill=PAL['G'], outline=PAL['g'])
+    d.polygon([(cx - 5, 10), (cx + 5, 10), (cx + 3, 20), (cx - 3, 20)], fill=PAL['G'], outline=PAL['g'])
+    d.rectangle([cx - 2, 2, cx + 1, 12], fill=PAL['g'])               # 軸
+    d.line([(cx - 1, 3), (cx - 1, 11)], fill=PAL['l'])
+    return img
+
+
 def spiral_points(cx, cy, turns, r0, r1, steps=120):
     pts = []
     for i in range(steps + 1):
@@ -175,9 +210,15 @@ def glyph_paths(kind, n=24):
         return [[(4, 4), (17, 9), (6, 14), (19, 19)]]
     if kind == 3:      # 渦
         return [spiral_points(11.5, 11.5, 1.75, 1.5, 9.5)]
-    if kind == 4:      # 輪
-        return [[(11.5 + math.cos(a * math.pi / 18) * 8.5,
-                  11.5 + math.sin(a * math.pi / 18) * 8.5) for a in range(37)]]
+    if kind == 4:      # ナスの地上絵（下がふくらんだ実＋へた）
+        body = []
+        for i in range(41):
+            a = i / 40 * 2 * math.pi - math.pi / 2
+            rx = 4.3 + 1.7 * math.sin(a)      # 上は細く、下はふくらむ
+            body.append((11.5 + math.cos(a) * rx, 14.6 + math.sin(a) * 7.0))
+        return [body,
+                [(11.5, 7.8), (11.5, 4.2)],                    # へたの軸
+                [(11.5, 5.6), (7.6, 3.4)], [(11.5, 5.6), (15.4, 3.4)]]   # へたの葉
     raise ValueError(kind)
 
 
@@ -325,6 +366,7 @@ def build():
         'enemy2.png': from_rows(E2, mirror_x=True),
         'enemy4.png': enemy4(),
         'zako22.png': zako22(),
+        'nasu.png': nasu_big(),
         'shot.png': shot_sprite(),
         'boom.png': boom_sheet(),
         'glyphs.png': glyph_sheet(),
@@ -348,7 +390,7 @@ if __name__ == '__main__':
     # 目視確認用の一覧を一時ディレクトリへ（リポジトリには入れない）
     tmp = tempfile.gettempdir()
     contact_sheet([made['ship.png'], made['enemy1.png'], made['enemy2.png'],
-                   made['enemy4.png'], made['zako22.png'], made['shot.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
+                   made['enemy4.png'], made['zako22.png'], made['nasu.png'], made['shot.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
     contact_sheet([made['glyphs.png'], made['slab.png'], made['slab_lit.png'],
                    made['sand.png'], made['boom.png']], scale=3).save(os.path.join(tmp, 'metopon_tiles.png'))
     print('プレビュー:', tmp)

@@ -271,7 +271,12 @@ function glyph(k,x,y,size){
  else if(k===2){ctx.moveTo(4,4);ctx.lineTo(17,9);ctx.lineTo(6,14);ctx.lineTo(19,19)}
  else if(k===3){for(let i=0;i<=90;i++){const a=i/90*1.75*Math.PI*2,rr=1.5+8*i/90;
   const px=12+Math.cos(a)*rr,py=12+Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}}
- else ctx.arc(12,12,8.5,0,Math.PI*2);
+ else{const b=[];                                        // ナスの地上絵
+  for(let i=0;i<=40;i++){const a=i/40*Math.PI*2-Math.PI/2,rx=4.3+1.7*Math.sin(a);
+   b.push([11.5+Math.cos(a)*rx,14.6+Math.sin(a)*7])}
+  ctx.moveTo(b[0][0],b[0][1]);for(const q of b)ctx.lineTo(q[0],q[1]);
+  ctx.moveTo(11.5,7.8);ctx.lineTo(11.5,4.2);
+  ctx.moveTo(11.5,5.6);ctx.lineTo(7.6,3.4);ctx.moveTo(11.5,5.6);ctx.lineTo(15.4,3.4)}
  ctx.stroke();ctx.restore()}
 function block(k,x,y,size=CELL,lit){
  if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,0,0,24,24,Math.round(x),Math.round(y),size,size);
