@@ -83,6 +83,8 @@ const RAIL_GAP=26,RAIL_Y=558;   // レールは盤面のすぐ外。指はさら
 const MAXC=3,CSTEP=.3;          // チャージの段数と、1段あがる秒数
 const ARM=1.8;                  // タップしてから発射までの秒数
 const COMBO_WIN=3.2;
+const ZAP_RATE=.1,LASER_LIFE=.16; // なぞっている間のレーザー（発射間隔と光っている時間）
+const CARRY_LIFT=68;            // つまんだ枠は指より上に出す（指で隠れないように）
 const NASU=4;                   // ナスの地上絵は5番目の模様
 const TIME_LIMIT=120;           // タイムアタック（秒）
 const BOSSES=[                  // 全3面。エジプトの神々
@@ -135,7 +137,7 @@ function audio(){unlockAudio();
 
 // ---- 状態 -------------------------------------------------------------------
 let grid,N,S,gx,shipT,shipTarget,shots,zako,forms,flyers,slots,carry,pops,
-    locked,giants,slabs,booms,particles,boss,
+    locked,giants,slabs,booms,particles,boss,lasers,zapCD=0,
     holdT,charged,wave,score,combo,comboUntil,nextFid,timeLeft,phase='ready',paused=false,
     time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0,flash=0;
 const keys=new Set();
@@ -407,7 +409,7 @@ function nextWave(){
  if(wave>=BOSSES.length){allClear();return}
  wave++;
  newGrid(5);boss=makeBoss();
- holdT=0;slabs=[];zako=[];forms=[];flyers=[];
+ holdT=0;slabs=[];zako=[];forms=[];flyers=[];lasers=[];zapCD=0;
  locked=new Set();giants=[];carry=null;
  message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+' が現れた',3.4);ui()}
 
@@ -446,8 +448,8 @@ function reset(){
  newGrid(5);boss=makeBoss();
  shipT=railTotal()/2;shipTarget=shipT;
  shots=[];zako=[];forms=[];flyers=[];slots=[false,false];carry=null;pops=[];
- locked=new Set();giants=[];slabs=[];booms=[];particles=[];nextFid=1;
- time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
+ locked=new Set();giants=[];slabs=[];booms=[];particles=[];lasers=[];nextFid=1;
+ time=0;scroll=0;shake=0;stun=0;fireCD=0;zapCD=0;spawnT=2;phase='play';
  message('STAGE 1／'+BOSSES.length+'　'+boss.name+'　制限時間2分',4.5);ui()}
 
 // ---- 更新 -------------------------------------------------------------------
@@ -467,6 +469,21 @@ function update(dt){
   if(chargeLevel()>before)play('charge',1+chargeLevel()*.18,.5)}
  else if(holdT>0){releaseShot();holdT=0}       // 離すと1発出る
  if(stun>0){holdT=0}
+
+ // なぞっている間は自機がレーザーで雑魚を狩る。ドラッグするだけでシュシュシュと消える
+ zapCD-=dt;
+ if(pointer&&pointer.dragged&&stun<=0){
+  if(zapCD<=0){
+   const p=railPoint(shipT);let best=null,bd=1e9;
+   for(const z of zako){if(z.dead||z.e<.35)continue;
+    const d=Math.hypot(z.x-p.x,z.y-p.y);if(d<bd){bd=d;best=z}}
+   if(best){zapCD=ZAP_RATE;
+    lasers.push({x1:p.x,y1:p.y,x2:best.x,y2:best.y,t:0});
+    killZako(best);play('shot',1.9,.4)}}}
+ else zapCD=0;                                // 指を離したらすぐ次が撃てる
+ for(const l of lasers)l.t+=dt;
+ lasers=lasers.filter(l=>l.t<LASER_LIFE);
+ if(carry)carry.lift=Math.min(1,(carry.lift||0)+dt*7);   // つまんだ枠がすっと指の上へ
 
  for(const s of shots){
   s.x+=s.dx*760*dt;s.y+=s.dy*760*dt;
@@ -524,7 +541,7 @@ function update(dt){
 
  for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
- if(time>messageUntil)$('hint').textContent='タップで移動 ／ 同じ所をもう一度タップで発射 ／ 光った塊をタップで撃ち上げ';
+ if(time>messageUntil)$('hint').textContent='なぞって移動（雑魚はレーザーで自動で狩る） ／ 同じ所をタップで発射 ／ 光った塊をタップで撃ち上げ';
  ui()}
 
 function chargeLevel(){return Math.min(MAXC,1+Math.floor(holdT/CSTEP))}
@@ -769,16 +786,36 @@ function drawGiants(){                         // 盤面に固定されたでっ
   ctx.fillStyle='#c698e8';ctx.fillText(t,x+d/2,ly);
   ctx.textAlign='left'}}
 
+// つまんでいる枠は指そのものではなく、指より CARRY_LIFT だけ上に出す。
+// こうしないと枠が指の下に入って見えない。
+function carryPos(){return{x:carry.x,y:carry.y-CARRY_LIFT*carryEase()}}
+function carryEase(){return Math.min(1,Math.max(0,(carry.lift||0)))}
 function drawCarry(){                          // 指でつまんでいる入れ替え枠
  if(!carry)return;
- const fs=frameSize(carry.dir),pr=pairAt(carry.x,carry.y,carry.dir);
+ const cp=carryPos(),fs=frameSize(carry.dir),pr=pairAt(cp.x,cp.y,carry.dir);
+ const tip={x:carry.x,y:carry.y-12};
+ const aim=pr?{x:cellX(pr.c)+fs.w/2,y:cellY(pr.r)+fs.h/2}:cp;
+ if(aim.y<tip.y-6){                            // 指と枠を点線でつないで対応を見せる
+  ctx.save();ctx.setLineDash([5,5]);
+  ctx.strokeStyle='#ffffffaa';ctx.lineWidth=3;ctx.beginPath();
+  ctx.moveTo(tip.x,tip.y);ctx.lineTo(aim.x,aim.y);ctx.stroke();ctx.restore();
+  ctx.fillStyle='#ffffffaa';ctx.fillRect(tip.x-4,tip.y-4,8,8)}
  if(pr){                                       // 盤面の上ではマスにぴたりと吸着
   const x=cellX(pr.c),y=cellY(pr.r),bad=pairBad(pr);
   ctx.globalAlpha=.25;ctx.fillStyle=bad?'#e2624a':'#ffffff';
   ctx.fillRect(x,y,fs.w,fs.h);ctx.globalAlpha=1;
   swapFrame(x+2,y+2,fs.w-4,fs.h-4,bad?'#e2624a':'#ffffff',5)}
  else{const w=SLOT_BOX*(carry.dir==='v'?.42:.92),h=SLOT_BOX*(carry.dir==='v'?.92:.42);
-  swapFrame(carry.x-w/2,carry.y-h/2,w,h)}}
+  swapFrame(cp.x-w/2,cp.y-h/2,w,h)}}
+
+function drawLasers(){                         // なぞっている間の狩りのレーザー
+ for(const l of lasers){
+  const k=1-l.t/LASER_LIFE;
+  ctx.globalAlpha=Math.max(0,k);
+  for(const [col,lw] of [['#8fe0ff',7],['#ffffff',3]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineCap='round';ctx.beginPath();
+   ctx.moveTo(l.x1,l.y1);ctx.lineTo(l.x2,l.y2);ctx.stroke()}
+  ctx.globalAlpha=1}}
 
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.save();
@@ -799,6 +836,7 @@ function draw(){
  for(const z of zako){const x=Math.round(z.x-S/2),y=Math.round(z.y-S/2);
   if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,S,S);
   else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,S,S)}}
+ drawLasers();
  drawShip();drawSlots();drawFlyers();drawCarry();drawBoss();
  for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
  ctx.globalAlpha=1;
@@ -822,7 +860,7 @@ function onDown(e){
  audio();canvas.setPointerCapture(e.pointerId);
  const p=point(e);
  const si=slotAt(p.x,p.y);
- if(si>=0){carry={id:e.pointerId,slot:si,dir:slots[si],x:p.x,y:p.y,sx:p.x,sy:p.y,moved:false};
+ if(si>=0){carry={id:e.pointerId,slot:si,dir:slots[si],x:p.x,y:p.y,sx:p.x,sy:p.y,moved:false,lift:0};
   return}                                                          // 入れ替え枠をつまむ
  const cell=gridCell(p);
  if(cell){
@@ -844,7 +882,7 @@ function onMove(e){
   pointer.dragged=true;fireHeld=false;holdT=0}}                // 動かしたら撃たない
 function onUp(e){
  if(carry&&carry.id===e.pointerId){
-  const pr=pairAt(carry.x,carry.y,carry.dir);
+  const cp=carryPos(),pr=pairAt(cp.x,cp.y,carry.dir);
   if(!carry.moved&&slotAt(carry.x,carry.y)===carry.slot)rotateSlot(carry.slot); // その場タップ＝回転
   else if(pr)swapPair(carry.slot,pr);                          // 盤面へ落とす
   else play('deny');
