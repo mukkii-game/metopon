@@ -90,7 +90,8 @@ const COMBO_WIN=3.2;
 const ZAP_RATE=.1,LASER_LIFE=.16; // なぞっている間のレーザー（発射間隔と光っている時間）
 const ZAP_RANGE=144;            // レーザーが届く距離。遠くの敵までは狩らない
 const GATK_HOLD=1;              // これ以上押し続けると地上攻撃モードに入る（秒）
-const SHIP_LIFT=56;             // 自機は指より上に出す（指で隠れないように）
+const SHIP_LIFT=56;             // 下の広場では自機を指より上に出す（指で隠れないように）
+const GRAB_R=38;                // これより近くを押したら「自機そのものをつかんだ」
 const AIM_UP=5;                 // 照準は自機のちょうど5マス上（ゼビウスの地上攻撃）
 const AMMO_MAX=3;               // 地上攻撃のストック上限
 const NASU=4;                   // ナスの地上絵は5番目の模様
@@ -168,7 +169,11 @@ function clampShip(x,y){                        // 指の位置を自機の動�
  const z=shipZone(x);
  if(z==='up')return{x:clamp(x,gx+S/2,gx+N*S-S/2),y:clamp(y,BY()+S/2,BY()+N*S-S/2),zone:z};
  return{x:z==='left'?railL():railR(),y:clamp(y,GY+S/2,GY+N*S-S/2),zone:z}}
-function shipPos(p){return clampShip(p.x,p.y-SHIP_LIFT)}   // 自機は指より上
+function shipPos(p){
+ // 下の広場は指が自機の真下に来るので、指より SHIP_LIFT だけ上に出す。
+ // 左右のレールは自機が横（盤面寄り）へずれるので、上下までずらすと1マス浮いてしまう。
+ return shipZone(p.x)==='up'?clampShip(p.x,p.y-SHIP_LIFT):clampShip(p.x,p.y)}
+function grabbing(p){return Math.hypot(p.x-shipX,p.y-shipY)<GRAB_R}   // 自機そのものを押したか
 function lane(x,y){ // 自機がどのレーンを狙っているか（既定は自機の位置）
  const sx=x===undefined?shipX:x,sy=y===undefined?shipY:y,z=shipZone(sx);
  if(z==='up')return{side:'up',i:clamp(Math.floor((sx-gx)/S),0,N-1)};
@@ -484,7 +489,9 @@ function update(dt){
  if(timeLeft<=0){timeLeft=0;ui();timeUp();return}
  shake=Math.max(0,shake-dt*26);if(boss.flash>0)boss.flash-=dt;
 
- if(pointer){const q=shipPos(pointer);shipTX=q.x;shipTY=q.y}
+ if(pointer){                                 // つかんだまま静止している間は動かさない
+  const q=(pointer.grab&&!pointer.dragged)?{x:shipX,y:shipY}:shipPos(pointer);
+  shipTX=q.x;shipTY=q.y}
  else{const kx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
        ky=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
   if(kx||ky){const q=clampShip(shipTX+kx*430*dt,shipTY+ky*430*dt);shipTX=q.x;shipTY=q.y}}
@@ -896,12 +903,13 @@ function onDown(e){
   const g0=giantAt(cell.r,cell.c);
   if(g0){armGiant(g0);return}                                       // 固定ナス
   if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}  // 光った塊
- pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,dragged:false};
- const q=shipPos(p);
+ const grab=grabbing(p);                      // 自機そのものを押した時は動かさない
+ pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,dragged:false,grab};
+ const q=grab?{x:shipX,y:shipY}:shipPos(p);
  if(shipCell(shipX,shipY)!==shipCell(q.x,q.y)){  // 別のマスなら移動だけ。弾は出さない
   shipX=q.x;shipY=q.y;shipTX=q.x;shipTY=q.y;pointer.dragged=true;
   holdT=0;fireHeld=false;play('move',1,.6)}
- else{holdT=0;fireHeld=true}}                 // 同じマスをもう一度タップで発射
+ else{holdT=0;fireHeld=true}}                 // 自機／同じマスをタップで発射
 function onMove(e){
  if(!pointer||pointer.id!==e.pointerId)return;
  const p=point(e);pointer.x=p.x;pointer.y=p.y;
