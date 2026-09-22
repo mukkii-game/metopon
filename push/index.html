@@ -59,7 +59,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
 <h2>1面2分で、4柱の神を。</h2>
-<p><b>スフィンクス → メジェド → バステト → アヌビス</b>。<br>レーンを押して塊を作り、撃ち上げて倒す。<br><b>1面あたり2分</b>。4面とも倒せばクリア。</p>
+<p><b>スフィンクス → メジェド → バステト → アヌビス</b><br><small>SPHINX / MEDJED / BASTET / ANUBIS</small><br>レーンを押して塊を作り、撃ち上げて倒す。<br><b>1面あたり2分</b>。4面とも倒せばクリア。</p>
 <p>自機は盤面の<b>真下の5×5の広場</b>を上下左右に、<br>
 盤面の<b>左右の縦レール</b>も動ける。<br>
 <b>同じマスをもう一度タップ</b>すると1発出て、<br>
@@ -95,11 +95,11 @@ const PLACE_LIFT=56;            // 出した枠は指より上に。指で隠れ
 const STOCK_MAX=3;              // 下のストックに置ける枠の数
 const NASU=4;                   // ナスの地上絵は5番目の模様
 const TIME_LIMIT=120;           // 1面あたりの持ち時間（秒）。面が変わるたびに戻る
-const BOSSES=[                  // 全4面。エジプトの神々
- {name:'スフィンクス',sprite:'boss1',hp:52},
- {name:'メジェド',   sprite:'boss2',hp:68},
- {name:'バステト',   sprite:'boss3',hp:86},
- {name:'アヌビス',   sprite:'boss4',hp:108}];
+const BOSSES=[                  // 全4面。エジプトの神々（カタカナと英字を併記する）
+ {name:'スフィンクス',en:'SPHINX',sprite:'boss1',hp:52},
+ {name:'メジェド',   en:'MEDJED',sprite:'boss2',hp:68},
+ {name:'バステト',   en:'BASTET',sprite:'boss3',hp:86},
+ {name:'アヌビス',   en:'ANUBIS',sprite:'boss4',hp:108}];
 const GLYPH_NAMES=['二条線','十字','稲妻','渦','ナス'];
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
@@ -310,7 +310,7 @@ function slabHit(s){
 // ---- 敵 ---------------------------------------------------------------------
 function makeBoss(){
  const b=BOSSES[Math.min(wave,BOSSES.length)-1];
- return{hp:b.hp,maxHp:b.hp,name:b.name,sprite:b.sprite,size:68+wave*8,flash:0}}
+ return{hp:b.hp,maxHp:b.hp,name:b.name,en:b.en,sprite:b.sprite,size:68+wave*8,flash:0}}
 // 編隊は盤面より下の帯を横切る。盤面を隠さず、レールから撃てる高さに居座る。
 const FORM_TOP=()=>GY+N*S+34;
 function spawnFormation(){
@@ -412,7 +412,7 @@ function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
 function message(s,secs=2.2){$('hint').textContent=s;messageUntil=time+secs}
 function ui(){
  $('score').textContent='SCORE '+score;
- $('wave').textContent=wave+'／'+BOSSES.length+(boss?'　'+boss.name:'');
+ $('wave').textContent=wave+'／'+BOSSES.length+(boss?'　'+boss.en:'');
  const el=$('timer');
  el.textContent=fmtTime(timeLeft===undefined?TIME_LIMIT:timeLeft);
  el.className=timeLeft<=30?'danger':timeLeft<=60?'warn':''}   // 残り1分→琥珀、30秒→赤く点滅
@@ -427,7 +427,7 @@ function nextWave(){
 function stageClear(){                          // 2分のバトルが1つ終わった
  const t=stageTimes[stageTimes.length-1];
  overlay('over','STAGE '+wave+' クリア！',
-  boss.name+'を撃破　タイム <b>'+fmtTime(t)+'</b>',
+  boss.name+'／'+boss.en+' を撃破　タイム <b>'+fmtTime(t)+'</b>',
   'SCORE <b>'+score+'</b><br>残り <b>'+(BOSSES.length-wave)+'</b> 面',
   'STAGE '+(wave+1)+' へ',goNextStage)}
 function goNextStage(){
@@ -440,7 +440,7 @@ function goNextStage(){
  locked=new Set();giants=[];
  $('overlay').classList.add('hidden');phase='play';
  bgmVolume(sound&&!paused?.3:0);play('start');
- message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+' が現れた　持ち時間はまた2分',3.4);ui()}
+ message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+'／'+boss.en+' が現れた　持ち時間はまた2分',3.4);ui()}
 
 function fmtTime(t){                            // 1:23.4 の形に
  t=Math.max(0,t);
@@ -472,7 +472,7 @@ function allClear(){
 function timeUp(){
  play('deny');shake=Math.max(shake,14);
  resultScreen('TIME UP',
-  wave+'面の'+boss.name+'を2分で倒せなかった',
+  wave+'面の'+boss.name+'／'+boss.en+' を2分で倒せなかった',
   'STAGE <b>'+wave+'／'+BOSSES.length+'</b> まで<br>SCORE <b>'+score+'</b>')}
 function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;timeLeft=TIME_LIMIT;
@@ -482,7 +482,7 @@ function reset(){
  shots=[];zako=[];forms=[];flyers=[];pops=[];
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];lasers=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;zapCD=0;spawnT=4;phase='play';
- message('STAGE 1／'+BOSSES.length+'　'+boss.name+'　1面あたり2分',4.5);ui()}
+ message('STAGE 1／'+BOSSES.length+'　'+boss.name+'／'+boss.en+'　1面あたり2分',4.5);ui()}
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
@@ -626,9 +626,21 @@ function drawBoss(){
  const ratio=boss.hp/boss.maxHp;
  ctx.fillStyle='#00000088';ctx.fillRect(14,108,W-28,8);
  ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(14,108,(W-28)*ratio,8);
+ // 面タイトルとボス名を、ボスの絵のとなりに。カタカナと英字を併記する
+ ctx.textAlign='left';
+ ctx.font='bold 11px monospace';ctx.fillStyle='#b79b6c';
+ spaced('STAGE '+wave+' / '+BOSSES.length,14,26,1.5);
+ ctx.font='bold 19px sans-serif';
+ ctx.fillStyle='#1a140e';ctx.fillText(boss.name,15,53);
+ ctx.fillStyle='#f2d9a4';ctx.fillText(boss.name,14,52);
+ ctx.font='bold 12px monospace';ctx.fillStyle='#e0a93c';
+ spaced(boss.en,14,70,2.5);
  ctx.font='10px monospace';ctx.fillStyle='#f2d9a4';
- ctx.fillText(boss.name+'  '+boss.hp+'/'+boss.maxHp,16,104);
- ctx.textAlign='right';ctx.fillText('STAGE '+wave+'／'+BOSSES.length,W-16,104);ctx.textAlign='left'}
+ ctx.fillText('装甲 '+boss.hp+'/'+boss.maxHp,16,104);
+ ctx.textAlign='right';ctx.fillStyle='#b79b6c';
+ ctx.fillText(Math.ceil(boss.hp/boss.maxHp*100)+'%',W-16,104);ctx.textAlign='left'}
+function spaced(t,x,y,sp){                      // 字間を空けて描く（英字用）
+ let cx=x;for(const ch of t){ctx.fillText(ch,cx,y);cx+=ctx.measureText(ch).width+sp}}
 
 function drawZones(){ // 自機のエリア。下は盤面と同じ5列ぶんの広場
  const l=railL(),r=railR(),by=BY(),bh=N*S;
