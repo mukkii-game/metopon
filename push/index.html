@@ -59,7 +59,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <b>そこをタップ</b>すると撃ち上がってボスに刺さる。</p>
 <p>敵は<b>3〜5体の編隊</b>。弾1発で落ちる。<br>
 <b>全滅させる</b>と<b>入れ替え枠</b>が手に入り、<br>
-盤面へドラッグして<b>横2マスを入れ替え</b>られる。</p>
+枠は<b>タップで縦横が切り替わる</b>。<br>盤面へドラッグして<b>2マスを入れ替え</b>られる。</p>
 <p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になって固定。<br>
 タップで<b>ナス攻撃</b>。</p>
 <button id="start">あそぶ</button>
@@ -313,32 +313,50 @@ function clearFormation(f){                    // 編隊を全滅させるとピ
 // （レーンが勝手に押されるのは理不尽なのでやめた。別の形をあとで考える）
 // stun は残してあるので、次のペナルティで使い回せる。
 
-// 画面下のストックは「ピース横2つ分の白い枠」。
-// 盤面へドラッグして重ねた2マスが入れ替わる。ピースそのものは持たない。
-const SLOT_W=80,SLOT_H=42,SLOT_Y=()=>H-56;
-function slotX(i){return W/2+(i===0?-SLOT_W-8:8)}
+// 画面下のストックは「ピース2つ分の白い枠」。
+// タップで縦横を切り替え、盤面へドラッグして重ねた2マスが入れ替わる。
+// slots[i] は false（空）／'h'（横）／'v'（縦）。
+const SLOT_BOX=62,SLOT_Y=()=>H-66;
+function slotX(i){return W/2+(i===0?-SLOT_BOX-10:10)}
 function slotAt(px,py){
  for(let i=0;i<2;i++){const x=slotX(i),y=SLOT_Y();
-  if(slots[i]&&px>=x-8&&px<=x+SLOT_W+8&&py>=y-10&&py<=y+SLOT_H+10)return i}
+  if(slots[i]&&px>=x-8&&px<=x+SLOT_BOX+8&&py>=y-8&&py<=y+SLOT_BOX+8)return i}
  return -1}
 function stow(){                               // 空いている枠へ。両方埋まっていたら古い方を押し出す
  if(!slots[0])return 0;
  if(!slots[1])return 1;
  slots[0]=slots[1];return 1}
-function pairAt(px,py){                        // 枠が重なる、横に並んだ2マス
+function frameSize(dir){return dir==='v'?{w:S,h:S*2}:{w:S*2,h:S}}
+function pairAt(px,py,dir){                    // 枠が重なる、並んだ2マス
  if(px<gx-S*.6||px>gx+N*S+S*.6||py<GY-S*.6||py>GY+N*S+S*.6)return null;
- return{r:clamp(Math.round((py-GY-S/2)/S),0,N-1),
+ if(dir==='v')return{dir,r:clamp(Math.round((py-GY-S)/S),0,N-2),
+                     c:clamp(Math.round((px-gx-S/2)/S),0,N-1)};
+ return{dir:'h',r:clamp(Math.round((py-GY-S/2)/S),0,N-1),
         c:clamp(Math.round((px-gx-S)/S),0,N-2)}}
-function swapPair(slot,r,c){                   // 重ねた2マスを入れ替える
+function pairCells(p){return p.dir==='v'?[[p.r,p.c],[p.r+1,p.c]]:[[p.r,p.c],[p.r,p.c+1]]}
+function pairBad(p){
+ const [a,b]=pairCells(p);
+ if(locked.has(idx(a[0],a[1]))||locked.has(idx(b[0],b[1])))return 'locked';
+ if(grid[a[0]][a[1]]===grid[b[0]][b[1]])return 'same';
+ return null}
+function rotateSlot(i){                        // タップで縦横を切り替える
+ slots[i]=slots[i]==='h'?'v':'h';
+ play('swap',1.6,.6);
+ const x=slotX(i)+SLOT_BOX/2;
+ pop(x,SLOT_Y()-14,slots[i]==='v'?'縦':'横','#ffffff',15);
+ message('入れ替え枠を'+(slots[i]==='v'?'縦':'横')+'向きにした',1.6)}
+function swapPair(slot,p){                     // 重ねた2マスを入れ替える
  if(!slots[slot])return false;
- if(locked.has(idx(r,c))||locked.has(idx(r,c+1))){
-  play('deny');message('でっかいナスは固定されていて入れ替えられない',2);return false}
- if(grid[r][c]===grid[r][c+1]){
-  play('deny');message('同じ模様どうしなので入れ替えても変わらない',1.8);return false}
+ const bad=pairBad(p);
+ if(bad){play('deny');
+  message(bad==='locked'?'でっかいナスは固定されていて入れ替えられない'
+   :'同じ模様どうしなので入れ替えても変わらない',1.9);return false}
+ const [a,bb]=pairCells(p);
  slots[slot]=false;
- [grid[r][c],grid[r][c+1]]=[grid[r][c+1],grid[r][c]];
- play('swap',1.2);burst(cellX(c)+S,cellY(r)+S/2,12,'#ffffff');
- pop(cellX(c)+S,cellY(r)-4,'入れ替え','#ffffff',13);
+ const t=grid[a[0]][a[1]];grid[a[0]][a[1]]=grid[bb[0]][bb[1]];grid[bb[0]][bb[1]]=t;
+ const fs=frameSize(p.dir),cx=cellX(p.c)+fs.w/2,cy=cellY(p.r)+fs.h/2;
+ play('swap',1.2);burst(cx,cy,12,'#ffffff');
+ pop(cx,cellY(p.r)-4,'入れ替え','#ffffff',13);
  checkNasu();
  const g=findGroups();
  if(g.length)play('match',1,.7);
@@ -428,9 +446,9 @@ function update(dt){
   fl.t+=dt;
   if(fl.t>.7){
    if(fl.slot<0){fl.slot=stow();slots[fl.slot]=false}
-   const tx=slotX(fl.slot)+SLOT_W/2,ty=SLOT_Y()+SLOT_H/2,k=Math.min(1,(fl.t-.7)*2.4);
+   const tx=slotX(fl.slot)+SLOT_BOX/2,ty=SLOT_Y()+SLOT_BOX/2,k=Math.min(1,(fl.t-.7)*2.4);
    fl.x+=(tx-fl.x)*k;fl.y+=(ty-fl.y)*k;
-   if(fl.t>1.35){slots[fl.slot]=true;fl.done=true;play('pickup',1.3,.7);ui()}}}
+   if(fl.t>1.35){slots[fl.slot]='h';fl.done=true;play('pickup',1.3,.7);ui()}}}
  flyers=flyers.filter(fl=>!fl.done);
 
  for(const pp of pops){pp.t+=dt;pp.y-=(pp.rise||26)*dt}
@@ -612,31 +630,44 @@ function drawShip(){
   ctx.globalAlpha=.35+Math.sin(time*18)*.25;ctx.fillStyle=lv>=MAXC?'#8fe0ff':'#f6e27a';
   ctx.beginPath();ctx.arc(p.x,p.y,15+lv*3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}}
 
-function swapFrame(x,y,w,h,col='#ffffff',lw=4){ // ピース横2つ分の白い枠
+function swapFrame(x,y,w,h,col='#ffffff',lw=4){ // ピース2つ分の白い枠（縦横どちらも）
  ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+4;ctx.strokeRect(x,y,w,h);
  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
- ctx.beginPath();ctx.moveTo(x+w/2,y+3);ctx.lineTo(x+w/2,y+h-3);ctx.stroke();
- const cy=y+h/2,a=Math.min(12,w*.13);           // 左右に入れ替えの矢印
+ const vert=h>w;
  ctx.beginPath();
- ctx.moveTo(x+w*.22,cy);ctx.lineTo(x+w*.22+a,cy-a*.6);ctx.moveTo(x+w*.22,cy);ctx.lineTo(x+w*.22+a,cy+a*.6);
- ctx.moveTo(x+w*.78,cy);ctx.lineTo(x+w*.78-a,cy-a*.6);ctx.moveTo(x+w*.78,cy);ctx.lineTo(x+w*.78-a,cy+a*.6);
+ if(vert){ctx.moveTo(x+3,y+h/2);ctx.lineTo(x+w-3,y+h/2)}
+ else{ctx.moveTo(x+w/2,y+3);ctx.lineTo(x+w/2,y+h-3)}
+ ctx.stroke();
+ const a=Math.min(12,(vert?h:w)*.13);           // 入れ替えの向きを矢印で
+ ctx.beginPath();
+ if(vert){const cx=x+w/2;
+  for(const [py,sgn] of [[y+h*.22,1],[y+h*.78,-1]]){
+   ctx.moveTo(cx,py);ctx.lineTo(cx-a*.6,py+a*sgn);ctx.moveTo(cx,py);ctx.lineTo(cx+a*.6,py+a*sgn)}}
+ else{const cy=y+h/2;
+  for(const [px,sgn] of [[x+w*.22,1],[x+w*.78,-1]]){
+   ctx.moveTo(px,cy);ctx.lineTo(px+a*sgn,cy-a*.6);ctx.moveTo(px,cy);ctx.lineTo(px+a*sgn,cy+a*.6)}}
  ctx.stroke()}
+function slotFrameRect(i){                      // 枠の中に、向きに合わせて収める
+ const x=slotX(i),y=SLOT_Y(),v=slots[i]==='v',
+  w=v?SLOT_BOX*.42:SLOT_BOX*.92,h=v?SLOT_BOX*.92:SLOT_BOX*.42;
+ return{x:x+(SLOT_BOX-w)/2,y:y+(SLOT_BOX-h)/2,w,h}}
 
 function drawSlots(){                          // 画面下のストック枠
  for(let i=0;i<2;i++){
   const x=slotX(i),y=SLOT_Y(),on=slots[i];
-  ctx.fillStyle='#00000066';ctx.fillRect(x-4,y-4,SLOT_W+8,SLOT_H+8);
+  ctx.fillStyle='#00000066';ctx.fillRect(x-4,y-4,SLOT_BOX+8,SLOT_BOX+8);
   if(!on){ctx.strokeStyle='#5a4326';ctx.lineWidth=2;
-   ctx.setLineDash([5,5]);ctx.strokeRect(x,y,SLOT_W,SLOT_H);ctx.setLineDash([])}
-  else if(!(carry&&carry.slot===i))swapFrame(x,y,SLOT_W,SLOT_H)}
+   ctx.setLineDash([5,5]);ctx.strokeRect(x,y,SLOT_BOX,SLOT_BOX);ctx.setLineDash([])}
+  else if(!(carry&&carry.slot===i)){      // 向きの案内は下の共通行に出している
+   const f=slotFrameRect(i);swapFrame(f.x,f.y,f.w,f.h)}}
  ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#b79b6c';
  ctx.fillText(!slots[0]&&!slots[1]?'編隊を全滅させるとここに入れ替え枠が入る'
-  :'盤面へドラッグして、重ねた2マスを入れ替え',W/2,SLOT_Y()-10);ctx.textAlign='left'}
+  :'タップで縦横 ／ 盤面へドラッグして2マスを入れ替え',W/2,SLOT_Y()-10);ctx.textAlign='left'}
 
 function drawFlyers(){                         // 出た直後の入れ替え枠
  for(const fl of flyers){
-  const grow=fl.t<.7?1.7+Math.sin(fl.t*9)*.3:1.7-Math.min(1,(fl.t-.7)*2)*.8;
-  const w=SLOT_W*grow*.8,h=SLOT_H*grow*.8;
+  const grow=fl.t<.7?1.5+Math.sin(fl.t*9)*.3:1.5-Math.min(1,(fl.t-.7)*2)*.68;
+  const w=SLOT_BOX*.92*grow,h=SLOT_BOX*.42*grow;
   ctx.globalAlpha=.45+Math.sin(fl.t*14)*.3;ctx.fillStyle='#ffffff';
   ctx.fillRect(fl.x-w/2-6,fl.y-h/2-6,w+12,h+12);ctx.globalAlpha=1;
   swapFrame(fl.x-w/2,fl.y-h/2,w,h)}}
@@ -684,14 +715,14 @@ function drawGiants(){                         // 盤面に固定されたでっ
 
 function drawCarry(){                          // 指でつまんでいる入れ替え枠
  if(!carry)return;
- const pr=pairAt(carry.x,carry.y);
+ const fs=frameSize(carry.dir),pr=pairAt(carry.x,carry.y,carry.dir);
  if(pr){                                       // 盤面の上ではマスにぴたりと吸着
-  const x=cellX(pr.c),y=cellY(pr.r),
-   bad=locked.has(idx(pr.r,pr.c))||locked.has(idx(pr.r,pr.c+1))||grid[pr.r][pr.c]===grid[pr.r][pr.c+1];
+  const x=cellX(pr.c),y=cellY(pr.r),bad=pairBad(pr);
   ctx.globalAlpha=.25;ctx.fillStyle=bad?'#e2624a':'#ffffff';
-  ctx.fillRect(x,y,S*2,S);ctx.globalAlpha=1;
-  swapFrame(x+2,y+2,S*2-4,S-4,bad?'#e2624a':'#ffffff',5)}
- else swapFrame(carry.x-SLOT_W/2,carry.y-SLOT_H/2,SLOT_W,SLOT_H)}
+  ctx.fillRect(x,y,fs.w,fs.h);ctx.globalAlpha=1;
+  swapFrame(x+2,y+2,fs.w-4,fs.h-4,bad?'#e2624a':'#ffffff',5)}
+ else{const w=SLOT_BOX*(carry.dir==='v'?.42:.92),h=SLOT_BOX*(carry.dir==='v'?.92:.42);
+  swapFrame(carry.x-w/2,carry.y-h/2,w,h)}}
 
 function draw(){
  ctx.clearRect(0,0,W,H);ctx.save();
@@ -735,8 +766,8 @@ function onDown(e){
  audio();canvas.setPointerCapture(e.pointerId);
  const p=point(e);
  const si=slotAt(p.x,p.y);
- if(si>=0){carry={id:e.pointerId,slot:si,x:p.x,y:p.y};              // 入れ替え枠をつまむ
-  play('swap',1.3,.5);return}
+ if(si>=0){carry={id:e.pointerId,slot:si,dir:slots[si],x:p.x,y:p.y,sx:p.x,sy:p.y,moved:false};
+  return}                                                          // 入れ替え枠をつまむ
  const cell=gridCell(p);
  if(cell){
   const g0=giantAt(cell.r,cell.c);
@@ -749,15 +780,17 @@ function onDown(e){
   holdT=0;fireHeld=false;play('move',1,.6)}
  else{holdT=0;fireHeld=true}}                 // 同じレーンをもう一度タップで発射
 function onMove(e){
- if(carry&&carry.id===e.pointerId){const p=point(e);carry.x=p.x;carry.y=p.y;return}
+ if(carry&&carry.id===e.pointerId){const p=point(e);carry.x=p.x;carry.y=p.y;
+  if(Math.hypot(p.x-carry.sx,p.y-carry.sy)>10)carry.moved=true;return}
  if(!pointer||pointer.id!==e.pointerId)return;
  const p=point(e);pointer.x=p.x;pointer.y=p.y;
  if(!pointer.dragged&&Math.hypot(p.x-pointer.sx,p.y-pointer.sy)>DRAG){
   pointer.dragged=true;fireHeld=false;holdT=0}}                // 動かしたら撃たない
 function onUp(e){
- if(carry&&carry.id===e.pointerId){                            // 盤面へ落とす
-  const pr=pairAt(carry.x,carry.y);
-  if(pr)swapPair(carry.slot,pr.r,pr.c);
+ if(carry&&carry.id===e.pointerId){
+  const pr=pairAt(carry.x,carry.y,carry.dir);
+  if(!carry.moved&&slotAt(carry.x,carry.y)===carry.slot)rotateSlot(carry.slot); // その場タップ＝回転
+  else if(pr)swapPair(carry.slot,pr);                          // 盤面へ落とす
   else play('deny');
   carry=null;return}
  if(carry)return;
