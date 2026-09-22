@@ -1,0 +1,28 @@
+{
+  "name": "XEMETOUS BLASTER",
+  "short_name": "BLASTER",
+  "description": "ゼビウス風に飛んで自動で撃ち、地上攻撃の照準で砂の板をひっくり返してそろえ、エジプトの神々へ撃ち上げる8ビット風シューティング。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "portrait",
+  "background_color": "#1a1109",
+  "theme_color": "#1a1109",
+  "icons": [
+    {
+      "src": "../assets/img/icon-push-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../assets/img/icon-push-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

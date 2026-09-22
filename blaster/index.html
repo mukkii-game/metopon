@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1109">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../assets/img/icon-push-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M12 3v18M3 12h18' stroke='%233a2a1a' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+<meta name="description" content="ゼビウス風に飛んで自動で撃ち、地上攻撃の照準で砂の板をひっくり返してそろえ、エジプトの神々へ撃ち上げる8ビット風シューティング。">
+<title>XEMETOUS BLASTER</title>
+<style>
+*{box-sizing:border-box}
+html{height:100%;overscroll-behavior:none;background:#1a1109}
+body{overflow:hidden;touch-action:none;overscroll-behavior:none;
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+ -webkit-tap-highlight-color:transparent}
+body{margin:0;background:#1a1109;color:#f4e6c8;font-family:system-ui,sans-serif}
+main{max-width:470px;margin:auto;height:100dvh;display:flex;flex-direction:column;
+ padding:max(8px,env(safe-area-inset-top)) 10px max(14px,env(safe-area-inset-bottom));gap:6px}
+header{display:flex;align-items:center;justify-content:space-between;gap:6px}
+header>div:first-child{min-width:0}
+h1{font-size:18px;letter-spacing:2px;margin:0;color:#f2d9a4}
+small{font-size:10px;color:#b79b6c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;border-radius:12px;padding:8px;touch-action:none}
+button:active{background:#8a6528}
+#top{display:flex;gap:4px;flex:0 0 auto}
+#top button{font-size:11px;padding:7px 8px;white-space:nowrap}
+#status{font-size:12px;display:flex;justify-content:space-between;align-items:center;
+ min-height:20px;color:#e5cf9f;gap:6px}
+#power{font-size:17px;font-weight:bold;letter-spacing:1px;color:#8fe0ff;
+ font-variant-numeric:tabular-nums}
+#wave{text-align:right;min-width:96px}
+#stage{position:relative;flex:1;min-height:220px;overflow:hidden;border-radius:14px;border:1px solid #7a5a2e;background:#8f6d38}
+canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
+#overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;
+ background:linear-gradient(180deg,#1a1109d0,#1a1109e8 55%,#1a1109f2);
+ display:flex;align-items:flex-start;justify-content:center;
+ padding:14px 16px 20px;text-align:center}
+#logo{display:block;width:100%;max-width:300px;margin:0 auto 2px;
+ border-radius:6px;box-shadow:0 6px 18px #00000099;image-rendering:auto}
+#credit{margin-top:14px;font-size:10px;line-height:1.6;letter-spacing:2px;color:#b79b6c}
+#credit b{display:block;font-size:13px;letter-spacing:4px;color:#f2d9a4}
+#overlay h2{font-size:20px;margin:8px 0 10px;color:#f2d9a4;line-height:1.35}
+#overlay p{font-size:12.5px;line-height:1.6;color:#d9c49a;margin:7px 0}
+#overlay b{color:#f2d9a4}
+#overlay small{display:inline;font-size:10.5px;letter-spacing:1px}
+#overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:10px}
+.hidden{display:none!important}
+#ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
+#hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
+</style></head><body><main>
+<header><div><h1>XEMETOUS BLASTER</h1><small>4 STAGES / SHOOTER</small></div>
+<div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
+<div id="status"><span id="score">SCORE 0</span><span id="power">BLASTER 2</span><span id="wave">1／4</span></div>
+<div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
+<img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS BLASTER">
+<h2>飛んで、ひっくり返して、撃ち上げる。</h2>
+<p><b>スフィンクス → メジェド → バステト → アヌビス</b><br>
+<small>SPHINX / MEDJED / BASTET / ANUBIS</small><br>全4面。</p>
+<p><b>なぞると自機が飛ぶ。通常弾は自動で出る。</b><br>
+砂の板（地上）の上を飛びながら、空の敵を落としていく。</p>
+<p>自機の<b>少し前に地上攻撃の照準</b>が出る。<br>
+<b>指を離すと地上弾</b>が飛んで、その並びを<b>ひっくり返す</b>。<br>
+地上弾が出ている間は<b>通常弾が止まる</b>。</p>
+<p><b>画面の左半分から</b>なぞり始めると<b>横</b>の照準、<br>
+<b>右半分から</b>なぞり始めると<b>縦</b>の照準。</p>
+<p>編隊を全滅させると<b>パワーアップカプセル</b>が落ちてくる。<br>
+取ると照準が <b>3 → 4 → 5マス</b>に伸びる。取らなくてもいい。</p>
+<p>同じ模様が<b>縦か横に3つ以上</b>そろうと光る。<br>
+<b>タップで確定</b>、少し待って撃ち上がる。<br>
+続けて決めると<b>コンボ</b>で攻撃力が上がる。</p>
+<button id="start">あそぶ</button>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div></div></div>
+<div id="ios" class="hidden"></div>
+<div id="hint">なぞって飛ぶ（通常弾は自動） ／ 指を離すと地上弾 ／ 光った塊をタップで確定</div>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
+const W=440,H=680,KINDS=5;
+const GRID=240;                 // 砂の板（地上）の見た目の大きさ
+const GY=130;                   // 板の上端
+const ARM=1.8;                  // タップで確定してから撃ち上がるまでの秒数
+const COMBO_WIN=3.2;
+const AUTO_RATE=.16;            // 通常弾の自動発射の間隔（秒）
+const SHIP_LIFT=56;             // 自機は指より上に出す（指で隠れないように）
+const GRAB_R=38;                // これより近くを押したら「自機そのものをつかんだ」
+const SIGHT_AHEAD=96;           // 照準は自機の2マスぶん前（上）に出る
+const BOMB_T=.34;               // 地上弾が照準に届くまでの秒数
+const POWER_MAX=5;              // カプセルで伸びる照準の長さの上限
+const NASU=4;                   // ナスの地上絵は5番目の模様
+const BOSSES=[                  // 全4面。エジプトの神々（カタカナと英字を併記する）
+ {name:'スフィンクス',en:'SPHINX',sprite:'boss1',hp:52},
+ {name:'メジェド',   en:'MEDJED',sprite:'boss2',hp:68},
+ {name:'バステト',   en:'BASTET',sprite:'boss3',hp:86},
+ {name:'アヌビス',   en:'ANUBIS',sprite:'boss4',hp:108}];
+const GLYPH_NAMES=['二条線','十字','稲妻','渦','ナス'];
+const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
+
+// ---- アセット（本編と共用） -------------------------------------------------
+const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
+ 'boss1','boss2','boss3','boss4'];
+for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
+const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
+const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3',
+ 'chain','deny','move','start','warn','bossdown','pickup','launch','charge','bgm'];
+const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
+ place:[260,.09,'square'],swap:[700,.06,'square'],match:[560,.12,'triangle'],clear:[780,.18,'triangle'],
+ sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],deny:[140,.12,'square'],
+ move:[1040,.02,'square'],start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square'],
+ pickup:[880,.1,'square'],launch:[1200,.3,'square'],charge:[1200,.05,'square']};
+let ac,sound=true,sfxLoaded=false;
+function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
+ fetch('../assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
+  .then(b=>{SFX[n]=b;if(n==='bgm'&&phase==='play')startBgm()}).catch(()=>{})}
+// BGM。効果音と同じ仕組みでループ再生する
+let bgmSrc=null,bgmGain=null;
+function startBgm(){
+ if(!ac||!SFX.bgm||bgmSrc)return;
+ bgmGain=ac.createGain();bgmGain.gain.value=sound?.3:0;
+ bgmSrc=ac.createBufferSource();bgmSrc.buffer=SFX.bgm;bgmSrc.loop=true;
+ bgmSrc.connect(bgmGain);bgmGain.connect(ac.destination);bgmSrc.start()}
+function stopBgm(){if(bgmSrc){try{bgmSrc.stop()}catch(e){}bgmSrc=null;bgmGain=null}}
+function bgmVolume(v){if(bgmGain)bgmGain.gain.value=v}
+// iPhone は着信スイッチが「消音」だと WebAudio まで黙るので、
+// 無音の <audio> を一度鳴らして再生扱いにしておく。
+const silentEl=new Audio('data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEAIlYAACJWAAABAAgAZGF0YQACAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
+silentEl.loop=true;silentEl.volume=0;silentEl.setAttribute('playsinline','');
+function unlockAudio(){try{const p=silentEl.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
+ if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
+ const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
+ g.gain.value=.55*vol;s.connect(g);g.connect(ac.destination);s.start()}
+function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
+ o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
+ o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
+function audio(){unlockAudio();
+ if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+ ac.resume().catch(()=>{});loadSfx()}
+
+// ---- 状態 -------------------------------------------------------------------
+let grid,N,S,gx,shipX,shipY,shipTX,shipTY,shots,zako,forms,caps,pops,
+    locked,giants,slabs,booms,particles,boss,lasers,bomb,power,aimDir,
+    wave,score,combo,comboUntil,nextFid,phase='ready',paused=false,
+    time=0,scroll=0,shake=0,fireCD=0,spawnT=0,messageUntil=0,flash=0;
+const keys=new Set();
+let pointer=null;
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const cellX=c=>gx+c*S,cellY=r=>GY+r*S;
+
+// ---- 自機は空を自由に飛ぶ（ゼビウス風） -------------------------------------
+// 砂の板（地上）の上を飛ぶ。指は自機の下に置くので、板も自機も指で隠れない。
+const FLY_TOP=()=>GY+2*S,FLY_BOT=()=>H-92;   // 指は自機の下なので、下端は画面より上に
+function clampShip(x,y){return{x:clamp(x,18,W-18),y:clamp(y,FLY_TOP(),FLY_BOT())}}
+function shipPos(p){return clampShip(p.x,p.y-SHIP_LIFT)}
+function grabbing(p){return Math.hypot(p.x-shipX,p.y-shipY)<GRAB_R}
+
+// ---- 地上攻撃の照準 ---------------------------------------------------------
+// 自機のちょうど SIGHT_AHEAD だけ前（上）。長さはパワーアップで 2→5 マス。
+// 向きは「なぞり始めた側」で決まる：左半分＝横、右半分＝縦。
+function sightAt(){
+ const c=clamp(Math.floor((shipX-gx)/S),0,N-1);
+ const r=clamp(Math.floor((shipY-SIGHT_AHEAD-GY)/S),0,N-1);
+ return aimDir==='v'?{dir:'v',r:clamp(r,0,N-power),c}
+                    :{dir:'h',r,c:clamp(c,0,N-power)}}
+function sightCells(a){
+ const out=[];
+ for(let i=0;i<power;i++)out.push(a.dir==='v'?[a.r+i,a.c]:[a.r,a.c+i]);
+ return out}
+function sightBad(a){
+ const cs=sightCells(a);
+ for(const [r,c] of cs)if(locked.has(idx(r,c)))return 'locked';
+ const line=cs.map(([r,c])=>grid[r][c]);
+ if(line.join()===line.slice().reverse().join())return 'same';  // ひっくり返しても同じ
+ return null}
+function sightRect(a){
+ const cs=sightCells(a),x=cellX(a.c),y=cellY(a.r);
+ return a.dir==='v'?{x,y,w:S,h:S*cs.length}:{x,y,w:S*cs.length,h:S}}
+
+// ---- 盤面 -------------------------------------------------------------------
+function idx(r,c){return r*N+c}
+function matched(g=grid){ // 縦横3つ以上そろっているマス
+ const found=new Set();
+ for(let r=0;r<N;r++)for(let c=0;c<N-2;c++){const k=g[r][c];
+  if(k>=0&&g[r][c+1]===k&&g[r][c+2]===k){found.add(idx(r,c));found.add(idx(r,c+1));found.add(idx(r,c+2))}}
+ for(let c=0;c<N;c++)for(let r=0;r<N-2;r++){const k=g[r][c];
+  if(k>=0&&g[r+1][c]===k&&g[r+2][c]===k){found.add(idx(r,c));found.add(idx(r+1,c));found.add(idx(r+2,c))}}
+ return found}
+function findGroups(){ // そろっているマスを、同じ模様の隣接ごとにまとめる
+ const set=matched(),seen=new Set(),out=[];
+ for(const id of set){
+  if(seen.has(id))continue;
+  const k=grid[Math.floor(id/N)][id%N],stack=[id],cells=[];seen.add(id);
+  while(stack.length){const cur=stack.pop(),r=Math.floor(cur/N),c=cur%N;cells.push(cur);
+   for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    const nr=r+dr,nc=c+dc,nid=idx(nr,nc);
+    if(nr<0||nr>=N||nc<0||nc>=N||seen.has(nid)||!set.has(nid))continue;
+    if(grid[nr][nc]!==k)continue;
+    seen.add(nid);stack.push(nid)}}
+  out.push({k,cells})}
+ return out}
+function refill(cells){ // 持ち上げた跡を埋める。すぐにまた成立しない模様を選ぶ
+ for(const id of cells){const r=Math.floor(id/N),c=id%N;
+  for(let t=0;t<14;t++){grid[r][c]=rnd(KINDS);if(!matched().has(id))break}}}
+function newGrid(n){
+ N=n;S=Math.floor(GRID/N);gx=Math.round((W-N*S)/2);
+ grid=Array.from({length:N},()=>Array.from({length:N},()=>rnd(KINDS)));
+ for(let t=0;t<400&&matched().size;t++){const set=[...matched()];
+  const id=set[rnd(set.length)];grid[Math.floor(id/N)][id%N]=rnd(KINDS)}}
+
+function findBig(){ // ナスが4×4にそろっているか（固定済みの場所は除く）
+ for(let r=0;r+4<=N;r++)for(let c=0;c+4<=N;c++){
+  let ok=grid[r][c]===NASU;
+  for(let y=0;y<4&&ok;y++)for(let x=0;x<4;x++){
+   if(grid[r+y][c+x]!==NASU||locked.has(idx(r+y,c+x))){ok=false;break}}
+  if(ok)return{r,c,k:NASU}}
+ return null}
+function checkNasu(){ // そろった瞬間に固定する。以後この16マスは押しても動かない
+ const b=findBig();if(!b)return false;
+ for(let y=0;y<4;y++)for(let x=0;x<4;x++)locked.add(idx(b.r+y,b.c+x));
+ giants.push({r:b.r,c:b.c,t:0});
+ play('bossdown',1.5,.7);shake=Math.max(shake,10);flash=.3;
+ burst(cellX(b.c)+2*S,cellY(b.r)+2*S,34,'#c698e8');
+ pop(cellX(b.c)+2*S,cellY(b.r)+2*S-10,'でっかいナス 固定','#c698e8',17);
+ message('ナスが4×4！ でっかいナスになって固定された。タップでナス攻撃',3.5);
+ return true}
+function giantAt(r,c){return giants.find(g=>r>=g.r&&r<g.r+4&&c>=g.c&&c<g.c+4)}
+
+// ---- 撃ち上げ ---------------------------------------------------------------
+function armGroup(r,c){
+ const g0=giantAt(r,c);
+ if(g0)return armGiant(g0);
+ const g=findGroups().find(G=>G.cells.includes(idx(r,c)));
+ if(!g){play('deny');return false}
+ const cells=g.cells.map(id=>({x:cellX(id%N),y:cellY(Math.floor(id/N))}));
+ const ox=Math.min(...cells.map(p=>p.x)),oy=Math.min(...cells.map(p=>p.y));
+ const mult=bumpCombo(ox+S,oy-14);
+ slabs.push({cells,ox,oy,mult,
+  k:g.k,n:g.cells.length,t:0,y:0,vy:0,fired:false,size:S});
+ refill(g.cells);
+ play('warn',1.4,.6);message(g.cells.length+'マスを確定　'+ARM.toFixed(1)+'秒後に発射',2);
+ return true}
+function armGiant(g){ // 固定されたでっかいナスを、特別なナス攻撃として撃ち上げる
+ const ids=[];for(let y=0;y<4;y++)for(let x=0;x<4;x++){
+  ids.push(idx(g.r+y,g.c+x));locked.delete(idx(g.r+y,g.c+x))}
+ giants=giants.filter(o=>o!==g);
+ const ox=cellX(g.c),oy=cellY(g.r);
+ const mult=bumpCombo(ox+2*S,oy-14);
+ slabs.push({giant:true,nasu:true,cells:[{x:ox,y:oy}],ox,oy,mult,
+  k:NASU,n:16,t:0,y:0,vy:0,fired:false,size:S});
+ refill(ids);
+ play('warn',.8,.9);shake=Math.max(shake,12);flash=.35;
+ burst(ox+2*S,oy+2*S,30,'#c698e8');
+ message('ナス攻撃　発射準備！',3);
+ return true}
+function launch(s){
+ s.fired=true;s.vy=s.giant?-460:-660;play('launch',s.giant?.7:1,s.giant?1:.8);
+ shake=Math.max(shake,6)}
+function slabHit(s){
+ const m=s.mult||1;let dmg,gain;
+ const hx=clamp(s.ox+(s.giant?2*S:S/2),70,W-70);
+ if(s.giant){                                   // ナス攻撃
+  dmg=Math.round(boss.maxHp*.8)*m;gain=4000*m;
+  shake=Math.max(shake,24);flash=.75;
+  for(const z of zako){z.dead=true;boom(z.x,z.y,2.6);burst(z.x,z.y,8,'#c698e8')}
+  forms.length=0;
+  for(let i=0;i<10;i++)boom(30+Math.random()*(W-60),24+Math.random()*96,3.8);
+  play('bossdown');play('boom_l');
+  popBig(W/2,168,'ナス攻撃！','#c698e8',30);
+  message('ナス攻撃が直撃！'+(m>1?'　×'+m:'')+'　装甲 -'+dmg,3)}
+ else{
+  dmg=Math.min(45,Math.round(s.n*s.n/2))*m;gain=s.n*s.n*40*m;
+  shake=Math.max(shake,10+s.n);play(dmg>=12?'boom_l':'boom_s');flash=.3;
+  for(let i=0;i<5;i++)boom(hx+(Math.random()-.5)*100,40+Math.random()*70,2.8+Math.random());
+  pop(hx,182,s.n+'マス','#f6e27a',16);
+  message(s.n+'マスで撃ち抜いた　'+(m>1?'×'+m+'　':'')+'装甲 -'+dmg,2)}
+ for(let i=0;i<26;i++)                             // 上で弾ける火花
+  particles.push({x:hx,y:96,vx:(Math.random()-.5)*420,vy:(Math.random()-.6)*300,
+   life:.35+Math.random()*.4,col:i%2?'#ffe0a0':'#ffffff'});
+ score+=gain;
+ popDamage(hx,74,dmg);                             // ボスのすぐ近くに特大で
+ pop(hx,206,'+'+gain,'#c8e6a0',16);
+ boss.hp=Math.max(0,boss.hp-dmg);boss.flash=.28;
+ if(boss.hp<=0)nextWave();
+ ui()}
+
+// ---- 敵 ---------------------------------------------------------------------
+function makeBoss(){
+ const b=BOSSES[Math.min(wave,BOSSES.length)-1];
+ return{hp:b.hp,maxHp:b.hp,name:b.name,en:b.en,sprite:b.sprite,size:68+wave*8,flash:0}}
+// 編隊は上から降りてくる。ゼビウスらしく、地上（盤面）の上を飛び越えていく。
+const FORM_TOP=()=>112;
+function spawnFormation(){
+ if(forms.length>=2)return;
+ const count=3+rnd(3);                        // 必ず3〜5体
+ const sprite=['enemy1','zako22'][rnd(2)];    // どれもピースと同じ1マス分
+ const f={id:nextFid++,count,killed:0,
+  x:W/2,y:FORM_TOP()-rnd(40),vy:26+wave*6,ph:Math.random()*6.3,
+  sway:85+Math.random()*45};
+ forms.push(f);
+ // 横一列に広げると盤面の5列を全部ふさいでしまうので、
+ // 最大3列ぶんの塊にする。どの列がふさがるかが左右に動いて変わるのが肝。
+ const gap=S+6,cols=Math.min(3,count),rows=Math.ceil(count/3),span=(cols-1)*gap;
+ f.span=span;
+ f.sway=Math.min(f.sway,Math.max(20,(W-span)/2-24));   // 端からはみ出さない振れ幅
+ for(let i=0;i<count;i++){
+  const r=Math.floor(i/3),inRow=Math.min(3,count-r*3),ci=i-r*3;
+  const ox=(ci-(inRow-1)/2)*gap,oy=(r-(rows-1)/2)*(S+6);
+  const side=Math.random()<.5?-1:1;
+  zako.push({fid:f.id,ox,oy,sprite,                 // 弾1発で死ぬ
+   x:W/2+side*(W*.7),y:-40,                          // 画面外から弧を描いて入場
+   sx:W/2+side*(W*.7),sy:-40,arc:side*(60+Math.random()*70),
+   e:0,delay:i*.13})}}
+function formOf(z){return forms.find(f=>f.id===z.fid)}
+function killZako(z){
+ if(z.dead)return;
+ z.dead=true;score+=120;boom(z.x,z.y,2.2);burst(z.x,z.y,12,SAND.hi);play('boom_s');
+ const f=formOf(z);
+ if(f&&++f.killed>=f.count)clearFormation(f);}
+// ---- 地上弾 -----------------------------------------------------------------
+// 照準の並びを丸ごと「ひっくり返す」。2マスなら入れ替え、3〜5マスなら逆順。
+function fireBomb(){
+ if(bomb)return false;                          // 1発ずつ
+ const a=sightAt(),bad=sightBad(a);
+ if(bad){play('deny');
+  message(bad==='locked'?'でっかいナスは固定されていてひっくり返せない'
+   :'ひっくり返しても同じ並びなので変わらない',1.8);return false}
+ const r=sightRect(a);
+ bomb={a,sx:shipX,sy:shipY,tx:r.x+r.w/2,ty:r.y+r.h/2,t:0};
+ play('launch',1.5,.5);
+ return true}
+function blast(b){
+ const a=b.a,cs=sightCells(a);
+ for(const [r,c] of cs)if(!grid[r]||grid[r][c]===undefined)return;   // 面が切り替わった直後などの保険
+ const line=cs.map(([r,c])=>grid[r][c]).reverse();
+ cs.forEach(([r,c],i)=>{grid[r][c]=line[i]});
+ const rc=sightRect(a),cx=rc.x+rc.w/2,cy=rc.y+rc.h/2;
+ play('swap',1.1);play('boom_s',1.3,.6);
+ shake=Math.max(shake,7);flash=.18;
+ burst(cx,cy,18,'#ffffff');boom(cx,cy,2.4);
+ for(const [r,c] of cs)burst(cellX(c)+S/2,cellY(r)+S/2,4,SAND.hi);
+ pop(clamp(cx,50,W-50),Math.max(GY+20,rc.y-12),power+'マス反転','#ffffff',15);
+ checkNasu();
+ const g=findGroups();
+ if(g.length)play('match',1,.7);
+ message(power+'マスをひっくり返した'+(g.length?'　光った塊をタップで確定':''),1.8)}
+
+// ---- パワーアップカプセル ---------------------------------------------------
+function clearFormation(f){                    // 編隊を全滅させるとカプセルが落ちる
+ f.done=true;score+=600;
+ boom(f.x,f.y,3.4);burst(f.x,f.y,26,'#f6e27a');play('pickup');
+ caps.push({x:f.x,y:f.y,vy:52,t:0});
+ pop(f.x,f.y-30,'編隊全滅 +600','#f6e27a',16);
+ message(power>=POWER_MAX?'編隊を全滅！ カプセルが落ちてきた（照準はもう最大）'
+  :'編隊を全滅！ カプセルを取ると照準が'+(power+1)+'マスに伸びる',3)}
+function takeCapsule(c){
+ c.got=true;
+ if(power<POWER_MAX){power++;
+  play('sq3',1.1);flash=.2;
+  popBig(clamp(c.x,60,W-60),c.y-16,'BLASTER '+power,'#8fe0ff',28);
+  message('パワーアップ！ 地上弾が'+power+'マスをひっくり返す',2.4)}
+ else{score+=800;play('pickup',1.5,.8);
+  pop(c.x,c.y-14,'+800','#c8e6a0',16)}
+ burst(c.x,c.y,18,'#8fe0ff');ui()}
+
+// ---- 効果・UI ---------------------------------------------------------------
+function pop(x,y,text,col='#f6e27a',size=15,count){ // 画面に飛び出す数字・文字
+ pops.push({x,y,text,col,size,t:0,life:1.1,count:count||null,rise:26})}
+function popBig(x,y,text,col,size){               // バンと出て少しだけ動く大文字
+ pops.push({x,y,text,col,size,t:0,life:1.5,count:null,rise:8,punch:true})}
+function popDamage(x,y,value){                    // ボスの近くに特大でガガガと数え上げる
+ pops.push({x,y,text:'',col:'#ffe0a0',size:56,t:0,life:1.7,count:value,rise:10,punch:true})}
+function bumpCombo(x,y){                          // 塊を選んだ瞬間にコンボが上がる
+ combo=time<comboUntil?combo+1:1;comboUntil=time+COMBO_WIN;
+ if(combo>1){play('chain',Math.pow(1.12,Math.min(combo,8)));
+  popBig(clamp(x,60,W-60),Math.max(GY+30,y),'×'+combo+' COMBO','#8fe0ff',34);
+  shake=Math.max(shake,5)}
+ return combo}
+function burst(x,y,n=10,col=SAND.light){for(let i=0;i<n;i++)
+ particles.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.35+Math.random()*.4,col})}
+function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
+function message(s,secs=2.2){$('hint').textContent=s;messageUntil=time+secs}
+function ui(){
+ $('score').textContent='SCORE '+score;
+ $('power').textContent='BLASTER '+(power===undefined?2:power);
+ $('wave').textContent=wave+'／'+BOSSES.length+(boss?'　'+boss.en:'')}
+
+function nextWave(){
+ score+=Math.round(2000*wave);play('bossdown');
+ popBig(W/2,150,boss.name+' 撃破！','#f6e27a',30);flash=.5;
+ shake=Math.max(shake,16);
+ if(wave>=BOSSES.length){allClear();return}
+ stageClear()}
+function stageClear(){
+ overlay('over','STAGE '+wave+' クリア！',
+  boss.name+'／'+boss.en+' を撃破',
+  'SCORE <b>'+score+'</b><br>BLASTER <b>'+power+'マス</b>　残り <b>'+(BOSSES.length-wave)+'</b> 面',
+  'STAGE '+(wave+1)+' へ',goNextStage)}
+function goNextStage(){
+ wave++;
+ newGrid(5);boss=makeBoss();
+ pointer=null;bomb=null;
+ shipX=W/2;shipY=FLY_BOT()-20;shipTX=shipX;shipTY=shipY;
+ slabs=[];zako=[];forms=[];caps=[];lasers=[];shots=[];spawnT=3;
+ locked=new Set();giants=[];
+ $('overlay').classList.add('hidden');phase='play';
+ bgmVolume(sound&&!paused?.3:0);play('start');
+ message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+'／'+boss.en+' が現れた',3.4);ui()}
+
+function bestScore(v){                          // 端末に残す。読めない環境でも落ちない
+ try{const key='xemetous_blaster_best';
+  const cur=parseInt(localStorage.getItem(key)||'0',10)||0;
+  if(v!==undefined&&v>cur){localStorage.setItem(key,String(v));return v}
+  return v!==undefined?cur:cur}
+ catch(e){return v===undefined?0:v}}
+function overlay(ph,title,sub,lines,btn,onClick){
+ phase=ph;ui();bgmVolume(.12);       // 上の表示も結果に合わせる
+ $('overlay').classList.remove('hidden');
+ $('overlay').firstElementChild.innerHTML=
+  '<img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">'+
+  '<h2>'+title+'</h2><p>'+sub+'</p><p>'+lines+'</p>'+
+  '<button id="start">'+btn+'</button>'+
+  '<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div>';
+ $('start').onclick=onClick}
+function resultScreen(title,sub,lines){overlay('over',title,sub,lines,'もう一度',restart)}
+function allClear(){
+ const t=stageTimes.reduce((a,b)=>a+b,0),prev=bestTime(),best=(prev===null||t<prev)?t:prev;
+ bestTime(best);
+ play('bossdown');flash=.8;shake=Math.max(shake,20);
+ const per=stageTimes.map((v,i)=>(i+1)+'面 '+fmtTime(v)).join('　／　');
+ resultScreen('CONGRATULATIONS!',
+  '4柱すべて撃破　合計タイム <b>'+fmtTime(t)+'</b><br>'+per,
+  'SCORE <b>'+score+'</b><br>ベストタイム <b>'+fmtTime(best)+'</b>'+
+  (t<=best?'　（更新！）':''))}
+function timeUp(){
+ play('deny');shake=Math.max(shake,14);
+ resultScreen('TIME UP',
+  wave+'面の'+boss.name+'／'+boss.en+' を2分で倒せなかった',
+  'STAGE <b>'+wave+'／'+BOSSES.length+'</b> まで<br>SCORE <b>'+score+'</b>')}
+function allClear(){
+ play('bossdown');flash=.8;shake=Math.max(shake,20);
+ resultScreen('CONGRATULATIONS!',
+  '4柱すべて撃破',
+  'SCORE <b>'+score+'</b><br>最終 BLASTER <b>'+power+'マス</b>'+
+  (bestScore(score)===score?'　（ハイスコア更新！）':'<br>ベスト <b>'+bestScore()+'</b>'))}
+function reset(){
+ wave=1;score=0;combo=0;comboUntil=0;power=2;aimDir='h';
+ newGrid(5);boss=makeBoss();
+ shipX=W/2;shipY=FLY_BOT()-20;shipTX=shipX;shipTY=shipY;
+ shots=[];zako=[];forms=[];caps=[];pops=[];bomb=null;pointer=null;
+ locked=new Set();giants=[];slabs=[];booms=[];particles=[];lasers=[];nextFid=1;
+ time=0;scroll=0;shake=0;fireCD=0;spawnT=3;phase='play';
+ message('STAGE 1／'+BOSSES.length+'　'+boss.name+'／'+boss.en,4);ui()}
+
+// ---- 更新 -------------------------------------------------------------------
+function update(dt){
+ time+=dt;scroll+=dt*22;flash=Math.max(0,flash-dt*1.8);
+ shake=Math.max(0,shake-dt*26);if(boss.flash>0)boss.flash-=dt;
+
+ if(pointer){                                  // つかんだまま静止している間は動かさない
+  const q=(pointer.grab&&!pointer.moved)?{x:shipX,y:shipY}:shipPos(pointer);
+  shipTX=q.x;shipTY=q.y}
+ else{const kx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
+       ky=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+  if(kx||ky){const q=clampShip(shipTX+kx*440*dt,shipTY+ky*440*dt);shipTX=q.x;shipTY=q.y}}
+ shipX+=(shipTX-shipX)*Math.min(1,dt*15);
+ shipY+=(shipTY-shipY)*Math.min(1,dt*15);
+
+ // 通常弾は自動で出る。ただし地上弾が飛んでいる間は止まる
+ fireCD-=dt;
+ if(!bomb&&fireCD<=0){fireCD=AUTO_RATE;
+  shots.push({x:shipX,y:shipY-S*.35});play('shot',1.35,.22)}
+ for(const s of shots){
+  s.y-=820*dt;
+  for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<S/2&&Math.abs(s.y-z.y)<S/2){
+   s.dead=true;killZako(z);break}
+  if(s.y<104)s.dead=true}                      // ボスの帯より上へは行かない
+ shots=shots.filter(s=>!s.dead);
+
+ if(bomb){                                     // 地上弾
+  bomb.t+=dt;const k=Math.min(1,bomb.t/BOMB_T);
+  bomb.x=bomb.sx+(bomb.tx-bomb.sx)*k;
+  bomb.y=bomb.sy+(bomb.ty-bomb.sy)*k;
+  if(k>=1){blast(bomb);bomb=null;ui()}}
+
+ spawnT-=dt;if(spawnT<=0){spawnFormation();spawnT=Math.max(5,11-wave*.6)+Math.random()*3}
+ for(const f of forms){                        // 編隊ごと左右に振れながら降りてくる
+  f.y+=f.vy*dt;f.x=W/2+Math.sin(time*.5+f.ph)*f.sway}
+ forms=forms.filter(f=>!f.done&&f.y<H+70);
+ for(const z of zako){
+  const f=formOf(z);
+  if(!f){z.dead=true;continue}
+  const tx=f.x+z.ox,ty=f.y+z.oy;
+  if(z.e<1){
+   if(z.delay>0){z.delay-=dt}
+   else{z.e=Math.min(1,z.e+dt*.85);
+    const p=z.e,ease=1-Math.pow(1-p,3);
+    z.x=z.sx+(tx-z.sx)*ease+Math.sin(p*Math.PI)*z.arc;
+    z.y=z.sy+(ty-z.sy)*ease}}
+  else{z.x=tx;z.y=ty}}
+ zako=zako.filter(z=>!z.dead&&formOf(z));
+
+ for(const c of caps){                         // カプセルは落ちてくる。取らなくてもいい
+  c.t+=dt;c.y+=c.vy*dt;c.x+=Math.sin(c.t*2.4)*18*dt;
+  if(Math.hypot(c.x-shipX,c.y-shipY)<S*.8)takeCapsule(c)}
+ caps=caps.filter(c=>!c.got&&c.y<H+40);
+
+ for(const pp of pops){pp.t+=dt;pp.y-=(pp.rise||26)*dt}
+ pops=pops.filter(pp=>pp.t<pp.life);
+ for(const g of giants.slice()){g.t+=dt;if(g.t>8)armGiant(g)}
+
+ for(const s of slabs){
+  s.t+=dt;
+  if(!s.fired){s.y=-12*Math.min(1,s.t*5)+Math.sin(s.t*9)*3;if(s.t>=ARM)launch(s)}
+  else{s.y+=s.vy*dt;
+   const w=(s.giant?4:Math.max(1,Math.round((Math.max(...s.cells.map(c=>c.x))-s.ox)/S)+1))*S;
+   const by=s.giant?s.oy+s.y+4*S:Math.max(...s.cells.map(c=>c.y))+s.y+S;
+   for(let i=0;i<3;i++)
+    particles.push({x:s.ox+Math.random()*w,y:by+6,
+     vx:(Math.random()-.5)*70,vy:170+Math.random()*200,
+     life:.18+Math.random()*.25,col:Math.random()<.5?'#ffe0a0':'#e07a3a'});
+   if(!s.hitDone&&s.oy+s.y<=110){s.hitDone=true;slabHit(s)}}}
+ slabs=slabs.filter(s=>!s.hitDone||s.oy+s.y>-260);
+
+ for(const l of lasers)l.t+=dt;lasers=lasers.filter(l=>l.t<.16);
+ for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
+ for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
+ if(time>messageUntil)$('hint').textContent='なぞって飛ぶ（通常弾は自動） ／ 指を離すと地上弾 ／ 光った塊をタップで確定';
+ ui()}
+
+// ---- 描画 -------------------------------------------------------------------
+function glyph(k,x,y,size){
+ if(has('glyphs')){ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size);return}
+ ctx.save();ctx.translate(x,y);ctx.scale(size/24,size/24);ctx.translate(-12,-12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();
+ if(k===0){ctx.moveTo(8,3);ctx.lineTo(8,20);ctx.moveTo(15,3);ctx.lineTo(15,20)}
+ else if(k===1){ctx.moveTo(3,12);ctx.lineTo(20,12);ctx.moveTo(12,3);ctx.lineTo(12,20)}
+ else if(k===2){ctx.moveTo(4,4);ctx.lineTo(17,9);ctx.lineTo(6,14);ctx.lineTo(19,19)}
+ else if(k===3){for(let i=0;i<=90;i++){const a=i/90*1.75*Math.PI*2,rr=1.5+8*i/90;
+  const px=12+Math.cos(a)*rr,py=12+Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}}
+ else{const b=[];                                        // ナスの地上絵
+  for(let i=0;i<=40;i++){const a=i/40*Math.PI*2-Math.PI/2,rx=4.3+1.7*Math.sin(a);
+   b.push([11.5+Math.cos(a)*rx,14.6+Math.sin(a)*7])}
+  ctx.moveTo(b[0][0],b[0][1]);for(const q of b)ctx.lineTo(q[0],q[1]);
+  ctx.moveTo(11.5,7.8);ctx.lineTo(11.5,4.2);
+  ctx.moveTo(11.5,5.6);ctx.lineTo(7.6,3.4);ctx.moveTo(11.5,5.6);ctx.lineTo(15.4,3.4)}
+ ctx.stroke();ctx.restore()}
+function block(k,x,y,size,lit){
+ if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,0,0,24,24,Math.round(x),Math.round(y),size,size);
+ else{ctx.fillStyle=lit?SAND.light:SAND.base;ctx.fillRect(x+1,y+1,size-2,size-2)}
+ glyph(k,x+size/2,y+size/2,size)}
+
+function drawBoss(){
+ ctx.fillStyle=boss.flash>0?'#e2624a':'#2a1c0a';ctx.fillRect(0,0,W,104);
+ ctx.fillStyle='#4a3520';for(let x=0;x<W;x+=26)ctx.fillRect(x+5,96,16,6);
+ if(has(boss.sprite))ctx.drawImage(IMG[boss.sprite],Math.round(W/2-boss.size/2),
+  Math.round(102-boss.size),boss.size,boss.size);   // 帯の下端に足を着ける
+ const ratio=boss.hp/boss.maxHp;
+ ctx.fillStyle='#00000088';ctx.fillRect(14,108,W-28,8);
+ ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(14,108,(W-28)*ratio,8);
+ // 面タイトルとボス名を、ボスの絵のとなりに。カタカナと英字を併記する
+ ctx.textAlign='left';
+ ctx.font='bold 11px monospace';ctx.fillStyle='#b79b6c';
+ spaced('STAGE '+wave+' / '+BOSSES.length,14,26,1.5);
+ ctx.font='bold 19px sans-serif';
+ ctx.fillStyle='#1a140e';ctx.fillText(boss.name,15,53);
+ ctx.fillStyle='#f2d9a4';ctx.fillText(boss.name,14,52);
+ ctx.font='bold 12px monospace';ctx.fillStyle='#e0a93c';
+ spaced(boss.en,14,70,2.5);
+ ctx.font='10px monospace';ctx.fillStyle='#f2d9a4';
+ ctx.fillText('装甲 '+boss.hp+'/'+boss.maxHp,16,104);
+ ctx.textAlign='right';ctx.fillStyle='#b79b6c';
+ ctx.fillText(Math.ceil(boss.hp/boss.maxHp*100)+'%',W-16,104);ctx.textAlign='left'}
+function spaced(t,x,y,sp){                      // 字間を空けて描く（英字用）
+ let cx=x;for(const ch of t){ctx.fillText(ch,cx,y);cx+=ctx.measureText(ch).width+sp}}
+
+function drawGrid(){
+ ctx.fillStyle='#00000055';ctx.fillRect(gx-6,GY-6,N*S+12,N*S+12);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.strokeRect(gx-6,GY-6,N*S+12,N*S+12);
+ const set=matched();
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++)block(grid[r][c],cellX(c),cellY(r),S,set.has(idx(r,c)));
+ for(const g of findGroups()){                         // そろった塊の輪郭を光らせる
+  ctx.globalAlpha=.55+Math.sin(time*9)*.35;
+  for(const [col,lw] of [['#1a140e',7],['#8fe0ff',3]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;
+   for(const id of g.cells){const r=Math.floor(id/N),c=id%N,x=cellX(c),y=cellY(r);
+    for(const [dr,dc,x1,y1,x2,y2] of [[-1,0,0,0,1,0],[1,0,0,1,1,1],[0,-1,0,0,0,1],[0,1,1,0,1,1]]){
+     const nid=idx(r+dr,c+dc);
+     if(r+dr>=0&&r+dr<N&&c+dc>=0&&c+dc<N&&g.cells.includes(nid))continue;
+     ctx.beginPath();ctx.moveTo(x+x1*S,y+y1*S);ctx.lineTo(x+x2*S,y+y2*S);ctx.stroke()}}}
+  ctx.globalAlpha=1}}
+
+function drawSlabs(){
+ for(const s of slabs){
+  const prog=Math.min(1,s.t/ARM);
+  if(s.fired){                                 // 下面のマスごとに噴射口をつける
+   let noz=[];
+   if(s.giant){const by=s.oy+s.y+4*S;
+    for(let i=0;i<4;i++)noz.push({x:s.ox+i*S+S/2,y:by})}
+   else{const my=Math.max(...s.cells.map(c=>c.y));
+    for(const c of s.cells)if(c.y===my)noz.push({x:c.x+S/2,y:c.y+s.y+S})}
+   for(const nz of noz){
+    ctx.fillStyle='#2a1c0a';ctx.fillRect(nz.x-S*.26,nz.y-3,S*.52,7);   // 噴射口
+    const fl=30+Math.random()*34;
+    for(const [col,sc] of [['#e07a3a',1],['#ffe0a0',.6],['#ffffff',.3]]){
+     ctx.fillStyle=col;ctx.beginPath();
+     ctx.moveTo(nz.x-S*.2*sc,nz.y+3);ctx.lineTo(nz.x+S*.2*sc,nz.y+3);
+     ctx.lineTo(nz.x,nz.y+3+fl*sc);ctx.closePath();ctx.fill()}}}
+  if(s.giant){                                        // でっかいナス
+   const d=4*S,x=s.ox,y=s.oy+s.y;
+   ctx.globalAlpha=.3+Math.sin(s.t*12)*.2;ctx.fillStyle=s.nasu?'#f6e27a':'#c698e8';
+   ctx.beginPath();ctx.arc(x+d/2,y+d/2,d*.62,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+   if(has('nasu'))ctx.drawImage(IMG.nasu,Math.round(x),Math.round(y),d,d);
+   else{ctx.fillStyle='#985ec6';ctx.beginPath();ctx.ellipse(x+d/2,y+d*.6,d*.3,d*.38,0,0,7);ctx.fill()}
+   if(!s.fired){const low=y-20<GY,by=low?y+d+6:y-11,ty=low?by+16:by-5;
+    ctx.fillStyle='#00000099';ctx.fillRect(x,by,d,7);
+    ctx.fillStyle=s.nasu?'#f6e27a':'#c698e8';ctx.fillRect(x,by,d*prog,7);
+    ctx.font='bold 12px monospace';ctx.textAlign='center';
+    ctx.fillStyle='#1a140e';ctx.fillText(s.nasu?'ナス揃い ×2':'でっかいナス',x+d/2+1,ty+1);
+    ctx.fillStyle='#f6e27a';ctx.fillText(s.nasu?'ナス揃い ×2':'でっかいナス',x+d/2,ty);
+    ctx.textAlign='left'}
+   continue}
+  if(!s.fired){ctx.globalAlpha=.35;ctx.fillStyle='#1a140e';
+   for(const c of s.cells)ctx.fillRect(c.x+3,c.y+6,s.size,s.size);ctx.globalAlpha=1}
+  for(const c of s.cells)block(s.k,c.x,c.y+s.y,s.size,true);
+  if(!s.fired){
+   ctx.globalAlpha=.45+Math.sin(s.t*14)*.3;ctx.fillStyle='#8fe0ff';
+   for(const c of s.cells)ctx.fillRect(c.x,c.y+s.y,s.size,s.size);
+   ctx.globalAlpha=1;
+   const c0=s.cells[0];ctx.fillStyle='#00000088';ctx.fillRect(c0.x,c0.y+s.y-9,s.size,6);
+   ctx.fillStyle='#8fe0ff';ctx.fillRect(c0.x,c0.y+s.y-9,s.size*prog,6)}}}
+
+function drawGround(){                          // 砂の板＝地上。飛んでいる高さとの差を出す
+ ctx.fillStyle='#00000055';ctx.fillRect(gx-8,GY-8,N*S+16,N*S+16);
+ ctx.strokeStyle=SAND.deep;ctx.lineWidth=4;ctx.strokeRect(gx-8,GY-8,N*S+16,N*S+16);
+}
+
+function drawSight(){                          // 自機の前に出る地上攻撃の照準
+ if(phase!=='play')return;
+ const a=sightAt(),r=sightRect(a),bad=sightBad(a),b=.5+Math.sin(time*9)*.5;
+ const col=bad?'#e2624a':'#ffffff';
+ ctx.globalAlpha=.10+b*.08;ctx.fillStyle=col;
+ ctx.fillRect(r.x,r.y,r.w,r.h);ctx.globalAlpha=1;
+ sightFrame(r.x+2,r.y+2,r.w-4,r.h-4,bad?'#e2624a':(b>.5?'#ffffff':'#f6e27a'),4);
+ ctx.globalAlpha=.55;ctx.strokeStyle=col;ctx.lineWidth=1;   // 何マスぶんかの区切り
+ ctx.beginPath();
+ for(let i=1;i<power;i++){
+  if(a.dir==='v'){ctx.moveTo(r.x+5,r.y+i*S);ctx.lineTo(r.x+r.w-5,r.y+i*S)}
+  else{ctx.moveTo(r.x+i*S,r.y+5);ctx.lineTo(r.x+i*S,r.y+r.h-5)}}
+ ctx.stroke();ctx.globalAlpha=1;
+ ctx.strokeStyle='#ffffff40';ctx.lineWidth=2;ctx.setLineDash([4,6]);  // 自機から照準へ
+ ctx.beginPath();ctx.moveTo(shipX,shipY-S*.4);ctx.lineTo(r.x+r.w/2,r.y+r.h);
+ ctx.stroke();ctx.setLineDash([]);
+ ctx.font='bold 10px monospace';ctx.textAlign='center';
+ const t=bad?'ここは変わらない':(a.dir==='v'?'縦':'横')+' '+power+'マス反転';
+ const ty=r.y-8<GY?r.y+r.h+14:r.y-7;
+ ctx.fillStyle='#1a140e';ctx.fillText(t,r.x+r.w/2+1,ty+1);
+ ctx.fillStyle=bad?'#e2624a':'#f6e27a';ctx.fillText(t,r.x+r.w/2,ty);
+ ctx.textAlign='left'}
+
+function sightFrame(x,y,w,h,col='#ffffff',lw=4){
+ ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+4;ctx.strokeRect(x,y,w,h);
+ ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
+ ctx.fillStyle=col;                             // 四隅のかぎ
+ for(const [dx,dy] of [[0,0],[w,0],[0,h],[w,h]])ctx.fillRect(x+dx-3,y+dy-3,6,6)}
+
+function drawSides(){                          // 左＝横、右＝縦。なぞり始める側の案内
+ if(phase!=='play'||time>11)return;
+ ctx.globalAlpha=Math.max(0,Math.min(1,(11-time)/2));
+ ctx.font='bold 11px monospace';ctx.textAlign='center';
+ for(const [x,t] of [[W*.25,'ここから なぞると 横'],[W*.75,'ここから なぞると 縦']]){
+  ctx.fillStyle='#1a140e';ctx.fillText(t,x+1,H-13);
+  ctx.fillStyle='#f6e27a';ctx.fillText(t,x,H-14)}
+ ctx.strokeStyle='#7a5a2e';ctx.lineWidth=1;ctx.setLineDash([5,5]);
+ ctx.beginPath();ctx.moveTo(W/2,GY+N*S+20);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+ ctx.textAlign='left';ctx.globalAlpha=1}
+
+function drawShip(){
+ const x=Math.round(shipX-S/2),y=Math.round(shipY-S/2);
+ ctx.globalAlpha=.25;ctx.fillStyle='#1a140e';                 // 地上に落ちる影
+ ctx.fillRect(x+5,y+S*.55,S-10,S*.3);ctx.globalAlpha=1;
+ if(has('ship'))ctx.drawImage(IMG.ship,x,y,S,S);
+ else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(shipX,shipY-S/2);
+  ctx.lineTo(shipX+S*.44,shipY+S*.44);ctx.lineTo(shipX-S*.44,shipY+S*.44);ctx.closePath();ctx.fill()}
+ if(bomb){                                                    // 地上弾を撃っている間の印
+  ctx.globalAlpha=.30+Math.sin(time*20)*.18;ctx.fillStyle='#e2624a';
+  ctx.beginPath();ctx.arc(shipX,shipY,S*.55,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}}
+
+function drawCaps(){                           // パワーアップカプセル
+ for(const c of caps){
+  const b=.5+Math.sin(c.t*9)*.5,d=24;
+  ctx.globalAlpha=.3+b*.3;ctx.fillStyle='#8fe0ff';
+  ctx.beginPath();ctx.arc(c.x,c.y,d*.8,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  ctx.fillStyle='#1a140e';ctx.fillRect(c.x-d/2-2,c.y-d/2-2,d+4,d+4);
+  ctx.fillStyle=b>.5?'#8fe0ff':'#ffffff';ctx.fillRect(c.x-d/2,c.y-d/2,d,d);
+  ctx.fillStyle='#1a140e';ctx.font='bold 15px monospace';ctx.textAlign='center';
+  ctx.fillText('P',c.x,c.y+5);ctx.textAlign='left'}}
+
+function drawBomb(){                           // 地上弾
+  if(!bomb)return;
+  const k=Math.min(1,bomb.t/BOMB_T);
+  ctx.strokeStyle='#e2624a55';ctx.lineWidth=3;ctx.setLineDash([3,5]);
+  ctx.beginPath();ctx.moveTo(bomb.sx,bomb.sy);ctx.lineTo(bomb.x,bomb.y);ctx.stroke();ctx.setLineDash([]);
+  const d=10+k*8;
+  ctx.fillStyle='#1a140e';ctx.fillRect(bomb.x-d/2-2,bomb.y-d/2-2,d+4,d+4);
+  ctx.fillStyle=Math.floor(time*24)%2?'#f6e27a':'#e2624a';
+  ctx.fillRect(bomb.x-d/2,bomb.y-d/2,d,d)}
+
+function drawLasers(){
+ for(const l of lasers){
+  ctx.globalAlpha=Math.max(0,1-l.t/.16);
+  for(const [col,lw] of [['#f6e27a',14],['#ffffff',6]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineCap='round';ctx.beginPath();
+   ctx.moveTo(l.x1,l.y1);ctx.lineTo(l.x2,l.y2);ctx.stroke()}
+  ctx.globalAlpha=1}}
+
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.save();
+ if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
+  ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
+ else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
+ drawSides();drawGround();
+ drawGrid();drawGiants();
+ drawSight();
+ drawSlabs();
+ drawCaps();
+ for(const s of shots){                         // 通常弾
+  if(has('shot'))ctx.drawImage(IMG.shot,Math.round(s.x-3),Math.round(s.y-11),6,22);
+  else{ctx.fillStyle='#f6e27a';ctx.fillRect(s.x-3,s.y-11,6,22)}}
+ for(const z of zako){const x=Math.round(z.x-S/2),y=Math.round(z.y-S/2);
+  if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,S,S);
+  else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,S,S)}}
+ drawLasers();drawBomb();
+ drawShip();drawBoss();
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
+ ctx.globalAlpha=1;
+ for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
+  if(has('boom'))ctx.drawImage(IMG.boom,f*24,0,24,24,Math.round(b.x-d/2),Math.round(b.y-d/2),d,d)}
+ if(time<comboUntil&&combo>1){ctx.font='bold 14px monospace';ctx.fillStyle='#f6e27a';
+  ctx.fillText(combo+' COMBO',gx,GY-24)}
+ drawPops();
+ ctx.restore();
+ if(flash>0){ctx.globalAlpha=Math.min(.85,flash);ctx.fillStyle='#e6d0ff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+ ctx.globalAlpha=.1;ctx.fillStyle='#000';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
+
+// ---- 入力：なぞって飛ぶ／離すと地上弾／光った塊はタップで確定 ----------------
+function point(e){const b=canvas.getBoundingClientRect();
+ return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
+function gridCell(p){const c=Math.floor((p.x-gx)/S),r=Math.floor((p.y-GY)/S);
+ return(r>=0&&r<N&&c>=0&&c<N)?{r,c}:null}
+function onDown(e){
+ if(phase!=='play'||paused)return;
+ audio();canvas.setPointerCapture(e.pointerId);
+ const p=point(e);
+ const cell=gridCell(p);
+ if(cell){                                     // 光った塊・固定ナスはタップで確定
+  const g0=giantAt(cell.r,cell.c);
+  if(g0){armGiant(g0);return}
+  if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}
+ if(pointer)return;
+ // なぞり始めた側で照準の向きが決まる。左半分＝横、右半分＝縦
+ const dir=p.x<W/2?'h':'v';
+ if(dir!==aimDir){aimDir=dir;play('move',1.3,.5)}
+ const grab=grabbing(p);
+ pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,moved:false,grab};
+ if(!grab){const q=shipPos(p);shipTX=q.x;shipTY=q.y}}
+function onMove(e){
+ if(!pointer||pointer.id!==e.pointerId)return;
+ const p=point(e);pointer.x=p.x;pointer.y=p.y;
+ if(Math.hypot(p.x-pointer.sx,p.y-pointer.sy)>10)pointer.moved=true}
+function onUp(e){
+ if(!pointer||pointer.id!==e.pointerId)return;
+ pointer=null;
+ fireBomb()}                                   // 指を離すと地上弾が出る
+canvas.addEventListener('pointerdown',onDown);
+canvas.addEventListener('pointermove',onMove);
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,onUp);
+window.addEventListener('keydown',e=>{
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','z','x','c'].includes(e.key))e.preventDefault();
+ keys.add(e.key);
+ if((e.key===' '||e.key==='z')&&!e.repeat)fireBomb();
+ if(e.key==='c'&&!e.repeat){aimDir=aimDir==='h'?'v':'h';play('move',1.3,.5)}
+ if(e.key==='x'&&!e.repeat){const g=findGroups()[0];
+  if(g)armGroup(Math.floor(g.cells[0]/N),g.cells[0]%N);else play('deny')}});
+window.addEventListener('keyup',e=>keys.delete(e.key));
+function togglePause(){if(phase!=='play')return;paused=!paused;
+ $('pause').textContent=paused?'再開':'停止';
+ bgmVolume(paused||!sound?0:.3);
+ if(paused){pointer=null}}
+window.addEventListener('blur',()=>{pointer=null;if(!paused)togglePause()});
+$('start').onclick=restart;$('pause').onclick=togglePause;
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
+ if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.3:0)};
+function restart(){audio();goFullscreen();keepAwake();reset();paused=false;
+ $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');
+ startBgm();bgmVolume(sound?.3:0)}
+
+function drawPops(){                           // 数字と文字
+ ctx.textAlign='center';
+ for(const pp of pops){
+  const f=pp.t/pp.life;
+  let scale;
+  if(pp.punch)                                 // 一気に大きくなって、少し縮んで落ち着く
+   scale=pp.t<.09?pp.t/.09*1.55:1.55-Math.min(.55,(pp.t-.09)*3.4);
+  else scale=pp.t<.12?pp.t/.12*1.25:1.25-Math.min(.25,(pp.t-.12)*1.2);
+  let txt=pp.text;
+  if(pp.count!==null&&pp.count!==undefined){   // 0からガガガと数え上げる
+   const r=Math.min(1,pp.t/.38);
+   txt='-'+Math.max(1,Math.round(pp.count*r*r))}
+  ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.6)/.4);
+  const sz=Math.round(pp.size*Math.max(.05,scale));
+  ctx.font='bold '+sz+'px monospace';
+  if(pp.punch&&pp.t<.3){                       // 出た瞬間の閃光
+   ctx.globalAlpha*=1;ctx.fillStyle='#ffffff';
+   ctx.globalAlpha=Math.max(0,.5-pp.t*1.7);
+   ctx.fillText(txt,pp.x,pp.y);
+   ctx.globalAlpha=Math.max(0,1-Math.max(0,f-.6)/.4)}
+  const o=pp.punch?3:2;
+  ctx.fillStyle='#1a140e';
+  for(const [dx,dy] of [[o,o],[-o,o],[o,-o],[-o,-o]])ctx.fillText(txt,pp.x+dx,pp.y+dy);
+  ctx.fillStyle=pp.col;ctx.fillText(txt,pp.x,pp.y)}
+ ctx.globalAlpha=1;ctx.textAlign='left'}
+
+function drawGiants(){                         // 盤面に固定されたでっかいナス
+ for(const g of giants){
+  const x=cellX(g.c),y=cellY(g.r),d=4*S;
+  ctx.globalAlpha=.25+Math.sin(g.t*4)*.12;ctx.fillStyle='#c698e8';
+  ctx.fillRect(x,y,d,d);ctx.globalAlpha=1;
+  if(has('nasu'))ctx.drawImage(IMG.nasu,Math.round(x),Math.round(y),d,d);
+  for(const [col,lw] of [['#1a140e',9],['#c698e8',5]]){
+   ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x+3,y+3,d-6,d-6)}
+  const ly=y-20<GY?y+d+18:y-8,left=Math.max(0,8-g.t);
+  ctx.font='bold 12px monospace';ctx.textAlign='center';
+  const t='タップでナス攻撃（'+left.toFixed(1)+'秒で自動）';
+  ctx.fillStyle='#1a140e';ctx.fillText(t,x+d/2+1,ly+1);
+  ctx.fillStyle='#c698e8';ctx.fillText(t,x+d/2,ly);
+  ctx.textAlign='left'}}
+
+function togglePause(){if(phase!=='play')return;paused=!paused;
+ $('pause').textContent=paused?'再開':'停止';
+ bgmVolume(paused||!sound?0:.3);
+ if(paused){pointer=null;place=null;fireHeld=false;holdT=0}}
+window.addEventListener('blur',()=>{pointer=null;place=null;fireHeld=false;if(!paused)togglePause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
+function restart(){audio();goFullscreen();keepAwake();reset();paused=false;
+ $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');
+ startBgm();bgmVolume(sound?.3:0)}      // 結果画面で下げた音量を戻す
+$('start').onclick=restart;$('pause').onclick=togglePause;
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
+ if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.3:0)};
+
+// ---- 全画面と誤タッチ対策 ---------------------------------------------------
+const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+const isStandalone=window.matchMedia('(display-mode: fullscreen)').matches||
+ window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||
+ (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+function enterFullscreen(){
+ const el=document.documentElement,r=el.requestFullscreen||el.webkitRequestFullscreen;
+ if(!r)return Promise.resolve(false);
+ try{return Promise.resolve(r.call(el,{navigationUI:'hide'})).then(()=>true).catch(()=>false)}
+ catch(e){return Promise.resolve(false)}}
+function leaveFullscreen(){const x=document.exitFullscreen||document.webkitExitFullscreen;
+ if(x)try{x.call(document)}catch(e){}}
+function lockPortrait(){try{const o=screen.orientation;
+ if(o&&o.lock)o.lock('portrait').catch(()=>{})}catch(e){}}
+let wakeLock=null;
+function keepAwake(){if(!('wakeLock'in navigator)||wakeLock)return;
+ navigator.wakeLock.request('screen').then(w=>{wakeLock=w;
+  w.addEventListener('release',()=>{wakeLock=null})}).catch(()=>{})}
+function syncFullBtn(){const b=$('full');if(!b)return;
+ if(isStandalone){b.classList.add('hidden');return}
+ if(!canFullscreen){b.classList.toggle('hidden',isIOS);return}
+ b.textContent=inFullscreen()?'解除':'全画面'}
+function goFullscreen(){if(isStandalone)return;
+ enterFullscreen().then(ok=>{if(ok)lockPortrait();syncFullBtn()})}
+if($('full'))$('full').onclick=()=>{audio();
+ if(inFullscreen())leaveFullscreen();else goFullscreen();setTimeout(syncFullBtn,120)};
+for(const ev of ['fullscreenchange','webkitfullscreenchange'])document.addEventListener(ev,syncFullBtn);
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault());
+for(const ev of ['gesturestart','gesturechange','gestureend'])
+ document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener('touchmove',e=>{
+ if(e.target&&e.target.closest&&e.target.closest('#overlay'))return;
+ if(e.cancelable)e.preventDefault()},{passive:false});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake()});
+if($('ios')&&isIOS&&!isStandalone&&!canFullscreen){
+ $('ios').textContent='iPhoneは 共有 →「ホーム画面に追加」で全画面';
+ $('ios').onclick=()=>$('ios').classList.add('hidden');
+ $('ios').classList.remove('hidden')}
+syncFullBtn();
+function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
+ ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
+window.addEventListener('resize',resize);resize();reset();phase='ready';
+let last=performance.now();
+function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
+ if(phase==='play'&&!paused)update(dt);
+ else scroll+=dt*18;                          // タイトル中も砂漠は流れる
+ draw();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script></body></html>

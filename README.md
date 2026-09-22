@@ -9,17 +9,19 @@
 「今どこを狙っているか」のガイドを出すことで、
 アナログ移動のままマス単位で狙った場所を指定できます。
 
-## 三つの試作
+## 四つの試作
 
 | | 遊ぶ | 中身 |
 | --- | --- | --- |
 | **本編** | https://mukkii-game.github.io/metopon/ | 滑らかに飛んで上空の雑魚を撃ち、地上のボスの装甲パネルをそろえて剥がす |
 | **別案 BLAST** | https://mukkii-game.github.io/metopon/blast/ | 下から撃ち込んで四角を作り、その四角をそのまま天井のボスへ撃ち返す |
 | **第三案 XEMETOUS** | https://mukkii-game.github.io/metopon/push/ | 盤面の下の広場を動いて弾でレーンを押し、編隊を全滅させてもらった枠で組み替え、そろえた塊をボスへ撃ち上げる。全4面・1面あたり2分のタイムアタック |
+| **第四案 XEMETOUS BLASTER** | https://mukkii-game.github.io/metopon/blaster/ | ゼビウス風に自由に飛ぶ。通常弾は自動、地上攻撃の照準で地上の並びをひっくり返してそろえる。カプセルで照準が5マスまで伸びる。全4面 |
 
 - ルールと設計メモ: [docs/concept.md](docs/concept.md)
 - 別案のルールと設計メモ: [docs/blast.md](docs/blast.md)
 - 第三案のルールと設計メモ: [docs/push.md](docs/push.md)
+- 第四案のルールと設計メモ: [docs/blaster.md](docs/blaster.md)
 - 絵と音の出どころ・作り方: [docs/assets.md](docs/assets.md)
 
 操作: 移動＝アナログパッド／矢印・WASD、A＝Space・Z（連射）、B＝X（地上操作）、C＝Bモード切替
