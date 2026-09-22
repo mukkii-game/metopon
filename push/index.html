@@ -29,12 +29,18 @@ button:active{background:#8a6528}
 #status{font-size:12px;display:flex;justify-content:space-between;min-height:18px;color:#e5cf9f}
 #stage{position:relative;flex:1;min-height:220px;overflow:hidden;border-radius:14px;border:1px solid #7a5a2e;background:#8f6d38}
 canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
-#overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;background:#1a1109ee;
- display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
-#overlay h2{font-size:23px;margin:10px 0;color:#f2d9a4}
-#overlay p{font-size:13px;line-height:1.7;color:#d9c49a;margin:8px 0}
+#overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;
+ background:linear-gradient(180deg,#1a1109d0,#1a1109e8 55%,#1a1109f2);
+ display:flex;align-items:flex-start;justify-content:center;
+ padding:14px 16px 20px;text-align:center}
+#logo{display:block;width:100%;max-width:300px;margin:0 auto 2px;
+ border-radius:6px;box-shadow:0 6px 18px #00000099;image-rendering:auto}
+#credit{margin-top:14px;font-size:10px;line-height:1.6;letter-spacing:2px;color:#b79b6c}
+#credit b{display:block;font-size:13px;letter-spacing:4px;color:#f2d9a4}
+#overlay h2{font-size:20px;margin:8px 0 10px;color:#f2d9a4;line-height:1.35}
+#overlay p{font-size:12.5px;line-height:1.6;color:#d9c49a;margin:7px 0}
 #overlay b{color:#f2d9a4}
-#overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:13px 26px;border-color:#f2d9a4;margin-top:12px}
+#overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:10px}
 .hidden{display:none!important}
 #ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 #hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
@@ -43,17 +49,23 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="charge">—</span><span id="wave">WAVE 1</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
-<small>押して、そろえて、撃ち上げる</small>
+<img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
 <h2>レーンを押して、<br>塊をボスへ撃ち上げる。</h2>
-<p>自機は<b>外周のレール</b>を走る。底辺を左右に、<br>左右の端まで行くとそのまま上下に動ける。<br>画面の<b>左右と下の暗い帯</b>を<b>なぞる</b>と、<br>自機がその位置へ回り込む。帯の中で動かせば<br>指で自機が隠れない。</p>
-<p><b>タップすると1発出る</b>。押したままにすると<br>弾がたまり、<b>離した時に</b>ためた分が出る。<br>軽く連打すれば1マスずつ、ためて離せば<br><b>一度に最大3マス</b>まとめて押せる。<br>なぞって移動しただけでは<b>撃たない</b>。<br>端から出たマスは反対側に戻ってくる。</p>
-<p>同じ模様が縦か横に3つ以上そろうと<b>輪郭が光る</b>。<br><b>そこをタップ</b>すると発射準備に入り、<br>数秒後に上空のボスへ飛んでいく。</p>
-<p>敵は<b>3〜5体の編隊</b>で飛んでくる。弾1発で落ちる。<br><b>編隊を全滅させる</b>と<b>入れ替え枠</b>が出て、<br>画面下のストックに入る。<br>枠を盤面へ<b>ドラッグ</b>して重ねると、<br><b>重なった横2マスが入れ替わる</b>。<br>押し出しでは作れない形の種になる。</p>
-<p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になり、<br>その場に<b>固定</b>される（押しても動かない）。<br>タップすると<b>ナス攻撃</b>で装甲を大きく削る。</p>
-
-<button id="start">あそぶ</button></div></div></div>
+<p><b>タップ</b>で自機が外周のレールを移動。<br>
+<b>同じ所をもう一度タップ</b>すると1発出て、<br>
+そのレーンが1マス押される。<br>
+押したままためると<b>一度に最大3マス</b>。</p>
+<p>同じ模様が<b>縦か横に3つ以上</b>そろうと光る。<br>
+<b>そこをタップ</b>すると撃ち上がってボスに刺さる。</p>
+<p>敵は<b>3〜5体の編隊</b>。弾1発で落ちる。<br>
+<b>全滅させる</b>と<b>入れ替え枠</b>が手に入り、<br>
+盤面へドラッグして<b>横2マスを入れ替え</b>られる。</p>
+<p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になって固定。<br>
+タップで<b>ナス攻撃</b>。</p>
+<button id="start">あそぶ</button>
+<div id="credit"><b>MUKKII</b>ALL RIGHT RESERVED</div></div></div></div></div>
 <div id="ios" class="hidden"></div>
-<div id="hint">なぞって移動 ／ タップで発射（押したままためられる） ／ 光った塊をタップで撃ち上げ</div>
+<div id="hint">タップで移動 ／ 同じ所をもう一度タップで発射 ／ 光った塊をタップで撃ち上げ</div>
 </main><script>
 'use strict';
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
@@ -134,8 +146,8 @@ function railProject(px,py){const sg=segs(),L=segLens();let best=0,bd=1e9,base=0
   const d=Math.hypot(px-(x1+dx*f),py-(y1+dy*f));
   if(d<bd){bd=d;best=base+L[i]*f}base+=L[i]}
  return best}
-function lane(){ // 今どのレーンを狙っているか
- const p=railPoint(shipT);
+function lane(t){ // そのレール位置がどのレーンを狙っているか（既定は自機の位置）
+ const p=railPoint(t===undefined?shipT:t);
  if(p.seg===1)return{side:'up',i:clamp(Math.round((p.x-gx-S/2)/S),0,N-1)};
  return{side:p.seg===0?'right':'left',i:clamp(Math.round((p.y-GY-S/2)/S),0,N-1)}}
 
@@ -367,7 +379,7 @@ function reset(){
  shots=[];zako=[];forms=[];flyers=[];slots=[false,false];carry=null;pops=[];
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
- message('帯をなぞって移動。タップで1発、押したままためて離すとまとめて押す',5);ui()}
+ message('タップで移動、同じ所をもう一度タップで発射。押したままためると最大3マス',5);ui()}
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
@@ -441,7 +453,7 @@ function update(dt){
 
  for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
- if(time>messageUntil)$('hint').textContent='なぞって移動 ／ タップで発射（押したままためられる） ／ 光った塊をタップで撃ち上げ';
+ if(time>messageUntil)$('hint').textContent='タップで移動 ／ 同じ所をもう一度タップで発射 ／ 光った塊をタップで撃ち上げ';
  ui()}
 
 function chargeLevel(){return Math.min(MAXC,1+Math.floor(holdT/CSTEP))}
@@ -731,7 +743,11 @@ function onDown(e){
   if(g0){armGiant(g0);return}                                       // 固定ナス
   if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}  // 光った塊
  pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,dragged:false};
- holdT=0;fireHeld=true}
+ const t=railProject(p.x,p.y),cur=lane(),tgt=lane(t);
+ if(cur.side!==tgt.side||cur.i!==tgt.i){      // 別のレーンなら移動だけ。弾は出さない
+  shipT=t;shipTarget=t;pointer.dragged=true;
+  holdT=0;fireHeld=false;play('move',1,.6)}
+ else{holdT=0;fireHeld=true}}                 // 同じレーンをもう一度タップで発射
 function onMove(e){
  if(carry&&carry.id===e.pointerId){const p=point(e);carry.x=p.x;carry.y=p.y;return}
  if(!pointer||pointer.id!==e.pointerId)return;
@@ -818,6 +834,8 @@ function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canva
 window.addEventListener('resize',resize);resize();reset();phase='ready';
 let last=performance.now();
 function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
- if(phase==='play'&&!paused)update(dt);draw();requestAnimationFrame(frame)}
+ if(phase==='play'&&!paused)update(dt);
+ else scroll+=dt*18;                          // タイトル中も砂漠は流れる
+ draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 </script></body></html>
