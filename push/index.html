@@ -70,7 +70,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <b>全滅させる</b>と<b>地上攻撃</b>のストックが1つ増える。</p>
 <p>白い照準は<b>自機のちょうど5マス上</b>に出る。<br>
 <b>さらに押し続ける</b>と照準が<b>ピカピカ光って地上攻撃モード</b>。<br>
-<b>離した瞬間</b>にその<b>2マスが入れ替わる</b>。</p>
+<b>離した瞬間</b>にその<b>縦2マスが入れ替わる</b>。</p>
 <p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になって固定。<br>
 タップで<b>ナス攻撃</b>。装甲の8割を持っていく。</p>
 <button id="start">あそぶ</button>
@@ -354,7 +354,8 @@ function aimAt(){                              // 自機の5マス上にでき�
  if(shipZone(shipX)!=='up')return null;        // 下の広場に居る時だけ
  const c=clamp(Math.floor((shipX-gx)/S),0,N-1);
  const r=clamp(Math.floor((shipY-AIM_UP*S-GY)/S),0,N-1);
- return{dir:'h',r,c:clamp(c,0,N-2)}}             // 横2マス固定（向きの切り替えは無し）
+ // 縦2マス固定。自機は1マス幅なので、縦なら「自機の真上の列」でどの2マスかが迷わない。
+ return{dir:'v',r:clamp(r,0,N-2),c}}
 function gatkOn(){                              // 長押しで地上攻撃モードに入っているか
  return holdT>=GATK_HOLD&&ammo>0&&!!aimAt()}
 function pairCells(p){return p.dir==='v'?[[p.r,p.c],[p.r+1,p.c]]:[[p.r,p.c],[p.r,p.c+1]]}
