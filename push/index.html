@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="../assets/img/icon-push-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M12 20V6M6 12l6-6 6 6' stroke='%233a2a1a' stroke-width='3' fill='none'/%3E%3C/svg%3E">
-<meta name="description" content="レールを走って盤面のレーンを押し、そろえた塊を上空のボスへ撃ち上げる8ビット風の押し出しパズルシューティング。">
-<title>METOPON PUSH</title>
+<meta name="description" content="2分で3面。レールを走って盤面のレーンを押し、そろえた塊をエジプトの神々へ撃ち上げる8ビット風タイムアタック。">
+<title>XEMETOUS</title>
 <style>
 *{box-sizing:border-box}
 html{height:100%;overscroll-behavior:none;background:#1a1109}
@@ -26,7 +26,13 @@ button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;bo
 button:active{background:#8a6528}
 #top{display:flex;gap:4px;flex:0 0 auto}
 #top button{font-size:11px;padding:7px 8px;white-space:nowrap}
-#status{font-size:12px;display:flex;justify-content:space-between;min-height:18px;color:#e5cf9f}
+#status{font-size:12px;display:flex;justify-content:space-between;align-items:center;
+ min-height:20px;color:#e5cf9f;gap:6px}
+#timer{font-size:17px;font-weight:bold;letter-spacing:1px;color:#f2d9a4;
+ font-variant-numeric:tabular-nums}
+#timer.warn{color:#ff8a70;animation:tick .6s steps(2,end) infinite}
+@keyframes tick{50%{opacity:.35}}
+#wave{text-align:right;min-width:96px}
 #stage{position:relative;flex:1;min-height:220px;overflow:hidden;border-radius:14px;border:1px solid #7a5a2e;background:#8f6d38}
 canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
 #overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;
@@ -45,12 +51,13 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 #hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
 </style></head><body><main>
-<header><div><h1>METOPON PUSH</h1><small>CHARGE → PUSH → LAUNCH</small></div>
+<header><div><h1>XEMETOUS</h1><small>3 STAGES / TIME ATTACK</small></div>
 <div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
-<div id="status"><span id="score">SCORE 0</span><span id="charge">—</span><span id="wave">WAVE 1</span></div>
+<div id="status"><span id="score">SCORE 0</span><span id="timer">2:00.0</span><span id="wave">1／3</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
-<h2>レーンを押して、<br>塊をボスへ撃ち上げる。</h2>
+<h2>2分で、3柱の神を。</h2>
+<p><b>スフィンクス → メジェド → アヌビス</b>。<br>レーンを押して塊を作り、撃ち上げて倒す。<br>制限時間<b>2分</b>のタイムアタック。</p>
 <p><b>タップ</b>で自機が外周のレールを移動。<br>
 <b>同じ所をもう一度タップ</b>すると1発出て、<br>
 そのレーンが1マス押される。<br>
@@ -61,7 +68,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <b>全滅させる</b>と<b>入れ替え枠</b>が手に入り、<br>
 枠は<b>タップで縦横が切り替わる</b>。<br>盤面へドラッグして<b>2マスを入れ替え</b>られる。</p>
 <p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になって固定。<br>
-タップで<b>ナス攻撃</b>。</p>
+タップで<b>ナス攻撃</b>。装甲の8割を持っていく。</p>
 <button id="start">あそぶ</button>
 <div id="credit"><b>MUKKII</b>ALL RIGHT RESERVED</div></div></div></div></div>
 <div id="ios" class="hidden"></div>
@@ -77,11 +84,17 @@ const MAXC=3,CSTEP=.3;          // チャージの段数と、1段あがる秒�
 const ARM=1.8;                  // タップしてから発射までの秒数
 const COMBO_WIN=3.2;
 const NASU=4;                   // ナスの地上絵は5番目の模様
+const TIME_LIMIT=120;           // タイムアタック（秒）
+const BOSSES=[                  // 全3面。エジプトの神々
+ {name:'スフィンクス',sprite:'boss1',hp:52},
+ {name:'メジェド',   sprite:'boss2',hp:74},
+ {name:'アヌビス',   sprite:'boss3',hp:100}];
 const GLYPH_NAMES=['二条線','十字','稲妻','渦','ナス'];
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
 // ---- アセット（本編と共用） -------------------------------------------------
-const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy4','enemy1','enemy2','zako22','nasu'];
+const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
+ 'boss1','boss2','boss3'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
 const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3',
@@ -123,7 +136,7 @@ function audio(){unlockAudio();
 // ---- 状態 -------------------------------------------------------------------
 let grid,N,S,gx,shipT,shipTarget,shots,zako,forms,flyers,slots,carry,pops,
     locked,giants,slabs,booms,particles,boss,
-    holdT,charged,wave,score,combo,comboUntil,nextFid,phase='ready',paused=false,
+    holdT,charged,wave,score,combo,comboUntil,nextFid,timeLeft,phase='ready',paused=false,
     time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0,flash=0;
 const keys=new Set();
 let pointer=null,fireHeld=false;
@@ -276,8 +289,9 @@ function slabHit(s){
  ui()}
 
 // ---- 敵 ---------------------------------------------------------------------
-function makeBoss(){const hp=32+wave*22;
- return{hp,maxHp:hp,size:64+Math.min(wave,6)*14,flash:0}}
+function makeBoss(){
+ const b=BOSSES[Math.min(wave,BOSSES.length)-1];
+ return{hp:b.hp,maxHp:b.hp,name:b.name,sprite:b.sprite,size:72+wave*10,flash:0}}
 // 編隊は盤面より下の帯を横切る。盤面を隠さず、レールから撃てる高さに居座る。
 const FORM_TOP=()=>GY+N*S+34;
 function spawnFormation(){
@@ -380,28 +394,67 @@ function burst(x,y,n=10,col=SAND.light){for(let i=0;i<n;i++)
  particles.push({x,y,vx:(Math.random()-.5)*200,vy:(Math.random()-.5)*200,life:.35+Math.random()*.4,col})}
 function boom(x,y,scale=2){booms.push({x,y,t:0,scale})}
 function message(s,secs=2.2){$('hint').textContent=s;messageUntil=time+secs}
-function ui(){$('score').textContent='SCORE '+score;$('wave').textContent='WAVE '+wave;
- $('charge').textContent=holdT>0?'チャージ '+chargeLevel()+'/'+MAXC+(chargeLevel()>=MAXC?' MAX':'')
-  :time<comboUntil&&combo>1?combo+' COMBO':'—'}
+function ui(){
+ $('score').textContent='SCORE '+score;
+ $('wave').textContent=wave+'／'+BOSSES.length+(boss?'　'+boss.name:'');
+ const el=$('timer');
+ el.textContent=fmtTime(timeLeft===undefined?TIME_LIMIT:timeLeft);
+ el.className=timeLeft<=20?'warn':''}
 
 function nextWave(){
- score+=1500*wave;play('bossdown');wave++;
+ score+=Math.round(1500*wave+timeLeft*20);play('bossdown');
+ popBig(W/2,150,boss.name+' 撃破！','#f6e27a',30);flash=.5;
+ if(wave>=BOSSES.length){allClear();return}
+ wave++;
  newGrid(5);boss=makeBoss();
  holdT=0;slabs=[];zako=[];forms=[];flyers=[];
- locked=new Set();giants=[];pops=[];carry=null;
- message('WAVE '+wave+'　ボスの装甲が増えて大きくなった',3.4);ui()}
+ locked=new Set();giants=[];carry=null;
+ message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+' が現れた',3.4);ui()}
+
+function fmtTime(t){                            // 1:23.4 の形に
+ t=Math.max(0,t);
+ const m=Math.floor(t/60),sec=t-m*60;
+ return m+':'+(sec<10?'0':'')+sec.toFixed(1)}
+function bestTime(v){                           // 端末に残す。読めない環境でも落ちない
+ try{if(v!==undefined)localStorage.setItem('xemetous_best',String(v));
+  const r=localStorage.getItem('xemetous_best');return r===null?null:parseFloat(r)}
+ catch(e){return null}}
+function resultScreen(title,sub,lines){
+ phase='over';ui();bgmVolume(.12);   // 上の表示も結果に合わせる
+ $('overlay').classList.remove('hidden');
+ $('overlay').firstElementChild.innerHTML=
+  '<img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">'+
+  '<h2>'+title+'</h2><p>'+sub+'</p><p>'+lines+'</p>'+
+  '<button id="start">もう一度</button>'+
+  '<div id="credit"><b>MUKKII</b>ALL RIGHT RESERVED</div>';
+ $('start').onclick=restart}
+function allClear(){
+ const t=TIME_LIMIT-timeLeft,prev=bestTime(),best=(prev===null||t<prev)?t:prev;
+ bestTime(best);
+ play('bossdown');flash=.8;shake=Math.max(shake,20);
+ resultScreen('ALL CLEAR',
+  '3面すべて撃破　クリアタイム <b>'+fmtTime(t)+'</b>',
+  'SCORE <b>'+score+'</b><br>ベストタイム <b>'+fmtTime(best)+'</b>'+
+  (t<=best?'　（更新！）':''))}
+function timeUp(){
+ play('deny');shake=Math.max(shake,14);
+ resultScreen('TIME UP',
+  '2分で3面を撃破できなかった',
+  'STAGE <b>'+wave+'／'+BOSSES.length+'</b> まで<br>SCORE <b>'+score+'</b>')}
 function reset(){
- wave=1;score=0;combo=0;comboUntil=0;holdT=0;
+ wave=1;score=0;combo=0;comboUntil=0;holdT=0;timeLeft=TIME_LIMIT;
  newGrid(5);boss=makeBoss();
  shipT=railTotal()/2;shipTarget=shipT;
  shots=[];zako=[];forms=[];flyers=[];slots=[false,false];carry=null;pops=[];
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;spawnT=2;phase='play';
- message('タップで移動、同じ所をもう一度タップで発射。押したままためると最大3マス',5);ui()}
+ message('STAGE 1／'+BOSSES.length+'　'+boss.name+'　制限時間2分',4.5);ui()}
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
  time+=dt;scroll+=dt*18;fireCD-=dt;stun=Math.max(0,stun-dt);flash=Math.max(0,flash-dt*1.8);
+ timeLeft-=dt;
+ if(timeLeft<=0){timeLeft=0;ui();timeUp();return}
  shake=Math.max(0,shake-dt*26);if(boss.flash>0)boss.flash-=dt;
 
  if(pointer)shipTarget=railProject(pointer.x,pointer.y);
@@ -513,11 +566,14 @@ function block(k,x,y,size,lit){
 function drawBoss(){
  ctx.fillStyle=boss.flash>0?'#e2624a':'#2a1c0a';ctx.fillRect(0,0,W,104);
  ctx.fillStyle='#4a3520';for(let x=0;x<W;x+=26)ctx.fillRect(x+5,96,16,6);
- if(has('enemy4'))ctx.drawImage(IMG.enemy4,Math.round(W/2-boss.size/2),Math.round(72-boss.size/2),boss.size,boss.size);
+ if(has(boss.sprite))ctx.drawImage(IMG[boss.sprite],Math.round(W/2-boss.size/2),
+  Math.round(102-boss.size),boss.size,boss.size);   // 帯の下端に足を着ける
  const ratio=boss.hp/boss.maxHp;
  ctx.fillStyle='#00000088';ctx.fillRect(14,108,W-28,8);
  ctx.fillStyle=ratio>.5?'#c8e6a0':ratio>.25?'#f6e27a':'#e2624a';ctx.fillRect(14,108,(W-28)*ratio,8);
- ctx.font='10px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('BOSS '+boss.hp+'/'+boss.maxHp,16,104)}
+ ctx.font='10px monospace';ctx.fillStyle='#f2d9a4';
+ ctx.fillText(boss.name+'  '+boss.hp+'/'+boss.maxHp,16,104);
+ ctx.textAlign='right';ctx.fillText('STAGE '+wave+'／'+BOSSES.length,W-16,104);ctx.textAlign='left'}
 
 function drawZones(){ // 指を置く場所。レールより外側なので自機が指で隠れない
  const l=railL(),r=railR();
@@ -815,7 +871,8 @@ function togglePause(){if(phase!=='play')return;paused=!paused;
 window.addEventListener('blur',()=>{pointer=null;fireHeld=false;if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
 function restart(){audio();goFullscreen();keepAwake();reset();paused=false;
- $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');startBgm()}
+ $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');
+ startBgm();bgmVolume(sound?.3:0)}      // 結果画面で下げた音量を戻す
 $('start').onclick=restart;$('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
  if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.3:0)};

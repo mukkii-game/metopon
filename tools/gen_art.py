@@ -36,6 +36,16 @@ PAL = {
     'v': (108, 58, 150, 255),    # ナス・暗
     'V': (152, 94, 198, 255),    # ナス・中
     'U': (198, 152, 232, 255),   # ナス・明
+    'K': (232, 186, 74, 255),    # 黄金
+    'k': (166, 118, 34, 255),    # 黄金・影
+    'B': (58, 106, 192, 255),    # エジプト青
+    'b2': (30, 58, 118, 255),    # エジプト青・影
+    'N': (26, 24, 30, 255),      # 黒（アヌビス）
+    'n2': (58, 54, 66, 255),     # 黒・明
+    'F': (238, 236, 228, 255),   # 白布（メジェド）
+    'f': (186, 184, 176, 255),   # 白布・影
+    'T': (214, 162, 104, 255),   # 砂岩の肌
+    't': (168, 118, 68, 255),
 }
 
 
@@ -187,6 +197,84 @@ def nasu_big(n=64):
     d.polygon([(cx - 5, 10), (cx + 5, 10), (cx + 3, 20), (cx - 3, 20)], fill=PAL['G'], outline=PAL['g'])
     d.rectangle([cx - 2, 2, cx + 1, 12], fill=PAL['g'])               # 軸
     d.line([(cx - 1, 3), (cx - 1, 11)], fill=PAL['l'])
+    return img
+
+
+def boss_sphinx(n=64):
+    """1面：スフィンクス。ネメス頭巾とコブラ、ライオンの前脚。"""
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = n / 2
+    d.polygon([(c - 26, 54), (c - 22, 20), (c + 22, 20), (c + 26, 54)], fill=PAL['B'])
+    for i in range(-5, 6):                                   # 頭巾の縞
+        x = c + i * 4.6
+        d.line([(x, 21 + abs(i) * .8), (x + i * 1.2, 53)],
+               fill=PAL['K'] if i % 2 == 0 else PAL['b2'], width=2)
+    d.polygon([(c - 22, 20), (c + 22, 20), (c + 18, 12), (c - 18, 12)], fill=PAL['b2'])
+    d.ellipse([c - 15, 16, c + 15, 48], fill=PAL['T'])       # 顔
+    d.ellipse([c - 13, 18, c + 13, 44], fill=PAL['T'])
+    for a in (-1, 1):                                        # 目とコール
+        d.rectangle([c + a * 9 - 4, 27, c + a * 9 + 3, 30], fill=PAL['o'])
+        d.rectangle([c + a * 9 - 2, 28, c + a * 9 + 1, 30], fill=PAL['W'])
+        d.line([(c + a * 13, 27), (c + a * 17, 26)], fill=PAL['o'], width=2)
+    d.rectangle([c - 4, 34, c + 3, 36], fill=PAL['t'])       # 鼻と口
+    d.rectangle([c - 6, 40, c + 5, 42], fill=PAL['o'])
+    d.polygon([(c - 3, 8), (c + 3, 8), (c + 4, 16), (c - 4, 16)], fill=PAL['K'])  # ウラエウス
+    d.ellipse([c - 4, 4, c + 4, 12], fill=PAL['K'], outline=PAL['k'])
+    d.point((c, 8), fill=PAL['R'])
+    for a in (-1, 1):                                        # 前脚
+        d.rectangle([c + a * 20 - 6, 52, c + a * 20 + 6, n - 2], fill=PAL['T'])
+        d.rectangle([c + a * 20 - 6, n - 7, c + a * 20 + 6, n - 2], fill=PAL['t'])
+    return img
+
+
+def boss_medjed(n=64):
+    """2面：メジェド。白い布に目、短い手足。"""
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = n / 2
+    for a in (-1, 1):                                        # 手
+        d.rectangle([c + a * 24 - 5, 30, c + a * 24 + 5, 40], fill=PAL['F'], outline=PAL['f'])
+    d.pieslice([c - 21, 6, c + 21, 54], 180, 360, fill=PAL['F'])   # 布の丸い頭
+    d.rectangle([c - 21, 30, c + 21, 52], fill=PAL['F'])
+    pts = [(c - 21, 52)]
+    for i in range(7):                                       # 裾のぎざぎざ
+        x = c - 21 + i * 7
+        pts += [(x + 3.5, 57), (x + 7, 52)]
+    d.polygon(pts + [(c + 21, 52)], fill=PAL['F'])
+    d.line([(c - 21, 40), (c - 21, 52)], fill=PAL['f'], width=3)
+    d.line([(c + 20, 40), (c + 20, 52)], fill=PAL['f'], width=3)
+    for a in (-1, 1):                                        # 目
+        d.ellipse([c + a * 9 - 6, 24, c + a * 9 + 6, 38], fill=PAL['o'])
+        d.ellipse([c + a * 9 - 3, 27, c + a * 9 + 2, 33], fill=PAL['W'])
+    for a in (-1, 1):                                        # 足
+        d.rectangle([c + a * 9 - 5, n - 6, c + a * 9 + 5, n - 1], fill=PAL['f'])
+    return img
+
+
+def boss_anubis(n=64):
+    """3面：アヌビス。黒いジャッカルの頭と黄金の襟。"""
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = n / 2
+    for a in (-1, 1):                                        # 耳
+        d.polygon([(c + a * 13, 30), (c + a * 9, 2), (c + a * 22, 22)], fill=PAL['N'])
+        d.polygon([(c + a * 13, 26), (c + a * 11, 10), (c + a * 18, 21)], fill=PAL['n2'])
+    d.ellipse([c - 14, 16, c + 14, 44], fill=PAL['N'])       # 頭
+    d.polygon([(c - 9, 33), (c + 9, 33), (c + 6, 55), (c - 6, 55)], fill=PAL['n2'])  # 鼻面
+    d.polygon([(c - 7, 35), (c + 7, 35), (c + 5, 53), (c - 5, 53)], fill=PAL['N'])
+    d.ellipse([c - 5, 48, c + 4, 55], fill=PAL['n2'])                               # 鼻
+    d.ellipse([c - 3, 50, c + 2, 54], fill=PAL['o'])
+    for a in (-1, 1):                                        # 目（エジプト風に吊り上げる）
+        d.polygon([(c + a * 9 - 6, 27), (c + a * 9 + 5, 23), (c + a * 9 + 6, 28),
+                   (c + a * 9 - 5, 31)], fill=PAL['K'])
+        d.polygon([(c + a * 9 - 3, 27), (c + a * 9 + 2, 25), (c + a * 9 + 3, 28),
+                   (c + a * 9 - 2, 30)], fill=PAL['o'])
+        d.line([(c + a * 9 + 5, 24), (c + a * 9 + 11, 21)], fill=PAL['K'], width=2)
+    d.rectangle([c - 22, 54, c + 22, n - 1], fill=PAL['K'])  # 黄金の襟
+    for i in range(-4, 5):
+        d.line([(c + i * 5, 55), (c + i * 5, n - 2)], fill=PAL['B'] if i % 2 else PAL['k'], width=2)
+    d.line([(c - 22, 54), (c + 22, 54)], fill=PAL['k'], width=2)
     return img
 
 
@@ -367,6 +455,9 @@ def build():
         'enemy4.png': enemy4(),
         'zako22.png': zako22(),
         'nasu.png': nasu_big(),
+        'boss1.png': boss_sphinx(),
+        'boss2.png': boss_medjed(),
+        'boss3.png': boss_anubis(),
         'shot.png': shot_sprite(),
         'boom.png': boom_sheet(),
         'glyphs.png': glyph_sheet(),
@@ -390,7 +481,7 @@ if __name__ == '__main__':
     # 目視確認用の一覧を一時ディレクトリへ（リポジトリには入れない）
     tmp = tempfile.gettempdir()
     contact_sheet([made['ship.png'], made['enemy1.png'], made['enemy2.png'],
-                   made['enemy4.png'], made['zako22.png'], made['nasu.png'], made['shot.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
+                   made['boss1.png'], made['boss2.png'], made['boss3.png'], made['nasu.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
     contact_sheet([made['glyphs.png'], made['slab.png'], made['slab_lit.png'],
                    made['sand.png'], made['boom.png']], scale=3).save(os.path.join(tmp, 'metopon_tiles.png'))
     print('プレビュー:', tmp)
