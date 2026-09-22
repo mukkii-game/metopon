@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="../assets/img/icon-push-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M12 20V6M6 12l6-6 6 6' stroke='%233a2a1a' stroke-width='3' fill='none'/%3E%3C/svg%3E">
-<meta name="description" content="1面2分で全3面。下の広場を動いてレーンを押し、ゼビウス風の地上攻撃で盤面を組み替え、そろえた塊をエジプトの神々へ撃ち上げる8ビット風タイムアタック。">
+<meta name="description" content="1面2分で全4面。下の広場を動いてレーンを押し、編隊を全滅させてもらった枠で盤面を組み替え、そろえた塊をエジプトの神々へ撃ち上げる8ビット風タイムアタック。">
 <title>XEMETOUS</title>
 <style>
 *{box-sizing:border-box}
@@ -53,13 +53,13 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 #hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
 </style></head><body><main>
-<header><div><h1>XEMETOUS</h1><small>3 STAGES / TIME ATTACK</small></div>
+<header><div><h1>XEMETOUS</h1><small>4 STAGES / TIME ATTACK</small></div>
 <div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="timer">2:00.0</span><span id="wave">1／3</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
-<h2>1面2分で、3柱の神を。</h2>
-<p><b>スフィンクス → メジェド → アヌビス</b>。<br>レーンを押して塊を作り、撃ち上げて倒す。<br><b>1面あたり2分</b>。3面とも倒せばクリア。</p>
+<h2>1面2分で、4柱の神を。</h2>
+<p><b>スフィンクス → メジェド → バステト → アヌビス</b>。<br>レーンを押して塊を作り、撃ち上げて倒す。<br><b>1面あたり2分</b>。4面とも倒せばクリア。</p>
 <p>自機は盤面の<b>真下の5×5の広場</b>を上下左右に、<br>
 盤面の<b>左右の縦レール</b>も動ける。<br>
 <b>同じマスをもう一度タップ</b>すると1発出て、<br>
@@ -67,16 +67,16 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <p>同じ模様が<b>縦か横に3つ以上</b>そろうと光る。<br>
 <b>そこをタップ</b>すると撃ち上がってボスに刺さる。</p>
 <p>敵は<b>3〜5体の編隊</b>。<b>近くをなぞる</b>とレーザーが狩る。<br>
-<b>全滅させる</b>と<b>地上攻撃</b>のストックが1つ増える。</p>
-<p>白い照準は<b>自機のちょうど5マス上</b>に出る。<br>
-<b>さらに押し続ける</b>と照準が<b>ピカピカ光って地上攻撃モード</b>。<br>
-<b>離した瞬間</b>にその<b>縦2マスが入れ替わる</b>。</p>
+<b>全滅させる</b>と画面下の<b>ストックに白い枠</b>が入る。<br>
+<b>縦か横かは倒した敵で決まる</b>。使うのは<b>先に入った方から</b>。</p>
+<p>枠があるとき<b>盤面をタップ</b>すると、そこに枠が出る。<br>
+<b>指を離した所の2マスが入れ替わる</b>。</p>
 <p><b>ナスが4×4</b>にそろうと<b>でっかいナス</b>になって固定。<br>
 タップで<b>ナス攻撃</b>。装甲の8割を持っていく。</p>
 <button id="start">あそぶ</button>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div></div></div>
 <div id="ios" class="hidden"></div>
-<div id="hint">なぞって移動 ／ 同じマスをタップで発射 ／ 長押しで地上攻撃モード、離すと入れ替え</div>
+<div id="hint">なぞって移動 ／ 同じマスをタップで発射 ／ 枠があるとき盤面をタップ→離すと入れ替え</div>
 </main><script>
 'use strict';
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
@@ -89,23 +89,23 @@ const ARM=1.8;                  // タップしてから発射までの秒数
 const COMBO_WIN=3.2;
 const ZAP_RATE=.1,LASER_LIFE=.16; // なぞっている間のレーザー（発射間隔と光っている時間）
 const ZAP_RANGE=144;            // レーザーが届く距離。遠くの敵までは狩らない
-const GATK_HOLD=1;              // これ以上押し続けると地上攻撃モードに入る（秒）
 const SHIP_LIFT=56;             // 下の広場では自機を指より上に出す（指で隠れないように）
 const GRAB_R=38;                // これより近くを押したら「自機そのものをつかんだ」
-const AIM_UP=5;                 // 照準は自機のちょうど5マス上（ゼビウスの地上攻撃）
-const AMMO_MAX=3;               // 地上攻撃のストック上限
+const PLACE_LIFT=56;            // 出した枠は指より上に。指で隠れないように
+const STOCK_MAX=3;              // 下のストックに置ける枠の数
 const NASU=4;                   // ナスの地上絵は5番目の模様
 const TIME_LIMIT=120;           // 1面あたりの持ち時間（秒）。面が変わるたびに戻る
-const BOSSES=[                  // 全3面。エジプトの神々
+const BOSSES=[                  // 全4面。エジプトの神々
  {name:'スフィンクス',sprite:'boss1',hp:52},
- {name:'メジェド',   sprite:'boss2',hp:74},
- {name:'アヌビス',   sprite:'boss3',hp:100}];
+ {name:'メジェド',   sprite:'boss2',hp:68},
+ {name:'バステト',   sprite:'boss3',hp:86},
+ {name:'アヌビス',   sprite:'boss4',hp:108}];
 const GLYPH_NAMES=['二条線','十字','稲妻','渦','ナス'];
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
 // ---- アセット（本編と共用） -------------------------------------------------
 const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
- 'boss1','boss2','boss3'];
+ 'boss1','boss2','boss3','boss4'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
 const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3',
@@ -146,7 +146,7 @@ function audio(){unlockAudio();
 
 // ---- 状態 -------------------------------------------------------------------
 let grid,N,S,gx,shipX,shipY,shipTX,shipTY,shots,zako,forms,flyers,pops,
-    locked,giants,slabs,booms,particles,boss,lasers,zapCD=0,ammo=0,
+    locked,giants,slabs,booms,particles,boss,lasers,zapCD=0,stock,place,
     holdT,charged,wave,score,combo,comboUntil,nextFid,timeLeft,stageTimes,
     phase='ready',paused=false,
     time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0,flash=0;
@@ -310,14 +310,15 @@ function slabHit(s){
 // ---- 敵 ---------------------------------------------------------------------
 function makeBoss(){
  const b=BOSSES[Math.min(wave,BOSSES.length)-1];
- return{hp:b.hp,maxHp:b.hp,name:b.name,sprite:b.sprite,size:72+wave*10,flash:0}}
+ return{hp:b.hp,maxHp:b.hp,name:b.name,sprite:b.sprite,size:68+wave*8,flash:0}}
 // 編隊は盤面より下の帯を横切る。盤面を隠さず、レールから撃てる高さに居座る。
 const FORM_TOP=()=>GY+N*S+34;
 function spawnFormation(){
  if(forms.length>=2)return;
  const count=3+rnd(3);                        // 必ず3〜5体
  const sprite=['enemy1','zako22'][rnd(2)];    // どれもピースと同じ1マス分
- const f={id:nextFid++,count,killed:0,
+ const dir=sprite==='enemy1'?'h':'v';         // 倒した敵の種類で、もらえる枠の向きが決まる
+ const f={id:nextFid++,count,killed:0,dir,
   x:W/2,y:FORM_TOP()+rnd(30),vy:7+wave*1.6,ph:Math.random()*6.3,
   sway:60+Math.random()*40};
  forms.push(f);
@@ -336,61 +337,61 @@ function killZako(z){
  z.dead=true;score+=120;boom(z.x,z.y,2.2);burst(z.x,z.y,12,SAND.hi);play('boom_s');
  const f=formOf(z);
  if(f&&++f.killed>=f.count)clearFormation(f);}
-function clearFormation(f){                    // 編隊を全滅させると地上攻撃が1つ増える
+function clearFormation(f){                    // 編隊を全滅させると入れ替え枠が1つ出る
  f.done=true;score+=600;
  boom(f.x,f.y,3.4);burst(f.x,f.y,26,'#f6e27a');play('pickup');
- flyers.push({x:f.x,y:f.y,t:0});
+ flyers.push({x:f.x,y:f.y,t:0,dir:f.dir});
  pop(f.x,f.y-30,'編隊全滅 +600','#f6e27a',16);
- message('編隊を全滅！ 地上攻撃のストックが増える',3)}
+ message('編隊を全滅！ '+(f.dir==='v'?'縦':'横')+'の枠がストックに入る',3)}
 // 雑魚を逃した時のペナルティは今は無し。
 // （レーンが勝手に押されるのは理不尽なのでやめた。別の形をあとで考える）
 // stun は残してあるので、次のペナルティで使い回せる。
 
-// ---- 照準と地上攻撃（ゼビウスのブラスター） ---------------------------------
-// 白い枠は自機の「ちょうど5マス上」に常に出ている。
-// 編隊を全滅させるとストックが1つ増え、地上攻撃ボタンで1つ使って2マス入れ替える。
+// ---- ストックと入れ替え -----------------------------------------------------
+// 編隊を全滅させると、画面下のストックに「ピース2つ分の白い枠」が入る。
+// 縦か横かは倒した編隊の敵で決まる。使う時は先に入った方から（先入れ先出し）。
+// 盤面をタップするとその場に枠が出る（指より少し上）。離すと入れ替わる。
 function frameSize(dir){return dir==='v'?{w:S,h:S*2}:{w:S*2,h:S}}
-function aimAt(){                              // 自機の5マス上にできる照準
- if(shipZone(shipX)!=='up')return null;        // 下の広場に居る時だけ
- const c=clamp(Math.floor((shipX-gx)/S),0,N-1);
- const r=clamp(Math.floor((shipY-AIM_UP*S-GY)/S),0,N-1);
- // 縦2マス固定。自機は1マス幅なので、縦なら「自機の真上の列」でどの2マスかが迷わない。
- return{dir:'v',r:clamp(r,0,N-2),c}}
-function gatkOn(){                              // 長押しで地上攻撃モードに入っているか
- return holdT>=GATK_HOLD&&ammo>0&&!!aimAt()}
+function pairAt(px,py,dir){                    // 枠が重なる、並んだ2マス
+ if(px<gx-S*.7||px>gx+N*S+S*.7||py<GY-S*.7||py>GY+N*S+S*.7)return null;
+ if(dir==='v')return{dir:'v',r:clamp(Math.round((py-GY-S)/S),0,N-2),
+                     c:clamp(Math.round((px-gx-S/2)/S),0,N-1)};
+ return{dir:'h',r:clamp(Math.round((py-GY-S/2)/S),0,N-1),
+        c:clamp(Math.round((px-gx-S)/S),0,N-2)}}
 function pairCells(p){return p.dir==='v'?[[p.r,p.c],[p.r+1,p.c]]:[[p.r,p.c],[p.r,p.c+1]]}
 function pairBad(p){
  const [a,b]=pairCells(p);
  if(locked.has(idx(a[0],a[1]))||locked.has(idx(b[0],b[1])))return 'locked';
  if(grid[a[0]][a[1]]===grid[b[0]][b[1]])return 'same';
  return null}
-function groundAttack(){                       // 照準の2マスをバーンと入れ替える
- if(ammo<=0){play('deny');
-  message('地上攻撃のストックが無い。編隊を全滅させると1つ増える',2.2);return false}
- const p=aimAt();
- if(!p){play('deny');
-  message('地上攻撃は下の広場から。照準は自機のちょうど5マス上に出る',2.4);return false}
+function doSwap(p){                            // 重ねた2マスを入れ替える
  const bad=pairBad(p);
  if(bad){play('deny');
   message(bad==='locked'?'でっかいナスは固定されていて入れ替えられない'
    :'同じ模様どうしなので入れ替えても変わらない',1.9);return false}
- ammo--;
  const [a,bb]=pairCells(p);
+ stock.shift();                                // 先に入った枠から使う
  const t=grid[a[0]][a[1]];grid[a[0]][a[1]]=grid[bb[0]][bb[1]];grid[bb[0]][bb[1]]=t;
  const fs=frameSize(p.dir),cx=cellX(p.c)+fs.w/2,cy=cellY(p.r)+fs.h/2;
- lasers.push({x1:shipX,y1:shipY,x2:cx,y2:cy,t:0,big:true});   // 自機から照準へ一閃
+ lasers.push({x1:shipX,y1:shipY,x2:cx,y2:cy,t:0,big:true});   // 自機からその場へ一閃
  play('launch',1.3,.7);play('swap',1.2);
- shake=Math.max(shake,9);flash=.22;
- burst(cx,cy,22,'#ffffff');boom(cx,cy,2.6);
- popBig(clamp(cx,60,W-60),Math.max(GY+26,cellY(p.r)-16),'地上攻撃！','#ffffff',24);
+ shake=Math.max(shake,8);flash=.2;
+ burst(cx,cy,20,'#ffffff');boom(cx,cy,2.4);
+ popBig(clamp(cx,60,W-60),Math.max(GY+26,cellY(p.r)-16),'入れ替え！','#ffffff',24);
  checkNasu();
  const g=findGroups();
  if(g.length)play('match',1,.7);
- message('地上攻撃で2マスを入れ替えた'+(g.length?'　光った塊をタップして撃ち上げ':'')
-  +'　残り'+ammo,2);
+ message('2マスを入れ替えた'+(g.length?'　光った塊をタップして撃ち上げ':'')
+  +'　残りの枠 '+stock.length,2);
  ui();return true}
-// ストックの表示は広場のすぐ下、画面の中央。
-function stockPos(){return{x:W/2,y:BY()+N*S+20}}
+
+// 画面のいちばん下のストック。左が「次に使う枠」。
+const SLOT_BOX=30,SLOT_GAP=8,SLOT_Y=()=>H-34;
+function slotX(i){return W/2-(STOCK_MAX*(SLOT_BOX+SLOT_GAP)-SLOT_GAP)/2+i*(SLOT_BOX+SLOT_GAP)}
+function stow(dir){                            // 先入れ先出し。いっぱいなら新しい方を捨てる
+ if(stock.length>=STOCK_MAX){play('deny');
+  message('枠がいっぱい（'+STOCK_MAX+'つ）。古い方から使って',2);return false}
+ stock.push(dir);return true}
 
 // ---- 効果・UI ---------------------------------------------------------------
 function pop(x,y,text,col='#f6e27a',size=15,count){ // 画面に飛び出す数字・文字
@@ -433,7 +434,7 @@ function goNextStage(){
  wave++;
  timeLeft=TIME_LIMIT;                           // 次の面はまた2分から
  newGrid(5);boss=makeBoss();
- holdT=0;fireHeld=false;pointer=null;
+ holdT=0;fireHeld=false;pointer=null;place=null;
  shipX=W/2;shipY=BY()+N*S-S/2;shipTX=shipX;shipTY=shipY;
  slabs=[];zako=[];forms=[];flyers=[];lasers=[];zapCD=0;spawnT=4;
  locked=new Set();giants=[];
@@ -465,7 +466,7 @@ function allClear(){
  play('bossdown');flash=.8;shake=Math.max(shake,20);
  const per=stageTimes.map((v,i)=>(i+1)+'面 '+fmtTime(v)).join('　／　');
  resultScreen('CONGRATULATIONS!',
-  '3柱すべて撃破　合計タイム <b>'+fmtTime(t)+'</b><br>'+per,
+  '4柱すべて撃破　合計タイム <b>'+fmtTime(t)+'</b><br>'+per,
   'SCORE <b>'+score+'</b><br>ベストタイム <b>'+fmtTime(best)+'</b>'+
   (t<=best?'　（更新！）':''))}
 function timeUp(){
@@ -477,7 +478,7 @@ function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;timeLeft=TIME_LIMIT;
  stageTimes=[];
  newGrid(5);boss=makeBoss();
- shipX=W/2;shipY=BY()+N*S-S/2;shipTX=shipX;shipTY=shipY;ammo=0;
+ shipX=W/2;shipY=BY()+N*S-S/2;shipTX=shipX;shipTY=shipY;stock=[];place=null;
  shots=[];zako=[];forms=[];flyers=[];pops=[];
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];lasers=[];nextFid=1;
  time=0;scroll=0;shake=0;stun=0;fireCD=0;zapCD=0;spawnT=4;phase='play';
@@ -500,13 +501,9 @@ function update(dt){
  shipY+=(shipTY-shipY)*Math.min(1,dt*13);
 
  if(fireHeld&&stun<=0){                        // 押している間はためる
-  const before=chargeLevel(),wasG=gatkOn();holdT+=dt;
-  if(chargeLevel()>before)play('charge',1+chargeLevel()*.18,.5);
-  if(!wasG&&gatkOn()){play('warn',1.7,.5);     // さらに押し続けると地上攻撃モード
-   message('地上攻撃モード　指を離すと照準の2マスが入れ替わる',1.6)}}
- else if(holdT>0){                             // 離した瞬間に発動
-  if(gatkOn())groundAttack();else releaseShot();
-  holdT=0}
+  const before=chargeLevel();holdT+=dt;
+  if(chargeLevel()>before)play('charge',1+chargeLevel()*.18,.5)}
+ else if(holdT>0){releaseShot();holdT=0}      // 離すと1発出る
  if(stun>0){holdT=0}
 
  // なぞっている間は自機がレーザーで雑魚を狩る。ドラッグするだけでシュシュシュと消える
@@ -550,14 +547,16 @@ function update(dt){
   else{z.x=tx;z.y=ty}}
  zako=zako.filter(z=>!z.dead&&formOf(z));
 
- for(const fl of flyers){                     // 出た枠が地上攻撃ボタンへ吸い込まれる
+ for(const fl of flyers){                     // 出た枠が下のストックへ吸い込まれる
   fl.t+=dt;
   if(fl.t>.7){
-   const b=stockPos(),tx=b.x,ty=b.y,k=Math.min(1,(fl.t-.7)*2.4);
+   const i=Math.min(STOCK_MAX-1,stock.length),
+         tx=slotX(i)+SLOT_BOX/2,ty=SLOT_Y()+SLOT_BOX/2,k=Math.min(1,(fl.t-.7)*2.4);
    fl.x+=(tx-fl.x)*k;fl.y+=(ty-fl.y)*k;
    if(fl.t>1.35){fl.done=true;
-    ammo=Math.min(AMMO_MAX,ammo+1);play('pickup',1.3,.7);
-    pop(tx,ty-16,'地上攻撃 ×'+ammo,'#ffffff',15);ui()}}}
+    if(stow(fl.dir)){play('pickup',1.3,.7);
+     pop(tx,ty-22,(fl.dir==='v'?'縦':'横')+'の枠','#ffffff',14)}
+    ui()}}}
  flyers=flyers.filter(fl=>!fl.done);
 
  for(const pp of pops){pp.t+=dt;pp.y-=(pp.rise||26)*dt}
@@ -580,7 +579,7 @@ function update(dt){
 
  for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}particles=particles.filter(p=>p.life>0);
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
- if(time>messageUntil)$('hint').textContent='なぞって移動（近くの雑魚はレーザーで狩る） ／ 同じマスをタップで発射 ／ 長押し→離すと地上攻撃';
+ if(time>messageUntil)$('hint').textContent='なぞって移動（近くの雑魚はレーザーで狩る） ／ 同じマスをタップで発射 ／ 盤面タップ→離すと入れ替え';
  ui()}
 
 function chargeLevel(){return Math.min(MAXC,1+Math.floor(holdT/CSTEP))}
@@ -658,35 +657,48 @@ function drawRail(){                            // 左右の縦レール（行�
  ctx.strokeStyle='#7a5a2e';ctx.lineWidth=2;
  for(const x of [railL(),railR()]){ctx.beginPath();ctx.moveTo(x,GY+6);ctx.lineTo(x,GY+N*S-6);ctx.stroke()}}
 
-function drawAim(){                             // 自機の5マス上に常に出ている照準
- if(ammo<=0)return;
- const p=aimAt();
- if(!p){                                        // 左右のレールに居る時は出ない
-  ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#b79b6c';
-  ctx.fillText('下の広場に戻ると照準が出る',W/2,BY()+14);ctx.textAlign='left';return}
- const fs=frameSize(p.dir),x=cellX(p.c),y=cellY(p.r),bad=pairBad(p),g=holdT>0&&gatkOn();
- const col=bad?'#e2624a':g?'#ffffff':'#ffffff';
- if(g){                                         // 地上攻撃モード：ピカピカ光る
-  const b=.5+Math.sin(time*16)*.5;
-  ctx.globalAlpha=.30+b*.34;ctx.fillStyle=bad?'#e2624a':'#ffffff';
-  ctx.fillRect(x-4,y-4,fs.w+8,fs.h+8);ctx.globalAlpha=1;
-  swapFrame(x-1,y-1,fs.w+2,fs.h+2,b>.5?'#ffffff':'#f6e27a',7);
-  swapFrame(x+6,y+6,fs.w-12,fs.h-12,b>.5?'#f6e27a':'#ffffff',3);
+function drawPlace(){                            // 盤面に出している枠（指より少し上）
+ if(!place)return;
+ const fs=frameSize(place.dir),pr=pairAt(place.x,place.y-PLACE_LIFT,place.dir);
+ const tip={x:place.x,y:place.y-12};
+ const at=pr?{x:cellX(pr.c)+fs.w/2,y:cellY(pr.r)+fs.h/2}
+            :{x:place.x,y:place.y-PLACE_LIFT};
+ if(at.y<tip.y-6){                              // 指と枠を点線でつなぐ
+  ctx.save();ctx.setLineDash([5,5]);
+  ctx.strokeStyle='#ffffffaa';ctx.lineWidth=3;ctx.beginPath();
+  ctx.moveTo(tip.x,tip.y);ctx.lineTo(at.x,at.y);ctx.stroke();ctx.restore();
+  ctx.fillStyle='#ffffffaa';ctx.fillRect(tip.x-4,tip.y-4,8,8)}
+ if(pr){                                        // 盤面の上ではマスにぴたりと吸着
+  const x=cellX(pr.c),y=cellY(pr.r),bad=pairBad(pr),b=.5+Math.sin(time*14)*.5;
+  const col=bad?'#e2624a':'#ffffff';
+  ctx.globalAlpha=.22+b*.22;ctx.fillStyle=col;
+  ctx.fillRect(x,y,fs.w,fs.h);ctx.globalAlpha=1;
+  swapFrame(x+1,y+1,fs.w-2,fs.h-2,bad?'#e2624a':(b>.5?'#ffffff':'#f6e27a'),5);
   ctx.font='bold 12px monospace';ctx.textAlign='center';
-  const t=bad?'ここには使えない':'離すと地上攻撃';
+  const t=bad?'ここには使えない':'離すと入れ替え';
   const ty=y-14<GY?y+fs.h+18:y-12;
   ctx.fillStyle='#1a140e';ctx.fillText(t,x+fs.w/2+1,ty+1);
-  ctx.fillStyle=bad?'#e2624a':'#ffffff';ctx.fillText(t,x+fs.w/2,ty);
+  ctx.fillStyle=col;ctx.fillText(t,x+fs.w/2,ty);
   ctx.textAlign='left'}
- else{                                          // ふだんは薄い白枠。この2マスですよ、の印
-  ctx.globalAlpha=.13;ctx.fillStyle=col;
-  ctx.fillRect(x+2,y+2,fs.w-4,fs.h-4);ctx.globalAlpha=1;
-  ctx.globalAlpha=.75;swapFrame(x+2,y+2,fs.w-4,fs.h-4,col,3);ctx.globalAlpha=1;
-  ctx.globalAlpha=.5;ctx.strokeStyle=col;ctx.lineWidth=1;   // 内側にもう一本、細い線
-  ctx.strokeRect(x+6,y+6,fs.w-12,fs.h-12);ctx.globalAlpha=1}
- ctx.strokeStyle=g?'#ffffff99':'#ffffff40';ctx.lineWidth=2;ctx.setLineDash([4,6]);
- ctx.beginPath();ctx.moveTo(shipX,shipY-S*.4);ctx.lineTo(x+fs.w/2,y+fs.h);
- ctx.stroke();ctx.setLineDash([])}
+ else{const w=fs.w*.6,h=fs.h*.6;                // 盤面の外ではそのまま持っている
+  swapFrame(place.x-w/2,place.y-PLACE_LIFT-h/2,w,h,'#ffffff',4)}}
+
+function drawStock(){                           // いちばん下のストック（左が次に使う枠）
+ for(let i=0;i<STOCK_MAX;i++){
+  const x=slotX(i),y=SLOT_Y(),dir=stock[i];
+  ctx.fillStyle='#00000066';ctx.fillRect(x,y,SLOT_BOX,SLOT_BOX);
+  if(!dir){ctx.strokeStyle='#5a4326';ctx.lineWidth=2;
+   ctx.setLineDash([4,4]);ctx.strokeRect(x+1,y+1,SLOT_BOX-2,SLOT_BOX-2);ctx.setLineDash([]);
+   continue}
+  const v=dir==='v',w=v?SLOT_BOX*.34:SLOT_BOX*.76,h=v?SLOT_BOX*.76:SLOT_BOX*.34;
+  const next=i===0;
+  if(next){ctx.globalAlpha=.20+Math.sin(time*5)*.10;ctx.fillStyle='#f6e27a';
+   ctx.fillRect(x,y,SLOT_BOX,SLOT_BOX);ctx.globalAlpha=1}
+  swapFrame(x+(SLOT_BOX-w)/2,y+(SLOT_BOX-h)/2,w,h,next?'#f6e27a':'#ffffff',3)}
+ ctx.font='9px monospace';ctx.textAlign='center';ctx.fillStyle='#b79b6c';
+ ctx.fillText(!stock.length?'編隊を全滅させるとここに枠が入る'
+  :'盤面をタップ → 離すと入れ替え（左の枠から使う）',W/2,SLOT_Y()-7);
+ ctx.textAlign='left'}
 
 function drawLaneGuide(){
  const l=lane(),power=holdT>0?chargeLevel():1;
@@ -694,7 +706,6 @@ function drawLaneGuide(){
  if(l.side==='up')ctx.fillRect(cellX(l.i),GY,S,N*S);
  else ctx.fillRect(gx,cellY(l.i),N*S,S);
  ctx.globalAlpha=1;
- if(holdT>0&&gatkOn())return;                          // 地上攻撃モード中は押さない
  const a=laneAnchor(l.side,l.i);                       // 押される向きの矢印
  ctx.fillStyle=Math.floor(time*8)%2?'#fff6c8':'#e0a93c';
  const d=l.side==='up'?[0,-1]:l.side==='right'?[1,0]:[-1,0];
@@ -788,21 +799,10 @@ function swapFrame(x,y,w,h,col='#ffffff',lw=4){ // さらの四角（仕切り�
  ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+4;ctx.strokeRect(x,y,w,h);
  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h)}
 
-function drawStock(){                           // 地上攻撃のストック
- const p=stockPos();
- ctx.font='bold 11px monospace';ctx.textAlign='center';
- ctx.fillStyle='#1a140e';ctx.fillText('地上攻撃',p.x-42+1,p.y+5);
- ctx.fillStyle=ammo>0?'#ffffff':'#7a5a2e';ctx.fillText('地上攻撃',p.x-42,p.y+4);
- for(let i=0;i<AMMO_MAX;i++){
-  const cx=p.x+2+i*20;
-  ctx.fillStyle=i<ammo?'#ffffff':'#00000077';ctx.fillRect(cx-7,p.y-7,14,14);
-  ctx.strokeStyle='#1a140e';ctx.lineWidth=2;ctx.strokeRect(cx-7,p.y-7,14,14)}
- ctx.textAlign='left'}
-
-function drawFlyers(){                         // 編隊全滅で出た枠がボタンへ吸い込まれる
+function drawFlyers(){                         // 編隊全滅で出た枠がストックへ吸い込まれる
  for(const fl of flyers){
-  const grow=fl.t<.7?1.5+Math.sin(fl.t*9)*.3:1.5-Math.min(1,(fl.t-.7)*2)*.9;
-  const w=S*1.5*grow,h=S*.7*grow;
+  const grow=fl.t<.7?1.3+Math.sin(fl.t*9)*.3:1.3-Math.min(1,(fl.t-.7)*2)*.95;
+  const v=fl.dir==='v',w=(v?S*.7:S*1.5)*grow,h=(v?S*1.5:S*.7)*grow;
   ctx.globalAlpha=.45+Math.sin(fl.t*14)*.3;ctx.fillStyle='#ffffff';
   ctx.fillRect(fl.x-w/2-6,fl.y-h/2-6,w+12,h+12);ctx.globalAlpha=1;
   swapFrame(fl.x-w/2,fl.y-h/2,w,h)}}
@@ -865,7 +865,7 @@ function draw(){
  else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
  drawZones();drawRail();
  drawGrid();drawGiants();
- if(phase==='play'){drawLaneGuide();drawAim()}
+ if(phase==='play')drawLaneGuide();
  drawSlabs();
  for(const s of shots){const a=Math.atan2(s.dy,s.dx)+Math.PI/2,w=6+s.power*4,h=22+s.power*6;
   ctx.save();ctx.translate(s.x,s.y);ctx.rotate(a);
@@ -877,7 +877,7 @@ function draw(){
   if(has(z.sprite))ctx.drawImage(IMG[z.sprite],x,y,S,S);
   else{ctx.fillStyle='#ce3e34';ctx.fillRect(x,y,S,S)}}
  drawLasers();
- drawShip();drawStock();drawFlyers();drawBoss();
+ drawShip();drawStock();drawFlyers();drawPlace();drawBoss();
  for(const p of particles){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4)}
  ctx.globalAlpha=1;
  for(const b of booms){const f=Math.min(4,Math.floor(b.t/.06)),d=24*b.scale;
@@ -903,7 +903,9 @@ function onDown(e){
  if(cell){
   const g0=giantAt(cell.r,cell.c);
   if(g0){armGiant(g0);return}                                       // 固定ナス
-  if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}  // 光った塊
+  if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}  // 光った塊
+  if(stock.length){                             // ストックの枠をその場に出す
+   place={id:e.pointerId,x:p.x,y:p.y,dir:stock[0]};play('swap',1.5,.5);return}}
  const grab=grabbing(p);                      // 自機そのものを押した時は動かさない
  pointer={id:e.pointerId,x:p.x,y:p.y,sx:p.x,sy:p.y,dragged:false,grab};
  const q=grab?{x:shipX,y:shipY}:shipPos(p);
@@ -912,11 +914,18 @@ function onDown(e){
   holdT=0;fireHeld=false;play('move',1,.6)}
  else{holdT=0;fireHeld=true}}                 // 自機／同じマスをタップで発射
 function onMove(e){
+ if(place&&place.id===e.pointerId){const p=point(e);place.x=p.x;place.y=p.y;return}
+ if(place)return;
  if(!pointer||pointer.id!==e.pointerId)return;
  const p=point(e);pointer.x=p.x;pointer.y=p.y;
  if(!pointer.dragged&&Math.hypot(p.x-pointer.sx,p.y-pointer.sy)>DRAG){
   pointer.dragged=true;fireHeld=false;holdT=0}}                // 動かしたら撃たない
 function onUp(e){
+ if(place&&place.id===e.pointerId){            // 離した所で入れ替え
+  const pr=pairAt(place.x,place.y-PLACE_LIFT,place.dir);
+  if(pr)doSwap(pr);else play('deny');
+  place=null;return}
+ if(place)return;
  if(pointer&&pointer.id!==e.pointerId)return;
  // pointerup のあと lostpointercapture でもここへ来るので、
  // 指が残っている1回目だけ判定する（2回目に holdT を消さない）
@@ -935,8 +944,8 @@ window.addEventListener('keyup',e=>{keys.delete(e.key);if(e.key===' '||e.key==='
 function togglePause(){if(phase!=='play')return;paused=!paused;
  $('pause').textContent=paused?'再開':'停止';
  bgmVolume(paused||!sound?0:.3);
- if(paused){pointer=null;fireHeld=false;holdT=0}}
-window.addEventListener('blur',()=>{pointer=null;fireHeld=false;if(!paused)togglePause()});
+ if(paused){pointer=null;place=null;fireHeld=false;holdT=0}}
+window.addEventListener('blur',()=>{pointer=null;place=null;fireHeld=false;if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
 function restart(){audio();goFullscreen();keepAwake();reset();paused=false;
  $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');

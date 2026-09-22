@@ -46,6 +46,12 @@ PAL = {
     'f': (186, 184, 176, 255),   # 白布・影
     'T': (214, 162, 104, 255),   # 砂岩の肌
     't': (168, 118, 68, 255),
+    'X': (240, 205, 148, 255),   # スフィンクスの砂色（線画の塗り）
+    'x': (214, 176, 122, 255),   # その影
+    'M': (166, 102, 46, 255),    # アヌビスの肌
+    'Y': (247, 196, 44, 255),    # 黄（腰布・装飾）
+    'A': (232, 124, 44, 255),    # 橙（襟）
+    'e': (250, 232, 206, 255),   # 白目
 }
 
 
@@ -200,82 +206,122 @@ def nasu_big(n=64):
     return img
 
 
+# --- ボス4体 ---------------------------------------------------------------
+# 参考にした絵の雰囲気（太い輪郭＋べた塗り、目が大きくてとぼけた顔）に寄せて
+# ドットで描き起こしたもの。素材そのものは使っていない。
+# ボスの帯は暗いので、シルエットのまわりに淡いふちを足して浮かせる。
+INK = (26, 20, 14, 255)
+RIM = (250, 238, 205, 255)
+
+
+def add_rim(img, col=RIM, w=2):
+    """不透明な部分のまわりに淡いふちを足す。暗い体でも形が見えるように。"""
+    from PIL import ImageChops, ImageFilter
+    a = img.split()[3].point(lambda v: 255 if v > 128 else 0)
+    ring = ImageChops.subtract(a.filter(ImageFilter.MaxFilter(2 * w + 1)), a)
+    out = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    out.paste(col, (0, 0), ring)
+    out.alpha_composite(img)
+    return out
+
+
 def boss_sphinx(n=64):
-    """1面：スフィンクス。ネメス頭巾とコブラ、ライオンの前脚。"""
+    """1面：スフィンクス。丸い頭巾に大きな目、寝そべったライオンの体。"""
     img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    c = n / 2
-    d.polygon([(c - 26, 54), (c - 22, 20), (c + 22, 20), (c + 26, 54)], fill=PAL['B'])
-    for i in range(-5, 6):                                   # 頭巾の縞
-        x = c + i * 4.6
-        d.line([(x, 21 + abs(i) * .8), (x + i * 1.2, 53)],
-               fill=PAL['K'] if i % 2 == 0 else PAL['b2'], width=2)
-    d.polygon([(c - 22, 20), (c + 22, 20), (c + 18, 12), (c - 18, 12)], fill=PAL['b2'])
-    d.ellipse([c - 15, 16, c + 15, 48], fill=PAL['T'])       # 顔
-    d.ellipse([c - 13, 18, c + 13, 44], fill=PAL['T'])
-    for a in (-1, 1):                                        # 目とコール
-        d.rectangle([c + a * 9 - 4, 27, c + a * 9 + 3, 30], fill=PAL['o'])
-        d.rectangle([c + a * 9 - 2, 28, c + a * 9 + 1, 30], fill=PAL['W'])
-        d.line([(c + a * 13, 27), (c + a * 17, 26)], fill=PAL['o'], width=2)
-    d.rectangle([c - 4, 34, c + 3, 36], fill=PAL['t'])       # 鼻と口
-    d.rectangle([c - 6, 40, c + 5, 42], fill=PAL['o'])
-    d.polygon([(c - 3, 8), (c + 3, 8), (c + 4, 16), (c - 4, 16)], fill=PAL['K'])  # ウラエウス
-    d.ellipse([c - 4, 4, c + 4, 12], fill=PAL['K'], outline=PAL['k'])
-    d.point((c, 8), fill=PAL['R'])
-    for a in (-1, 1):                                        # 前脚
-        d.rectangle([c + a * 20 - 6, 52, c + a * 20 + 6, n - 2], fill=PAL['T'])
-        d.rectangle([c + a * 20 - 6, n - 7, c + a * 20 + 6, n - 2], fill=PAL['t'])
-    return img
+    d.polygon([(0, 63), (0, 46), (6, 39), (18, 36), (34, 38), (44, 46), (47, 63)],
+              fill=PAL['X'])                                        # 尻から胸へ続く胴
+    d.polygon([(26, 63), (26, 53), (44, 51), (63, 55), (63, 63)], fill=PAL['X'])  # 前脚
+    d.polygon([(13, 24), (15, 9), (23, 1), (41, 1), (49, 9), (51, 24),
+               (50, 36), (43, 44), (21, 44), (14, 36)], fill=PAL['X'])  # 頭巾
+    d.ellipse([21, 7, 47, 43], fill=PAL['X'], outline=INK, width=2)  # 顔
+    d.arc([14, 15, 23, 31], 65, 295, fill=INK, width=2)             # 耳
+    for x in (28, 41):                                              # 丸い目（白目・虹彩・瞳）
+        d.ellipse([x - 6, 15, x + 6, 27], fill=PAL['e'], outline=INK, width=2)
+        d.ellipse([x - 3, 18, x + 3, 24], fill=INK)
+        d.point((x - 1, 20), fill=PAL['e'])
+    d.arc([30, 1, 38, 11], 195, 345, fill=INK, width=3)             # 額のウラエウス
+    d.line([(34, 6), (34, 12)], fill=INK, width=3)
+    d.line([(33, 30), (36, 30)], fill=INK, width=2)                 # 鼻
+    d.arc([29, 30, 40, 39], 25, 155, fill=INK, width=2)             # 口
+    d.line([(26, 53), (26, 63)], fill=INK, width=2)                 # 前脚の割れ目
+    d.line([(44, 52), (44, 63)], fill=INK, width=2)
+    for x in (52, 57):
+        d.line([(x, 56), (x, 63)], fill=PAL['x'], width=1)          # 爪
+    d.arc([2, 38, 24, 60], 200, 320, fill=INK, width=2)             # 後ろ脚のふくらみ
+    return add_rim(img)
 
 
 def boss_medjed(n=64):
-    """2面：メジェド。白い布に目、短い手足。"""
+    """2面：メジェド。白い布からのぞく目と、二本の足だけ。"""
     img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    c = n / 2
-    for a in (-1, 1):                                        # 手
-        d.rectangle([c + a * 24 - 5, 30, c + a * 24 + 5, 40], fill=PAL['F'], outline=PAL['f'])
-    d.pieslice([c - 21, 6, c + 21, 54], 180, 360, fill=PAL['F'])   # 布の丸い頭
-    d.rectangle([c - 21, 30, c + 21, 52], fill=PAL['F'])
-    pts = [(c - 21, 52)]
-    for i in range(7):                                       # 裾のぎざぎざ
-        x = c - 21 + i * 7
-        pts += [(x + 3.5, 57), (x + 7, 52)]
-    d.polygon(pts + [(c + 21, 52)], fill=PAL['F'])
-    d.line([(c - 21, 40), (c - 21, 52)], fill=PAL['f'], width=3)
-    d.line([(c + 20, 40), (c + 20, 52)], fill=PAL['f'], width=3)
-    for a in (-1, 1):                                        # 目
-        d.ellipse([c + a * 9 - 6, 24, c + a * 9 + 6, 38], fill=PAL['o'])
-        d.ellipse([c + a * 9 - 3, 27, c + a * 9 + 2, 33], fill=PAL['W'])
-    for a in (-1, 1):                                        # 足
-        d.rectangle([c + a * 9 - 5, n - 6, c + a * 9 + 5, n - 1], fill=PAL['f'])
-    return img
+    for a in (-1, 1):                                               # 足
+        d.polygon([(32 + a * 14, 46), (32 + a * 5, 46), (32 + a * 7, 60),
+                   (32 + a * 19, 60), (32 + a * 16, 53)], fill=PAL['T'], outline=INK, width=2)
+    d.polygon([(32, 2), (42, 6), (48, 17), (53, 34), (56, 50), (8, 50),
+               (11, 34), (16, 17), (22, 6)], fill=PAL['F'], outline=INK, width=3)  # 白い布
+    for a, x in ((-1, 24), (1, 40)):                                # 目
+        d.arc([x - 10, 17, x + 10, 31], 190, 350, fill=INK, width=2)   # まぶた
+        d.ellipse([x - 7, 22, x + 7, 34], fill=PAL['e'], outline=INK, width=2)
+        d.ellipse([x - 4, 24, x + 4, 32], fill=INK)
+        d.line([(x + a * 9, 23), (x + a * 13, 20)], fill=INK, width=2)  # まつげ
+    return add_rim(img)
+
+
+def boss_bastet(n=64):
+    """3面：バステト。黒猫の頭に黄金の輪と耳飾り、縞の衣。"""
+    img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.polygon([(19, 46), (45, 46), (51, 63), (13, 63)], fill=PAL['T'])   # 肩
+    for a in (-1, 1):                                                    # 耳
+        d.polygon([(32 + a * 7, 18), (32 + a * 13, 1), (32 + a * 20, 20)], fill=PAL['n2'])
+        d.polygon([(32 + a * 11, 16), (32 + a * 14, 7), (32 + a * 17, 17)], fill=PAL['Y'])
+    d.ellipse([13, 11, 51, 47], fill=PAL['n2'])                          # 顔
+    d.polygon([(23, 52), (41, 52), (46, 63), (18, 63)], fill=PAL['n2'])  # 縞の衣
+    for i in range(-2, 3):
+        d.line([(32 + i * 5, 53), (32 + i * 6, 62)], fill=PAL['Y'], width=2)
+    d.rectangle([21, 45, 43, 48], fill=PAL['A'])                         # 襟
+    d.line([(21, 46), (43, 46)], fill=PAL['e'], width=1)
+    d.line([(21, 48), (43, 48)], fill=PAL['B'], width=2)
+    d.arc([24, 6, 40, 20], 195, 345, fill=PAL['K'], width=3)             # 額の輪
+    d.ellipse([44, 14, 55, 26], outline=PAL['K'], width=3)               # 耳飾り
+    for x in (25, 39):                                                   # 目
+        d.polygon([(x - 6, 27), (x + 6, 24), (x + 5, 30), (x - 5, 31)], fill=PAL['K'])
+        d.ellipse([x - 3, 25, x + 2, 30], fill=INK)
+    d.polygon([(29, 32), (35, 32), (32, 36)], fill=PAL['Y'])             # 鼻
+    d.arc([25, 34, 32, 41], 0, 140, fill=PAL['Y'], width=2)              # 口
+    d.arc([32, 34, 39, 41], 40, 180, fill=PAL['Y'], width=2)
+    for a in (-1, 1):                                                    # ひげ
+        d.line([(32 + a * 9, 35), (32 + a * 19, 33)], fill=PAL['n2'], width=1)
+    return add_rim(img)
 
 
 def boss_anubis(n=64):
-    """3面：アヌビス。黒いジャッカルの頭と黄金の襟。"""
+    """4面：アヌビス。黒いジャッカルの頭、青い頭巾と橙の襟。"""
     img = Image.new('RGBA', (n, n), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    c = n / 2
-    for a in (-1, 1):                                        # 耳
-        d.polygon([(c + a * 13, 30), (c + a * 9, 2), (c + a * 22, 22)], fill=PAL['N'])
-        d.polygon([(c + a * 13, 26), (c + a * 11, 10), (c + a * 18, 21)], fill=PAL['n2'])
-    d.ellipse([c - 14, 16, c + 14, 44], fill=PAL['N'])       # 頭
-    d.polygon([(c - 9, 33), (c + 9, 33), (c + 6, 55), (c - 6, 55)], fill=PAL['n2'])  # 鼻面
-    d.polygon([(c - 7, 35), (c + 7, 35), (c + 5, 53), (c - 5, 53)], fill=PAL['N'])
-    d.ellipse([c - 5, 48, c + 4, 55], fill=PAL['n2'])                               # 鼻
-    d.ellipse([c - 3, 50, c + 2, 54], fill=PAL['o'])
-    for a in (-1, 1):                                        # 目（エジプト風に吊り上げる）
-        d.polygon([(c + a * 9 - 6, 27), (c + a * 9 + 5, 23), (c + a * 9 + 6, 28),
-                   (c + a * 9 - 5, 31)], fill=PAL['K'])
-        d.polygon([(c + a * 9 - 3, 27), (c + a * 9 + 2, 25), (c + a * 9 + 3, 28),
-                   (c + a * 9 - 2, 30)], fill=PAL['o'])
-        d.line([(c + a * 9 + 5, 24), (c + a * 9 + 11, 21)], fill=PAL['K'], width=2)
-    d.rectangle([c - 22, 54, c + 22, n - 1], fill=PAL['K'])  # 黄金の襟
-    for i in range(-4, 5):
-        d.line([(c + i * 5, 55), (c + i * 5, n - 2)], fill=PAL['B'] if i % 2 else PAL['k'], width=2)
-    d.line([(c - 22, 54), (c + 22, 54)], fill=PAL['k'], width=2)
-    return img
+    d.line([(6, 18), (6, 63)], fill=INK, width=3)                        # 杖
+    d.arc([2, 10, 14, 22], 100, 310, fill=INK, width=3)
+    for a in (-1, 1):                                                    # 青い頭巾
+        d.polygon([(32 + a * 12, 26), (32 + a * 23, 34), (32 + a * 21, 52),
+                   (32 + a * 10, 48)], fill=PAL['B'])
+    d.polygon([(18, 52), (46, 52), (52, 63), (12, 63)], fill=PAL['M'])   # 肩
+    d.polygon([(21, 57), (43, 57), (48, 63), (16, 63)], fill=PAL['Y'])   # 腰布
+    for a in (-1, 1):                                                    # 立った耳
+        d.polygon([(32 + a * 5, 22), (32 + a * 8, 1), (32 + a * 16, 21)], fill=PAL['n2'])
+        d.polygon([(32 + a * 8, 19), (32 + a * 10, 8), (32 + a * 13, 19)], fill=PAL['B'])
+    d.ellipse([17, 12, 47, 40], fill=PAL['n2'])                          # 頭
+    d.polygon([(26, 30), (38, 30), (40, 50), (24, 50)], fill=PAL['n2'])  # 鼻面
+    d.ellipse([25, 44, 39, 53], fill=PAL['n2'])
+    d.ellipse([28, 46, 36, 52], fill=PAL['N'])                           # 鼻先
+    d.rectangle([20, 50, 44, 54], fill=PAL['A'])                         # 襟
+    d.line([(20, 51), (44, 51)], fill=PAL['Y'], width=2)
+    d.line([(20, 54), (44, 54)], fill=PAL['B'], width=2)
+    for x in (25, 39):                                                   # 目
+        d.polygon([(x - 5, 24), (x + 5, 21), (x + 4, 27), (x - 4, 28)], fill=PAL['e'])
+        d.ellipse([x - 2, 22, x + 3, 27], fill=INK)
+    return add_rim(img)
 
 
 def spiral_points(cx, cy, turns, r0, r1, steps=120):
@@ -457,7 +503,8 @@ def build():
         'nasu.png': nasu_big(),
         'boss1.png': boss_sphinx(),
         'boss2.png': boss_medjed(),
-        'boss3.png': boss_anubis(),
+        'boss3.png': boss_bastet(),
+        'boss4.png': boss_anubis(),
         'shot.png': shot_sprite(),
         'boom.png': boom_sheet(),
         'glyphs.png': glyph_sheet(),
@@ -481,7 +528,8 @@ if __name__ == '__main__':
     # 目視確認用の一覧を一時ディレクトリへ（リポジトリには入れない）
     tmp = tempfile.gettempdir()
     contact_sheet([made['ship.png'], made['enemy1.png'], made['enemy2.png'],
-                   made['boss1.png'], made['boss2.png'], made['boss3.png'], made['nasu.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
+                   made['boss1.png'], made['boss2.png'], made['boss3.png'], made['boss4.png'],
+                   made['nasu.png']]).save(os.path.join(tmp, 'metopon_sprites.png'))
     contact_sheet([made['glyphs.png'], made['slab.png'], made['slab_lit.png'],
                    made['sand.png'], made['boom.png']], scale=3).save(os.path.join(tmp, 'metopon_tiles.png'))
     print('プレビュー:', tmp)
