@@ -321,12 +321,16 @@ function spawnFormation(){
  const dir=sprite==='enemy1'?'h':'v';         // 倒した敵の種類で、もらえる枠の向きが決まる
  const f={id:nextFid++,count,killed:0,dir,
   x:W/2,y:FORM_TOP()+rnd(30),vy:7+wave*1.6,ph:Math.random()*6.3,
-  sway:60+Math.random()*40};
+  sway:85+Math.random()*45};
  forms.push(f);
- const gap=S+8,span=(count-1)*gap;
- f.sway=Math.min(f.sway,Math.max(10,(W-span-S-20)/2));   // 端からはみ出さない振れ幅
+ // 横一列に広げると盤面の5列を全部ふさいでしまうので、
+ // 最大3列ぶんの塊にする。どの列がふさがるかが左右に動いて変わるのが肝。
+ const gap=S+6,cols=Math.min(3,count),rows=Math.ceil(count/3),span=(cols-1)*gap;
+ f.span=span;
+ f.sway=Math.min(f.sway,Math.max(20,(W-span)/2-24));   // 端からはみ出さない振れ幅
  for(let i=0;i<count;i++){
-  const ox=-span/2+i*gap,oy=(i%2)*16-8;
+  const r=Math.floor(i/3),inRow=Math.min(3,count-r*3),ci=i-r*3;
+  const ox=(ci-(inRow-1)/2)*gap,oy=(r-(rows-1)/2)*(S+6);
   const side=Math.random()<.5?-1:1;
   zako.push({fid:f.id,ox,oy,sprite,                 // 弾1発で死ぬ
    x:W/2+side*(W*.7),y:H+40,                        // 画面外から弧を描いて入場
@@ -533,7 +537,7 @@ function update(dt){
 
  spawnT-=dt;if(spawnT<=0){spawnFormation();spawnT=Math.max(6,14-wave*.6)+Math.random()*4}
  for(const f of forms){                       // 編隊ごと左右に振れながら下がる
-  f.y+=f.vy*dt;f.x=W/2+Math.sin(time*.55+f.ph)*f.sway}
+  f.y+=f.vy*dt;f.x=W/2+Math.sin(time*.45+f.ph)*f.sway}
  forms=forms.filter(f=>!f.done&&f.y<H+70);
  for(const z of zako){
   const f=formOf(z);
@@ -713,19 +717,52 @@ function drawStock(){                           // いちばん下のストッ�
   :'盤面をタップ → 離すと入れ替え（左の枠から使う）',W/2,SLOT_Y()-7);
  ctx.textAlign='left'}
 
+// 撃つ前に、その弾の通り道に雑魚が居るかを調べる。
+// 編隊は左右に大きく振れるので、どの列が通るかが刻々と変わる。
+function laneBlocker(l){
+ let best=null,bd=1e9;
+ for(const z of zako){
+  if(z.dead||z.e<.5)continue;
+  if(l.side==='up'){                                   // 下から上へ：自機と盤面の間
+   if(Math.abs(z.x-(cellX(l.i)+S/2))>S*.62)continue;
+   if(z.y>shipY+S*.4||z.y<GY+N*S-S*.4)continue;
+   const d=shipY-z.y;if(d<bd){bd=d;best=z}}
+  else{                                                // 横へ：その行の高さ
+   if(Math.abs(z.y-(cellY(l.i)+S/2))>S*.62)continue;
+   const toward=l.side==='right'?z.x>shipX:z.x<shipX;
+   if(!toward)continue;
+   const d=Math.abs(z.x-shipX);if(d<bd){bd=d;best=z}}}
+ return best}
+
 function drawLaneGuide(){
- const l=lane(),power=holdT>0?chargeLevel():1;
- ctx.globalAlpha=.2;ctx.fillStyle='#fff6c8';
+ const l=lane(),power=holdT>0?chargeLevel():1,blk=laneBlocker(l);
+ ctx.globalAlpha=blk?.26:.2;ctx.fillStyle=blk?'#e2624a':'#fff6c8';
  if(l.side==='up')ctx.fillRect(cellX(l.i),GY,S,N*S);
  else ctx.fillRect(gx,cellY(l.i),N*S,S);
  ctx.globalAlpha=1;
+ if(blk){                                              // ふさいでいる雑魚に印をつける
+  const b=.5+Math.sin(time*11)*.5;
+  ctx.strokeStyle=b>.5?'#e2624a':'#ffffff';ctx.lineWidth=3;
+  ctx.strokeRect(blk.x-S/2-3,blk.y-S/2-3,S+6,S+6);
+  ctx.globalAlpha=.22;ctx.fillStyle='#e2624a';         // 自機から雑魚までが通れない
+  if(l.side==='up')ctx.fillRect(shipX-S*.3,blk.y,S*.6,shipY-blk.y);
+  else{const x0=Math.min(shipX,blk.x),x1=Math.max(shipX,blk.x);
+   ctx.fillRect(x0,shipY-S*.3,x1-x0,S*.6)}
+  ctx.globalAlpha=1;
+  ctx.font='bold 11px monospace';ctx.textAlign='center';
+  const ty=blk.y-S/2-10<GY?blk.y+S/2+16:blk.y-S/2-8;
+  ctx.fillStyle='#1a140e';ctx.fillText('弾はここで止まる',blk.x+1,ty+1);
+  ctx.fillStyle='#e2624a';ctx.fillText('弾はここで止まる',blk.x,ty);
+  ctx.textAlign='left'}
  const a=laneAnchor(l.side,l.i);                       // 押される向きの矢印
+ if(blk)ctx.globalAlpha=.3;
  ctx.fillStyle=Math.floor(time*8)%2?'#fff6c8':'#e0a93c';
  const d=l.side==='up'?[0,-1]:l.side==='right'?[1,0]:[-1,0];
  for(let i=0;i<power;i++){                             // 押す距離ぶんの矢印
   const ox=a.x+d[0]*(10+i*11),oy=a.y+d[1]*(10+i*11);
   ctx.beginPath();ctx.moveTo(ox+d[0]*6-d[1]*6,oy+d[1]*6-d[0]*6);
-  ctx.lineTo(ox+d[0]*6+d[1]*6,oy+d[1]*6+d[0]*6);ctx.lineTo(ox+d[0]*12,oy+d[1]*12);ctx.fill()}}
+  ctx.lineTo(ox+d[0]*6+d[1]*6,oy+d[1]*6+d[0]*6);ctx.lineTo(ox+d[0]*12,oy+d[1]*12);ctx.fill()}
+ ctx.globalAlpha=1}
 
 function drawGrid(){
  ctx.fillStyle='#00000055';ctx.fillRect(gx-6,GY-6,N*S+12,N*S+12);
