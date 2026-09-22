@@ -177,7 +177,8 @@ function grabbing(p){return Math.hypot(p.x-shipX,p.y-shipY)<GRAB_R}   // 自機�
 function lane(x,y){ // 自機がどのレーンを狙っているか（既定は自機の位置）
  const sx=x===undefined?shipX:x,sy=y===undefined?shipY:y,z=shipZone(sx);
  if(z==='up')return{side:'up',i:clamp(Math.floor((sx-gx)/S),0,N-1)};
- return{side:z,i:clamp(Math.floor((sy-GY)/S),0,N-1)}}
+ // side は「行がどちらへ押されるか」。左のレールに居れば右へ押す（機首と弾もそちら）。
+ return{side:z==='left'?'right':'left',i:clamp(Math.floor((sy-GY)/S),0,N-1)}}
 function shipCell(x,y){ // 自機がどのマスに居るか。同じマスをもう一度タップ＝発射
  const z=shipZone(x);
  if(z!=='up')return z+':'+clamp(Math.floor((y-GY)/S),0,N-1);
