@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | **本編** | https://mukkii-game.github.io/metopon/ | 滑らかに飛んで上空の雑魚を撃ち、地上のボスの装甲パネルをそろえて剥がす |
 | **別案 BLAST** | https://mukkii-game.github.io/metopon/blast/ | 下から撃ち込んで四角を作り、その四角をそのまま天井のボスへ撃ち返す |
-| **第三案 XEMETOUS** | https://mukkii-game.github.io/metopon/push/ | 盤面の下の広場を動いて弾でレーンを押し、ゼビウス風の地上攻撃で組み替え、そろえた塊をボスへ撃ち上げる。全3面・2分のタイムアタック |
+| **第三案 XEMETOUS** | https://mukkii-game.github.io/metopon/push/ | 盤面の下の広場を動いて弾でレーンを押し、ゼビウス風の地上攻撃で組み替え、そろえた塊をボスへ撃ち上げる。全3面・1面あたり2分のタイムアタック |
 
 - ルールと設計メモ: [docs/concept.md](docs/concept.md)
 - 別案のルールと設計メモ: [docs/blast.md](docs/blast.md)

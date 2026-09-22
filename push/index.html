@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="../assets/img/icon-push-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23c8a062'/%3E%3Cpath d='M12 20V6M6 12l6-6 6 6' stroke='%233a2a1a' stroke-width='3' fill='none'/%3E%3C/svg%3E">
-<meta name="description" content="2分で3面。下の広場を動いてレーンを押し、ゼビウス風の地上攻撃で盤面を組み替え、そろえた塊をエジプトの神々へ撃ち上げる8ビット風タイムアタック。">
+<meta name="description" content="1面2分で全3面。下の広場を動いてレーンを押し、ゼビウス風の地上攻撃で盤面を組み替え、そろえた塊をエジプトの神々へ撃ち上げる8ビット風タイムアタック。">
 <title>XEMETOUS</title>
 <style>
 *{box-sizing:border-box}
@@ -56,15 +56,15 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <div id="status"><span id="score">SCORE 0</span><span id="timer">2:00.0</span><span id="wave">1／3</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
-<h2>2分で、3柱の神を。</h2>
-<p><b>スフィンクス → メジェド → アヌビス</b>。<br>レーンを押して塊を作り、撃ち上げて倒す。<br>制限時間<b>2分</b>のタイムアタック。</p>
+<h2>1面2分で、3柱の神を。</h2>
+<p><b>スフィンクス → メジェド → アヌビス</b>。<br>レーンを押して塊を作り、撃ち上げて倒す。<br><b>1面あたり2分</b>。3面とも倒せばクリア。</p>
 <p>自機は盤面の<b>真下の5×5の広場</b>を上下左右に、<br>
 盤面の<b>左右の縦レール</b>も動ける。<br>
 <b>同じマスをもう一度タップ</b>すると1発出て、<br>
 そのレーンが1マス押される。ためると最大3マス。</p>
 <p>同じ模様が<b>縦か横に3つ以上</b>そろうと光る。<br>
 <b>そこをタップ</b>すると撃ち上がってボスに刺さる。</p>
-<p>敵は<b>3〜5体の編隊</b>。<b>なぞるだけ</b>でレーザーが狩る。<br>
+<p>敵は<b>3〜5体の編隊</b>。<b>近くをなぞる</b>とレーザーが狩る。<br>
 <b>全滅させる</b>と<b>地上攻撃</b>のストックが1つ増える。</p>
 <p>白い照準は<b>自機のちょうど5マス上</b>に出る。<br>
 右下の<b>地上攻撃</b>ボタンでその<b>2マスが入れ替わる</b>。<br>
@@ -86,11 +86,12 @@ const MAXC=3,CSTEP=.3;          // チャージの段数と、1段あがる秒�
 const ARM=1.8;                  // タップしてから発射までの秒数
 const COMBO_WIN=3.2;
 const ZAP_RATE=.1,LASER_LIFE=.16; // なぞっている間のレーザー（発射間隔と光っている時間）
+const ZAP_RANGE=144;            // レーザーが届く距離。遠くの敵までは狩らない
 const SHIP_LIFT=56;             // 自機は指より上に出す（指で隠れないように）
 const AIM_UP=5;                 // 照準は自機のちょうど5マス上（ゼビウスの地上攻撃）
 const AMMO_MAX=3;               // 地上攻撃のストック上限
 const NASU=4;                   // ナスの地上絵は5番目の模様
-const TIME_LIMIT=120;           // タイムアタック（秒）
+const TIME_LIMIT=120;           // 1面あたりの持ち時間（秒）。面が変わるたびに戻る
 const BOSSES=[                  // 全3面。エジプトの神々
  {name:'スフィンクス',sprite:'boss1',hp:52},
  {name:'メジェド',   sprite:'boss2',hp:74},
@@ -142,7 +143,8 @@ function audio(){unlockAudio();
 // ---- 状態 -------------------------------------------------------------------
 let grid,N,S,gx,shipX,shipY,shipTX,shipTY,shots,zako,forms,flyers,pops,
     locked,giants,slabs,booms,particles,boss,lasers,zapCD=0,ammo=0,aimDir='h',
-    holdT,charged,wave,score,combo,comboUntil,nextFid,timeLeft,phase='ready',paused=false,
+    holdT,charged,wave,score,combo,comboUntil,nextFid,timeLeft,stageTimes,
+    phase='ready',paused=false,
     time=0,scroll=0,shake=0,stun=0,fireCD=0,spawnT=0,messageUntil=0,bestScore=0,flash=0;
 const keys=new Set();
 let pointer=null,fireHeld=false;
@@ -414,13 +416,15 @@ function ui(){
 
 function nextWave(){
  score+=Math.round(1500*wave+timeLeft*20);play('bossdown');
+ stageTimes.push(TIME_LIMIT-timeLeft);          // この面にかかった時間
  popBig(W/2,150,boss.name+' 撃破！','#f6e27a',30);flash=.5;
  if(wave>=BOSSES.length){allClear();return}
  wave++;
+ timeLeft=TIME_LIMIT;                           // 次の面はまた2分から
  newGrid(5);boss=makeBoss();
  holdT=0;slabs=[];zako=[];forms=[];flyers=[];lasers=[];zapCD=0;
  locked=new Set();giants=[];
- message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+' が現れた',3.4);ui()}
+ message('STAGE '+wave+'／'+BOSSES.length+'　'+boss.name+' が現れた　持ち時間はまた2分',3.4);ui()}
 
 function fmtTime(t){                            // 1:23.4 の形に
  t=Math.max(0,t);
@@ -440,26 +444,28 @@ function resultScreen(title,sub,lines){
   '<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div>';
  $('start').onclick=restart}
 function allClear(){
- const t=TIME_LIMIT-timeLeft,prev=bestTime(),best=(prev===null||t<prev)?t:prev;
+ const t=stageTimes.reduce((a,b)=>a+b,0),prev=bestTime(),best=(prev===null||t<prev)?t:prev;
  bestTime(best);
  play('bossdown');flash=.8;shake=Math.max(shake,20);
- resultScreen('ALL CLEAR',
-  '3面すべて撃破　クリアタイム <b>'+fmtTime(t)+'</b>',
+ const per=stageTimes.map((v,i)=>(i+1)+'面 '+fmtTime(v)).join('　／　');
+ resultScreen('おめでとう！　ALL CLEAR',
+  '3柱すべて撃破　合計タイム <b>'+fmtTime(t)+'</b><br>'+per,
   'SCORE <b>'+score+'</b><br>ベストタイム <b>'+fmtTime(best)+'</b>'+
   (t<=best?'　（更新！）':''))}
 function timeUp(){
  play('deny');shake=Math.max(shake,14);
  resultScreen('TIME UP',
-  '2分で3面を撃破できなかった',
+  wave+'面の'+boss.name+'を2分で倒せなかった',
   'STAGE <b>'+wave+'／'+BOSSES.length+'</b> まで<br>SCORE <b>'+score+'</b>')}
 function reset(){
  wave=1;score=0;combo=0;comboUntil=0;holdT=0;timeLeft=TIME_LIMIT;
+ stageTimes=[];
  newGrid(5);boss=makeBoss();
  shipX=W/2;shipY=BY()+N*S-S/2;shipTX=shipX;shipTY=shipY;ammo=0;aimDir='h';
  shots=[];zako=[];forms=[];flyers=[];pops=[];
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];lasers=[];nextFid=1;
- time=0;scroll=0;shake=0;stun=0;fireCD=0;zapCD=0;spawnT=2;phase='play';
- message('STAGE 1／'+BOSSES.length+'　'+boss.name+'　制限時間2分',4.5);ui()}
+ time=0;scroll=0;shake=0;stun=0;fireCD=0;zapCD=0;spawnT=4;phase='play';
+ message('STAGE 1／'+BOSSES.length+'　'+boss.name+'　1面あたり2分',4.5);ui()}
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
@@ -485,7 +491,7 @@ function update(dt){
  zapCD-=dt;
  if(pointer&&pointer.dragged&&stun<=0){
   if(zapCD<=0){
-   const p={x:shipX,y:shipY};let best=null,bd=1e9;
+   const p={x:shipX,y:shipY};let best=null,bd=ZAP_RANGE;   // 届く範囲だけ
    for(const z of zako){if(z.dead||z.e<.35)continue;
     const d=Math.hypot(z.x-p.x,z.y-p.y);if(d<bd){bd=d;best=z}}
    if(best){zapCD=ZAP_RATE;
@@ -505,7 +511,7 @@ function update(dt){
   else if(s.x<-20||s.x>W+20||s.y<-20||s.y>H+20)s.dead=true}
  shots=shots.filter(s=>!s.dead);
 
- spawnT-=dt;if(spawnT<=0){spawnFormation();spawnT=Math.max(3,7-wave*.3)+Math.random()*2}
+ spawnT-=dt;if(spawnT<=0){spawnFormation();spawnT=Math.max(6,14-wave*.6)+Math.random()*4}
  for(const f of forms){                       // 編隊ごと左右に振れながら下がる
   f.y+=f.vy*dt;f.x=W/2+Math.sin(time*.55+f.ph)*f.sway}
  forms=forms.filter(f=>!f.done&&f.y<H+70);
@@ -747,6 +753,12 @@ function drawShip(){
  else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(0,-S/2);ctx.lineTo(S*.44,S*.44);
   ctx.lineTo(-S*.44,S*.44);ctx.closePath();ctx.fill()}
  ctx.globalAlpha=1;ctx.restore();
+ if(pointer&&pointer.dragged&&stun<=0){                 // レーザーの届く範囲
+  ctx.globalAlpha=.10+Math.sin(time*7)*.04;ctx.fillStyle='#8fe0ff';
+  ctx.beginPath();ctx.arc(p.x,p.y,ZAP_RANGE,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=.4;ctx.strokeStyle='#8fe0ff';ctx.lineWidth=1;
+  ctx.setLineDash([4,6]);ctx.beginPath();ctx.arc(p.x,p.y,ZAP_RANGE,0,Math.PI*2);ctx.stroke();
+  ctx.setLineDash([]);ctx.globalAlpha=1}
  if(holdT>0&&stun<=0){                                  // ためている量
   const lv=chargeLevel();
   for(let i=0;i<MAXC;i++){
