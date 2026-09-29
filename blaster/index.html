@@ -50,7 +50,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 #hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
 </style></head><body><main>
-<header><div><h1>XEMETOUS BLASTER</h1><small>4 STAGES / SHOOTER ・ マウス＆キー対応</small></div>
+<header><div><h1>XEMETOUS BLASTER</h1><small>4 STAGES / SHOOTER ・ マウス＆キー対応 ・ ver.0929c</small></div>
 <div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="power">BLASTER 2</span><span id="wave">1／4</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
@@ -485,9 +485,9 @@ function update(dt){
  if(!bomb&&!swapA&&fireCD<=0&&(!mouseMode||mouseFire||keyFire)){fireCD=AUTO_RATE;
   shots.push({x:shipX,y:shipY-S*.35});play('shot',1.35,.22)}
  for(const s of shots){
-  s.y-=820*dt;
-  for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<S/2&&Math.abs(s.y-z.y)<S/2){
-   s.dead=true;killZako(z);break}
+  const y0=s.y;s.y-=820*dt;                     // この1コマで通った範囲ごと当たりを見る（すり抜け防止）
+  for(const z of zako)if(!z.dead&&Math.abs(s.x-z.x)<S*.6&&z.y+S/2>=s.y&&z.y-S/2<=y0){
+   s.dead=true;killZako(z);break}              // 雑魚は1発で落ちる
   if(s.y<104)s.dead=true}                      // ボスの帯より上へは行かない
  shots=shots.filter(s=>!s.dead);
 
@@ -815,35 +815,58 @@ function onUp(e){
 canvas.addEventListener('pointerdown',onDown);
 canvas.addEventListener('pointermove',onMove);
 for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,onUp);
-// ---- マウス：自機はカーソルに付いてくる。左クリック＝通常弾、右クリック＝地上弾 ----
-// ボタンの同時押しでも取りこぼさないよう、pointer* ではなく mouse* を使う。
+// ---- マウス：自機はカーソルに付いてくる。左ボタン＝通常弾、右ボタン＝地上弾 ----
+// どのブラウザでも取りこぼさないよう、ボタンは3通りで拾う：
+//   1) Pointer Events の buttons（押されているボタンのビット。同時押しもここで分かる）
+//   2) mousedown（古いブラウザ向けの保険）
+//   3) contextmenu（Mac の二本指クリックや Ctrl+クリックでも右として扱う）
+// 同じ操作が二重に届いても、地上弾は 0.2秒以内の2回目を無視する。
+const VERSION='0929c';
+let mouseButtons=0,lastBombAt=-9;
 function mouseOn(){if(!mouseMode){mouseMode=true;
  message('マウス操作：動かすと自機が付いてくる ／ 左＝弾 ／ 右＝地上弾 ／ ホイール＝縦横',4)}}
-function keysOn(){if(!mouseMode){mouseMode=true;   // 弾を手で撃つモードに入る
- message('キーボード操作：矢印/WASDで移動 ／ N＝弾 ／ M＝地上弾 ／ C＝縦横',4)}}
-canvas.addEventListener('mousemove',e=>{
- if(phase!=='play'||paused)return;
- mouseOn();const p=point(e),q=clampShip(p.x,p.y);shipTX=q.x;shipTY=q.y});
-canvas.addEventListener('mousedown',e=>{
+function mouseBomb(){if(time-lastBombAt<.2)return;lastBombAt=time;fireBomb()}
+function mouseLeft(p){                           // 左ボタンを押した瞬間
+ const cell=gridCell(p);
+ if(cell){                                      // 光った塊・固定ナスはクリックで確定
+  const g0=giantAt(cell.r,cell.c);
+  if(g0){armGiant(g0);return}
+  if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}
+ mouseFire=true;fireCD=Math.min(fireCD,0)}      // 押した瞬間に1発、押している間は連射
+function mouseButtonsChanged(b,p){               // ボタンの押し下げが変わった
+ const was=mouseButtons;mouseButtons=b;
+ if((b&1)&&!(was&1))mouseLeft(p);
+ if(!(b&1))mouseFire=false;
+ if((b&2)&&!(was&2))mouseBomb();
+ if((b&4)&&!(was&4)){aimDir=aimDir==='h'?'v':'h';play('move',1.3,.5)}}
+function mouseFollow(p){const q=clampShip(p.x,p.y);shipTX=q.x;shipTY=q.y}
+function onMousePointer(e){
+ if(e.pointerType!=='mouse')return;
+ if(phase!=='play'||paused){mouseButtons=e.buttons;return}
+ if(e.type==='pointerdown'){e.preventDefault();audio()}
+ mouseOn();
+ const p=point(e);mouseFollow(p);
+ if(e.buttons!==mouseButtons)mouseButtonsChanged(e.buttons,p)}
+for(const ev of ['pointerdown','pointermove','pointerup'])canvas.addEventListener(ev,onMousePointer);
+window.addEventListener('pointerup',e=>{         // キャンバスの外で離しても止める
+ if(e.pointerType==='mouse'){mouseButtons=e.buttons;if(!(e.buttons&1))mouseFire=false}});
+canvas.addEventListener('mousedown',e=>{         // 保険（Pointer Events が来ない環境）
  if(phase!=='play'||paused)return;
  e.preventDefault();audio();mouseOn();
  const p=point(e);
- if(e.button===0){
-  const cell=gridCell(p);
-  if(cell){                                    // 光った塊・固定ナスはクリックで確定
-   const g0=giantAt(cell.r,cell.c);
-   if(g0){armGiant(g0);return}
-   if(matched().has(idx(cell.r,cell.c))){armGroup(cell.r,cell.c);return}}
-  mouseFire=true;fireCD=Math.min(fireCD,0)}   // 押した瞬間に1発
- else if(e.button===2)fireBomb();
- else if(e.button===1){aimDir=aimDir==='h'?'v':'h';play('move',1.3,.5)}});
-window.addEventListener('mouseup',e=>{if(e.button===0)mouseFire=false});
+ if(e.button===0&&!(mouseButtons&1)){mouseButtons|=1;mouseLeft(p)}
+ else if(e.button===2&&!(mouseButtons&2)){mouseButtons|=2;mouseBomb()}});
+window.addEventListener('mouseup',e=>{
+ if(e.button===0){mouseButtons&=~1;mouseFire=false}
+ if(e.button===2)mouseButtons&=~2});
+canvas.addEventListener('contextmenu',e=>{       // 右クリックのメニューは出さず、地上弾に
+ e.preventDefault();
+ if(phase==='play'&&!paused){mouseOn();mouseBomb()}});
 canvas.addEventListener('wheel',e=>{              // ホイールで照準の縦横
  if(phase!=='play'||paused)return;
  e.preventDefault();mouseOn();
  const d=e.deltaY>0?'v':'h';
  if(d!==aimDir){aimDir=d;play('move',1.3,.5)}},{passive:false});
-canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // ---- キーボード（ノートパソコン向け）：矢印/WASDで移動、N＝弾、M＝地上弾 ----
 window.addEventListener('keydown',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;
@@ -864,8 +887,8 @@ window.addEventListener('keyup',e=>{keys.delete(e.key);
 function togglePause(){if(phase!=='play')return;paused=!paused;
  $('pause').textContent=paused?'再開':'停止';
  bgmVolume(paused||!sound?0:.3);
- if(paused){pointer=null;mouseFire=false;keyFire=false}}
-window.addEventListener('blur',()=>{pointer=null;mouseFire=false;keyFire=false;if(!paused)togglePause()});
+ if(paused){pointer=null;mouseFire=false;keyFire=false;mouseButtons=0}}
+window.addEventListener('blur',()=>{pointer=null;mouseFire=false;keyFire=false;mouseButtons=0;if(!paused)togglePause()});
 $('start').onclick=restart;$('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
  if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.3:0)};
