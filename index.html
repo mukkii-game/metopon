@@ -43,7 +43,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 .hidden{display:none!important}
 #ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 </style></head><body><main>
-<header><div><h1>METOPON</h1><small>AIR × EARTH / SMOOTH 05</small></div><div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
+<header><div><h1>METOPON</h1><small>AIR × EARTH / SMOOTH 05</small></div><div id="top"><button id="sound">音 ON</button><button id="bgm">BGM OFF</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="progress">STAGE 1</span><span id="life">—</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div><small>滑らか移動 × 砂の模様そろえ</small><h2>地上のボスを、<br>入れ替えて崩す。</h2>
 <p>自機はマス単位ではなく<b>滑らかに動く</b>。<br>Aを押し続けて上空の雑魚を撃つ。<br>同じ模様の雑魚は編隊ごと誘爆する。</p>
@@ -84,12 +84,14 @@ function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NA
  fetch('assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{SFX[n]=b;if(n==='bgm'&&phase!=='ready')startBgm()}).catch(()=>{})}
 // BGM。効果音と同じ仕組みでループ再生する
 let bgmSrc=null,bgmGain=null;
+function stopBgm(){if(bgmSrc){try{bgmSrc.stop()}catch(e){}bgmSrc=null;bgmGain=null}}
+let bgmOn=false;                                  // BGM はデフォルトで鳴らさない（BGMボタンで切り替え）
 function startBgm(){
- if(!ac||!SFX.bgm||bgmSrc)return;
+ if(!bgmOn||!ac||!SFX.bgm||bgmSrc)return;
  bgmGain=ac.createGain();bgmGain.gain.value=sound?.28:0;
  bgmSrc=ac.createBufferSource();bgmSrc.buffer=SFX.bgm;bgmSrc.loop=true;
  bgmSrc.connect(bgmGain);bgmGain.connect(ac.destination);bgmSrc.start()}
-function bgmVolume(v){if(bgmGain)bgmGain.gain.value=v}
+function bgmVolume(v){if(bgmGain)bgmGain.gain.value=bgmOn?v:0}
 // iPhone は着信スイッチが「消音」だと WebAudio まで黙るので、
 // 無音の <audio> を一度鳴らして再生扱いにしておく。
 const silentEl=new Audio('data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEAIlYAACJWAAABAAgAZGF0YQACAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
@@ -596,6 +598,8 @@ window.addEventListener('blur',()=>{clearInput();if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&phase!=='ready')togglePause()});
 function restart(){audio();goFullscreen();keepAwake();reset();paused=false;$('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');startBgm()}
 $('start').onclick=restart;$('reset').onclick=restart;$('pause').onclick=togglePause;
+if($('bgm'))$('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
+ if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
  if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.28:0)};
 $('mode').onclick=cycleMode;

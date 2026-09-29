@@ -18,6 +18,11 @@
 | **第三案 XEMETOUS** | https://mukkii-game.github.io/metopon/push/ | 盤面の下の広場を動いて弾でレーンを押し、編隊を全滅させてもらった枠で組み替え、そろえた塊をボスへ撃ち上げる。全4面・1面あたり2分のタイムアタック |
 | **第四案 XEMETOUS BLASTER** | https://mukkii-game.github.io/metopon/blaster/ | ゼビウス風に自由に飛ぶ。通常弾は自動、地上攻撃の照準で地上の並びをひっくり返してそろえる。カプセルで照準が5マスまで伸びる。全4面 |
 
+**途中の版もまとめて遊べる一覧**: https://mukkii-game.github.io/metopon/versions/
+（本編の最初の版、PUSH のレール版、XEMETOUS の3面・広場・長押し版など）
+
+BGM はどの版もデフォルトで鳴らない。上の「BGM」ボタンで鳴らせる（「音」ボタンは効果音）。
+
 - ルールと設計メモ: [docs/concept.md](docs/concept.md)
 - 別案のルールと設計メモ: [docs/blast.md](docs/blast.md)
 - 第三案のルールと設計メモ: [docs/push.md](docs/push.md)

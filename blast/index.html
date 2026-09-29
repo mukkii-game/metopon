@@ -39,7 +39,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
 </style></head><body><main>
 <header><div><h1>METOPON BLAST</h1><small>SHOOT IN → SQUARE → SHOOT BACK</small></div>
-<div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
+<div id="top"><button id="sound">音 ON</button><button id="bgm">BGM OFF</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="combo">—</span><span id="stageNo">STAGE 1</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <small>クォース × メテオス × パネポン × ピタパタポップ</small>
@@ -74,12 +74,14 @@ function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NA
   .then(b=>{SFX[n]=b;if(n==='bgm'&&phase==='play')startBgm()}).catch(()=>{})}
 // BGM。効果音と同じ仕組みでループ再生する
 let bgmSrc=null,bgmGain=null;
+function stopBgm(){if(bgmSrc){try{bgmSrc.stop()}catch(e){}bgmSrc=null;bgmGain=null}}
+let bgmOn=false;                                  // BGM はデフォルトで鳴らさない（BGMボタンで切り替え）
 function startBgm(){
- if(!ac||!SFX.bgm||bgmSrc)return;
+ if(!bgmOn||!ac||!SFX.bgm||bgmSrc)return;
  bgmGain=ac.createGain();bgmGain.gain.value=sound?.28:0;
  bgmSrc=ac.createBufferSource();bgmSrc.buffer=SFX.bgm;bgmSrc.loop=true;
  bgmSrc.connect(bgmGain);bgmGain.connect(ac.destination);bgmSrc.start()}
-function bgmVolume(v){if(bgmGain)bgmGain.gain.value=v}
+function bgmVolume(v){if(bgmGain)bgmGain.gain.value=bgmOn?v:0}
 // iPhone は着信スイッチが「消音」だと WebAudio まで黙るので、
 // 無音の <audio> を一度鳴らして再生扱いにしておく。
 const silentEl=new Audio('data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEAIlYAACJWAAABAAgAZGF0YQACAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
@@ -389,6 +391,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)to
 function restart(){audio();goFullscreen();keepAwake();reset();paused=false;$('overlay').classList.add('hidden');
  $('pause').textContent='停止';play('start');startBgm()}
 $('start').onclick=restart;$('pause').onclick=togglePause;
+if($('bgm'))$('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
+ if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
  if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.28:0)};
 // ---- 全画面と誤タッチ対策 ---------------------------------------------------
