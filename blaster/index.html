@@ -68,6 +68,8 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <p><b>マウスでも遊べる</b>：動かすと自機が付いてくる。<br>
 <b>左クリック＝弾</b>（押している間連射）、<b>右クリック＝地上弾</b>、<br>
 <b>ホイール</b>で照準の縦横。光った塊は左クリックで確定。</p>
+<p><b>キーボードでも遊べる</b>：<b>矢印／WASD</b>で移動、<br>
+<b>N＝弾</b>（押している間連射）、<b>M＝地上弾</b>、<b>C＝縦横</b>、<b>X＝光った塊を確定</b>。</p>
 <p>編隊を全滅させると<b>パワーアップカプセル</b>が落ちてくる。<br>
 取ると照準が <b>3 → 4 → 5マス</b>に伸びる。取らなくてもいい。</p>
 <p>同じ模様が<b>縦か横に3つ以上</b>そろうと光る。<br>
@@ -147,7 +149,7 @@ let grid,N,S,gx,shipX,shipY,shipTX,shipTY,shots,zako,forms,caps,pops,
     wave,score,combo,comboUntil,nextFid,phase='ready',paused=false,
     time=0,scroll=0,shake=0,fireCD=0,spawnT=0,messageUntil=0,flash=0;
 const keys=new Set();
-let pointer=null,mouseMode=false,mouseFire=false;   // マウスで遊ぶ時は左＝弾、右＝地上弾
+let pointer=null,mouseMode=false,mouseFire=false,keyFire=false;   // マウス／キーボードは弾を手で撃つ
 const rnd=n=>Math.floor(Math.random()*n);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const cellX=c=>gx+c*S,cellY=r=>GY+r*S;
@@ -472,7 +474,7 @@ function update(dt){
 
  // 通常弾は自動で出る。ただし地上弾が飛んでいる間は止まる
  fireCD-=dt;
- if(!bomb&&fireCD<=0&&(!mouseMode||mouseFire)){fireCD=AUTO_RATE;
+ if(!bomb&&fireCD<=0&&(!mouseMode||mouseFire||keyFire)){fireCD=AUTO_RATE;
   shots.push({x:shipX,y:shipY-S*.35});play('shot',1.35,.22)}
  for(const s of shots){
   s.y-=820*dt;
@@ -787,6 +789,8 @@ for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEve
 // ボタンの同時押しでも取りこぼさないよう、pointer* ではなく mouse* を使う。
 function mouseOn(){if(!mouseMode){mouseMode=true;
  message('マウス操作：動かすと自機が付いてくる ／ 左＝弾 ／ 右＝地上弾 ／ ホイール＝縦横',4)}}
+function keysOn(){if(!mouseMode){mouseMode=true;   // 弾を手で撃つモードに入る
+ message('キーボード操作：矢印/WASDで移動 ／ N＝弾 ／ M＝地上弾 ／ C＝縦横',4)}}
 canvas.addEventListener('mousemove',e=>{
  if(phase!=='play'||paused)return;
  mouseOn();const p=point(e),q=clampShip(p.x,p.y);shipTX=q.x;shipTY=q.y});
@@ -810,19 +814,25 @@ canvas.addEventListener('wheel',e=>{              // ホイールで照準の縦
  const d=e.deltaY>0?'v':'h';
  if(d!==aimDir){aimDir=d;play('move',1.3,.5)}},{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+// ---- キーボード（ノートパソコン向け）：矢印/WASDで移動、N＝弾、M＝地上弾 ----
 window.addEventListener('keydown',e=>{
- if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','z','x','c'].includes(e.key))e.preventDefault();
+ const k=e.key.length===1?e.key.toLowerCase():e.key;
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','z','x','c','n','m'].includes(k))e.preventDefault();
+ if(phase==='play'&&!paused){
+  if(k==='n'){keysOn();audio();if(!keyFire){keyFire=true;fireCD=Math.min(fireCD,0)}}   // 押している間連射
+  if(k==='m'&&!e.repeat){keysOn();audio();fireBomb()}}
  keys.add(e.key);
  if((e.key===' '||e.key==='z')&&!e.repeat)fireBomb();
  if(e.key==='c'&&!e.repeat){aimDir=aimDir==='h'?'v':'h';play('move',1.3,.5)}
  if(e.key==='x'&&!e.repeat){const g=findGroups()[0];
   if(g)armGroup(Math.floor(g.cells[0]/N),g.cells[0]%N);else play('deny')}});
-window.addEventListener('keyup',e=>keys.delete(e.key));
+window.addEventListener('keyup',e=>{keys.delete(e.key);
+ if(e.key.toLowerCase()==='n')keyFire=false});
 function togglePause(){if(phase!=='play')return;paused=!paused;
  $('pause').textContent=paused?'再開':'停止';
  bgmVolume(paused||!sound?0:.3);
- if(paused){pointer=null;mouseFire=false}}
-window.addEventListener('blur',()=>{pointer=null;mouseFire=false;if(!paused)togglePause()});
+ if(paused){pointer=null;mouseFire=false;keyFire=false}}
+window.addEventListener('blur',()=>{pointer=null;mouseFire=false;keyFire=false;if(!paused)togglePause()});
 $('start').onclick=restart;$('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
  if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.3:0)};
@@ -871,18 +881,7 @@ function drawGiants(){                         // 盤面に固定されたでっ
   ctx.fillStyle='#c698e8';ctx.fillText(t,x+d/2,ly);
   ctx.textAlign='left'}}
 
-function togglePause(){if(phase!=='play')return;paused=!paused;
- $('pause').textContent=paused?'再開':'停止';
- bgmVolume(paused||!sound?0:.3);
- if(paused){pointer=null;place=null;fireHeld=false;holdT=0}}
-window.addEventListener('blur',()=>{pointer=null;mouseFire=false;place=null;fireHeld=false;if(!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused)togglePause()});
-function restart(){audio();goFullscreen();keepAwake();reset();paused=false;
- $('overlay').classList.add('hidden');$('pause').textContent='停止';play('start');
- startBgm();bgmVolume(sound?.3:0)}      // 結果画面で下げた音量を戻す
-$('start').onclick=restart;$('pause').onclick=togglePause;
-$('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');
- if(sound){audio();startBgm()}bgmVolume(sound&&!paused?.3:0)};
 
 // ---- 全画面と誤タッチ対策 ---------------------------------------------------
 const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
