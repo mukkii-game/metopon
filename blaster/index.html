@@ -50,7 +50,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #ios{font-size:11px;line-height:1.5;color:#e0a93c;text-align:center;padding:2px 4px}
 #hint{font-size:12px;min-height:34px;color:#d4bd8e;text-align:center;line-height:1.5}
 </style></head><body><main>
-<header><div><h1>XEMETOUS BLASTER</h1><small>4 STAGES / SHOOTER</small></div>
+<header><div><h1>XEMETOUS BLASTER</h1><small>4 STAGES / SHOOTER ・ マウス＆キー対応</small></div>
 <div id="top"><button id="sound">音 ON</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="power">BLASTER 2</span><span id="wave">1／4</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
@@ -76,6 +76,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <b>タップで確定</b>、少し待って撃ち上がる。<br>
 続けて決めると<b>コンボ</b>で攻撃力が上がる。</p>
 <button id="start">あそぶ</button>
+<p><small>Enter・Space・N・M でも始められる</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div></div></div>
 <div id="ios" class="hidden"></div>
 <div id="hint">なぞって飛ぶ（通常弾は自動） ／ 指を離すと地上弾 ／ 光った塊をタップで確定</div>
@@ -91,7 +92,8 @@ const AUTO_RATE=.16;            // 通常弾の自動発射の間隔（秒）
 const SHIP_LIFT=56;             // 自機は指より上に出す（指で隠れないように）
 const GRAB_R=38;                // これより近くを押したら「自機そのものをつかんだ」
 const SIGHT_AHEAD=96;           // 照準は自機の2マスぶん前（上）に出る
-const BOMB_T=.34;               // 地上弾が照準に届くまでの秒数
+const BOMB_T=.7;                // 地上弾が地上に落ちて当たるまでの秒数
+const SWAP_T=.36;               // 当たったあと、ピースが入れ替わっていく秒数
 const POWER_MAX=5;              // カプセルで伸びる照準の長さの上限
 const NASU=4;                   // ナスの地上絵は5番目の模様
 const BOSSES=[                  // 全4面。エジプトの神々（カタカナと英字を併記する）
@@ -145,7 +147,7 @@ function audio(){unlockAudio();
 
 // ---- 状態 -------------------------------------------------------------------
 let grid,N,S,gx,shipX,shipY,shipTX,shipTY,shots,zako,forms,caps,pops,
-    locked,giants,slabs,booms,particles,boss,lasers,bomb,power,aimDir,
+    locked,giants,slabs,booms,particles,boss,lasers,bomb,swapA,power,aimDir,
     wave,score,combo,comboUntil,nextFid,phase='ready',paused=false,
     time=0,scroll=0,shake=0,fireCD=0,spawnT=0,messageUntil=0,flash=0;
 const keys=new Set();
@@ -326,7 +328,7 @@ function killZako(z){
 // ---- 地上弾 -----------------------------------------------------------------
 // 照準の並びを丸ごと「ひっくり返す」。2マスなら入れ替え、3〜5マスなら逆順。
 function fireBomb(){
- if(bomb)return false;                          // 1発ずつ
+ if(bomb||swapA)return false;                   // 1発ずつ（入れ替えが終わるまで次は撃てない）
  const a=sightAt(),bad=sightBad(a);
  if(bad){play('deny');
   message(bad==='locked'?'でっかいナスは固定されていてひっくり返せない'
@@ -335,21 +337,27 @@ function fireBomb(){
  bomb={a,sx:shipX,sy:shipY,tx:r.x+r.w/2,ty:r.y+r.h/2,t:0};
  play('launch',1.5,.5);
  return true}
-function blast(b){
+function blast(b){                              // 地上弾が地上に当たった瞬間
  const a=b.a,cs=sightCells(a);
  for(const [r,c] of cs)if(!grid[r]||grid[r][c]===undefined)return;   // 面が切り替わった直後などの保険
- const line=cs.map(([r,c])=>grid[r][c]).reverse();
- cs.forEach(([r,c],i)=>{grid[r][c]=line[i]});
  const rc=sightRect(a),cx=rc.x+rc.w/2,cy=rc.y+rc.h/2;
- play('swap',1.1);play('boom_s',1.3,.6);
- shake=Math.max(shake,7);flash=.18;
- burst(cx,cy,18,'#ffffff');boom(cx,cy,2.4);
- for(const [r,c] of cs)burst(cellX(c)+S/2,cellY(r)+S/2,4,SAND.hi);
+ play('boom_s',1.1,.8);
+ shake=Math.max(shake,8);flash=.16;
+ burst(cx,cy,20,'#ffe0a0');boom(cx,cy,2.8);
+ for(const [r,c] of cs)burst(cellX(c)+S/2,cellY(r)+S/2,5,SAND.hi);
+ // ここではまだ盤面を書き換えない。ピースが動き終わった所で入れ替わる
+ swapA={a,cs,vals:cs.map(([r,c])=>grid[r][c]),t:0};
+ play('swap',1.1)}
+function finishSwap(){                           // 動き終わった：盤面を書き換える
+ const {a,cs,vals}=swapA;swapA=null;
+ const line=vals.slice().reverse();
+ cs.forEach(([r,c],i)=>{grid[r][c]=line[i]});
+ const rc=sightRect(a),cx=rc.x+rc.w/2;
  pop(clamp(cx,50,W-50),Math.max(GY+20,rc.y-12),power+'マス反転','#ffffff',15);
  checkNasu();
  const g=findGroups();
  if(g.length)play('match',1,.7);
- message(power+'マスをひっくり返した'+(g.length?'　光った塊をタップで確定':''),1.8)}
+ message(power+'マスをひっくり返した'+(g.length?'　光った塊をタップで確定':''),1.8);ui()}
 
 // ---- パワーアップカプセル ---------------------------------------------------
 function clearFormation(f){                    // 編隊を全滅させるとカプセルが落ちる
@@ -405,7 +413,7 @@ function stageClear(){
 function goNextStage(){
  wave++;
  newGrid(5);boss=makeBoss();
- pointer=null;bomb=null;
+ pointer=null;bomb=null;swapA=null;
  shipX=W/2;shipY=FLY_BOT()-20;shipTX=shipX;shipTY=shipY;
  slabs=[];zako=[];forms=[];caps=[];lasers=[];shots=[];spawnT=3;
  locked=new Set();giants=[];
@@ -425,7 +433,7 @@ function overlay(ph,title,sub,lines,btn,onClick){
  $('overlay').firstElementChild.innerHTML=
   '<img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">'+
   '<h2>'+title+'</h2><p>'+sub+'</p><p>'+lines+'</p>'+
-  '<button id="start">'+btn+'</button>'+
+  '<button id="start">'+btn+'</button><p><small>Enter・Space・N・M でも進める</small></p>'+
   '<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div>';
  $('start').onclick=onClick}
 function resultScreen(title,sub,lines){overlay('over',title,sub,lines,'もう一度',restart)}
@@ -453,7 +461,7 @@ function reset(){
  wave=1;score=0;combo=0;comboUntil=0;power=2;aimDir='h';
  newGrid(5);boss=makeBoss();
  shipX=W/2;shipY=FLY_BOT()-20;shipTX=shipX;shipTY=shipY;
- shots=[];zako=[];forms=[];caps=[];pops=[];bomb=null;pointer=null;
+ shots=[];zako=[];forms=[];caps=[];pops=[];bomb=null;swapA=null;pointer=null;
  locked=new Set();giants=[];slabs=[];booms=[];particles=[];lasers=[];nextFid=1;
  time=0;scroll=0;shake=0;fireCD=0;spawnT=3;phase='play';
  message('STAGE 1／'+BOSSES.length+'　'+boss.name+'／'+boss.en,4);ui()}
@@ -474,7 +482,7 @@ function update(dt){
 
  // 通常弾は自動で出る。ただし地上弾が飛んでいる間は止まる
  fireCD-=dt;
- if(!bomb&&fireCD<=0&&(!mouseMode||mouseFire||keyFire)){fireCD=AUTO_RATE;
+ if(!bomb&&!swapA&&fireCD<=0&&(!mouseMode||mouseFire||keyFire)){fireCD=AUTO_RATE;
   shots.push({x:shipX,y:shipY-S*.35});play('shot',1.35,.22)}
  for(const s of shots){
   s.y-=820*dt;
@@ -488,6 +496,7 @@ function update(dt){
   bomb.x=bomb.sx+(bomb.tx-bomb.sx)*k;
   bomb.y=bomb.sy+(bomb.ty-bomb.sy)*k;
   if(k>=1){blast(bomb);bomb=null;ui()}}
+ if(swapA){swapA.t+=dt;if(swapA.t>=SWAP_T)finishSwap()}
 
  spawnT-=dt;if(spawnT<=0){spawnFormation();spawnT=Math.max(5,11-wave*.6)+Math.random()*3}
  for(const f of forms){                        // 編隊ごと左右に振れながら降りてくる
@@ -671,7 +680,7 @@ function sightFrame(x,y,w,h,col='#ffffff',lw=4){
  for(const [dx,dy] of [[0,0],[w,0],[0,h],[w,h]])ctx.fillRect(x+dx-3,y+dy-3,6,6)}
 
 function drawSides(){                          // 左＝横、右＝縦。なぞり始める側の案内
- if(phase!=='play'||time>11)return;
+ if(phase!=='play'||time>11||mouseMode)return;   // なぞる操作の案内なので、マウス／キーの時は出さない
  ctx.globalAlpha=Math.max(0,Math.min(1,(11-time)/2));
  ctx.font='bold 11px monospace';ctx.textAlign='center';
  for(const [x,t] of [[W*.25,'ここから なぞると 横'],[W*.75,'ここから なぞると 縦']]){
@@ -688,7 +697,7 @@ function drawShip(){
  if(has('ship'))ctx.drawImage(IMG.ship,x,y,S,S);
  else{ctx.fillStyle='#e4eeee';ctx.beginPath();ctx.moveTo(shipX,shipY-S/2);
   ctx.lineTo(shipX+S*.44,shipY+S*.44);ctx.lineTo(shipX-S*.44,shipY+S*.44);ctx.closePath();ctx.fill()}
- if(bomb){                                                    // 地上弾を撃っている間の印
+ if(bomb||swapA){                                             // 地上弾を撃っている間の印
   ctx.globalAlpha=.30+Math.sin(time*20)*.18;ctx.fillStyle='#e2624a';
   ctx.beginPath();ctx.arc(shipX,shipY,S*.55,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}}
 
@@ -702,15 +711,36 @@ function drawCaps(){                           // パワーアップカプセル
   ctx.fillStyle='#1a140e';ctx.font='bold 15px monospace';ctx.textAlign='center';
   ctx.fillText('P',c.x,c.y+5);ctx.textAlign='left'}}
 
-function drawBomb(){                           // 地上弾
-  if(!bomb)return;
-  const k=Math.min(1,bomb.t/BOMB_T);
-  ctx.strokeStyle='#e2624a55';ctx.lineWidth=3;ctx.setLineDash([3,5]);
-  ctx.beginPath();ctx.moveTo(bomb.sx,bomb.sy);ctx.lineTo(bomb.x,bomb.y);ctx.stroke();ctx.setLineDash([]);
-  const d=10+k*8;
-  ctx.fillStyle='#1a140e';ctx.fillRect(bomb.x-d/2-2,bomb.y-d/2-2,d+4,d+4);
-  ctx.fillStyle=Math.floor(time*24)%2?'#f6e27a':'#e2624a';
-  ctx.fillRect(bomb.x-d/2,bomb.y-d/2,d,d)}
+function drawBomb(){                           // 地上弾：前へ飛びながら小さくなり、地上へ落ちていく
+ if(!bomb)return;
+ const k=Math.min(1,bomb.t/BOMB_T);
+ const rc=sightRect(bomb.a);
+ // 着弾点の印（落ちてくるほど輪が縮む）
+ const ring=(1-k)*S*1.1+6;
+ ctx.strokeStyle=Math.floor(time*16)%2?'#e2624a':'#ffffff';ctx.lineWidth=2;
+ ctx.beginPath();ctx.arc(bomb.tx,bomb.ty,ring,0,Math.PI*2);ctx.stroke();
+ ctx.globalAlpha=.35;ctx.fillStyle='#1a140e';                   // 地上に落ちる影
+ ctx.beginPath();ctx.ellipse(bomb.tx,bomb.ty,4+k*8,3+k*5,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+ // 弾：はじめは自機と同じ高さ（大きい）、だんだん地上へ（小さい）
+ const d=Math.max(5,18-k*13);
+ const lift=Math.sin(k*Math.PI)*22;             // 少し山なりに
+ const x=bomb.x,y=bomb.y-lift;
+ ctx.fillStyle='#1a140e';ctx.fillRect(x-d/2-2,y-d/2-2,d+4,d+4);
+ ctx.fillStyle=Math.floor(time*24)%2?'#f6e27a':'#e2624a';ctx.fillRect(x-d/2,y-d/2,d,d);
+ ctx.fillStyle='#ffffff';ctx.fillRect(x-d/6,y-d/6,d/3,d/3)}
+
+function drawSwap(){                           // 当たった所のピースが宙に浮いて入れ替わっていく
+ if(!swapA)return;
+ const {cs,vals}=swapA,n=cs.length,k=Math.min(1,swapA.t/SWAP_T);
+ const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;       // ゆっくり出て、ゆっくり着く
+ for(const [r,c] of cs){                          // 元の場所は穴に
+  ctx.fillStyle='#2a1c0a';ctx.fillRect(cellX(c)+2,cellY(r)+2,S-4,S-4)}
+ for(let i=0;i<n;i++){
+  const [r0,c0]=cs[i],[r1,c1]=cs[n-1-i];
+  const x=cellX(c0)+(cellX(c1)-cellX(c0))*e,y=cellY(r0)+(cellY(r1)-cellY(r0))*e;
+  const hop=Math.sin(k*Math.PI)*S*.35,sc=1+Math.sin(k*Math.PI)*.18,sz=S*sc;
+  ctx.globalAlpha=.3;ctx.fillStyle='#1a140e';ctx.fillRect(x+4,y+6,S-4,S-4);ctx.globalAlpha=1;
+  block(vals[i],x+S/2-sz/2,y+S/2-sz/2-hop,sz,true)}}
 
 function drawLasers(){
  for(const l of lasers){
@@ -727,7 +757,7 @@ function draw(){
   ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
  else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
  drawSides();drawGround();
- drawGrid();drawGiants();
+ drawGrid();drawGiants();drawSwap();
  drawSight();
  drawSlabs();
  drawCaps();
@@ -817,6 +847,9 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // ---- キーボード（ノートパソコン向け）：矢印/WASDで移動、N＝弾、M＝地上弾 ----
 window.addEventListener('keydown',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;
+ // タイトル・ステージクリア・結果の画面では Enter／Space／N／M でボタンを押したことにする
+ if(!$('overlay').classList.contains('hidden')&&['Enter',' ','n','m'].includes(k)){
+  e.preventDefault();if(!e.repeat&&$('start'))$('start').click();return}
  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','z','x','c','n','m'].includes(k))e.preventDefault();
  if(phase==='play'&&!paused){
   if(k==='n'){keysOn();audio();if(!keyFire){keyFire=true;fireCD=Math.min(fireCD,0)}}   // 押している間連射
