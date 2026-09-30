@@ -92,19 +92,20 @@ function glyphs(n){const a=[0,1,2,3,NASU].sort(()=>Math.random()-.5);return a.sl
 function makePuzzle(x,y){
  const n=power,dir=Math.random()<.5?'h':'v';
  let w,h,cells;
- if(dir==='h'){                               // 列がそろっている→横に崩す
-  w=Math.max(n,2+rnd(2)+(n>2?1:0));h=3;
+ // 崩した行（列）の長さ＝今の照準の長さ。照準が後で伸びても、はみ出た分は板に収まる
+ // （大は小を兼ねる）ので、いつでも1発で解ける。
+ if(dir==='h'){                               // 列がそろっている→1行ぶん横に崩す
+  w=n;h=3;
   const g=glyphs(w);cells=Array.from({length:h},()=>g.slice())}
- else{                                        // 行がそろっている→縦に崩す
-  w=3;h=Math.max(n,2+rnd(2)+(n>2?1:0));
+ else{                                        // 行がそろっている→1列ぶん縦に崩す
+  w=3;h=n;
   const g=glyphs(h);cells=g.map(k=>[k,k,k])}
  // 逆回しで1か所崩す（プレイヤーは順回しで戻す）
- if(dir==='h'){const r=rnd(h),c=rnd(w-n+1);
-  const line=cells[r].slice(c,c+n);line.push(line.shift());
-  for(let i=0;i<n;i++)cells[r][c+i]=line[i];}
- else{const c=rnd(w),r=rnd(h-n+1);
-  const line=[];for(let i=0;i<n;i++)line.push(cells[r+i][c]);line.push(line.shift());
-  for(let i=0;i<n;i++)cells[r+i][c]=line[i];}
+ if(dir==='h'){const r=rnd(h);
+  const line=cells[r].slice();line.push(line.shift());cells[r]=line}
+ else{const c=rnd(w);
+  const line=[];for(let i=0;i<n;i++)line.push(cells[i][c]);line.push(line.shift());
+  for(let i=0;i<n;i++)cells[i][c]=line[i]}
  return{kind:'puz',x:clamp(x-w*CELL/2,14,W-14-w*CELL),y,w,h,cells,need:dir,done:false,hitT:0}}
 function puzMatched(o){                       // そろっているマス
  const m=new Set(),{w,h,cells}=o;
@@ -121,11 +122,11 @@ function sightOn(px,py,dir){                   // その点に重なる地上パ
   if(o.kind!=='puz'||o.done)continue;
   if(px<o.x-6||px>o.x+o.w*CELL+6||py<o.y-6||py>o.y+o.h*CELL+6)continue;
   const c=clamp(Math.floor((px-o.x)/CELL),0,o.w-1),r=clamp(Math.floor((py-o.y)/CELL),0,o.h-1);
-  const len=dir==='h'?o.w:o.h;
-  if(len<power)return{o,bad:true};
+  // 大は小を兼ねる：照準が板より長ければ、板に収まる分（その行・列ぜんぶ）を回す
+  const len=dir==='h'?o.w:o.h,n=Math.min(power,len);
   const cs=[];
-  if(dir==='h'){const c0=clamp(c-Math.floor((power-1)/2),0,o.w-power);for(let i=0;i<power;i++)cs.push([r,c0+i])}
-  else{const r0=clamp(r-Math.floor((power-1)/2),0,o.h-power);for(let i=0;i<power;i++)cs.push([r0+i,c])}
+  if(dir==='h'){const c0=clamp(c-Math.floor((n-1)/2),0,o.w-n);for(let i=0;i<n;i++)cs.push([r,c0+i])}
+  else{const r0=clamp(r-Math.floor((n-1)/2),0,o.h-n);for(let i=0;i<n;i++)cs.push([r0+i,c])}
   return{o,cs}}
  return null}
 function rotateCells(o,cs){                    // 順回し（右／下へ1つずつ）
@@ -136,23 +137,37 @@ function rotateCells(o,cs){                    // 順回し（右／下へ1つ�
 function fireBomb(){
  if(bomb||!ship.alive)return;
  const p=sightPoint();
- bomb={sx:ship.x,sy:ship.y,tx:p.x,ty:p.y,t:0,dir:aim};
+ bomb={sx:ship.x,sy:ship.y,tx:p.x,ty:p.y,t:0,dir:aim,n:power};   // 撃った時の向きと長さで当たる
  play('launch',1.5,.45)}
+// 地上弾の当たる範囲：照準の長さぶん（横ならパワー×1マスの横長、縦なら縦長）
+function blastRect(x,y,dir,n=power){
+ const w=dir==='h'?n*CELL:CELL,h=dir==='h'?CELL:n*CELL;
+ return{x:x-w/2,y:y-h/2,w,h}}
+function inBlast(o,r,m=14){                       // 地上の敵の中心が範囲（少し広め）に入っているか
+ return o.x>=r.x-m&&o.x<=r.x+r.w+m&&o.y>=r.y-m&&o.y<=r.y+r.h+m}
 function landBomb(b){
- const x=b.tx,y=b.ty;
- boom(x,y,2.2);burst(x,y,10,'#ffe0a0');play('boom_s',1.2,.7);shake=Math.max(shake,4);
+ const x=b.tx,y=b.ty,r=blastRect(x,y,b.dir,b.n);
+ play('boom_s',1.2,.7);shake=Math.max(shake,4+b.n);
+ // 範囲いっぱいに爆発を並べる（伸びた照準の分だけ広く爆ぜる）
+ const steps=b.n;for(let i=0;i<steps;i++){
+  const cx=b.dir==='h'?r.x+CELL*(i+.5):x,cy=b.dir==='h'?y:r.y+CELL*(i+.5);
+  boom(cx,cy,2.2);burst(cx,cy,6,'#ffe0a0')}
+ // 1) 範囲に入った地上の敵（砲台・ピラミッド・Pの塔）はまとめて壊れる
+ let n=0;
+ for(const o of ground){
+  if(o.kind==='puz'||o.dead)continue;
+  if(inBlast(o,r)){destroyFixed(o);n++}}
+ if(n>=2){const bonus=300*n;score+=bonus;popBig(x,y-30,n+'体まとめて +'+bonus,'#f6e27a',18)}
+ // 2) 地上パズルに重なっていれば、その範囲を順繰りに回す
  const hit=sightOn(x,y,b.dir);
  if(hit&&hit.cs){
   rotateCells(hit.o,hit.cs);play('swap',1.1);hit.o.hitT=.25;
-  for(const [r,c] of hit.cs)burst(hit.o.x+c*CELL+CELL/2,hit.o.y+r*CELL+CELL/2,4,SAND.hi);
+  for(const [rr,c] of hit.cs)burst(hit.o.x+c*CELL+CELL/2,hit.o.y+rr*CELL+CELL/2,4,SAND.hi);
   const m=puzMatched(hit.o);
   if(m.size===hit.o.w*hit.o.h)destroyPuzzle(hit.o);
   else if(m.size)play('match',1,.5);
   return}
- if(hit&&hit.bad){play('deny');pop(x,y-18,power+'マスは入らない','#e2624a',12);return}
- for(const o of ground){                        // 固定された地上物
-  if(o.kind==='puz'||o.dead)continue;
-  if(Math.abs(o.x-x)<26&&Math.abs(o.y-y)<26)destroyFixed(o)}}
+ }
 function destroyPuzzle(o){
  o.done=true;o.dieT=0;
  const n=o.w*o.h,gain=100*n*(power>2?2:1);score+=gain;
@@ -376,7 +391,7 @@ function drawTerrain(){
  for(let i=-1;i<4;i++){const y=((scroll*1)%260)+i*260;
   ctx.beginPath();ctx.moveTo(-10,y);ctx.lineTo(W*.4,y+90);ctx.lineTo(W+10,y+40);ctx.stroke()}}
 function drawGroundObjs(){
- const sp=sightPoint(),sh=ship.alive?sightOn(sp.x,sp.y,aim):null;
+ const sp=sightPoint(),sh=ship.alive?sightOn(sp.x,sp.y,aim):null,br=blastRect(sp.x,sp.y,aim);
  for(const o of ground){
   if(o.kind==='puz'){
    const m=puzMatched(o),a=o.done?Math.max(0,1-o.dieT/.5):1;
@@ -387,6 +402,10 @@ function drawGroundObjs(){
     tile(o.cells[r][c],o.x+c*CELL,o.y+r*CELL,CELL,m.has(r*o.w+c));
    ctx.globalAlpha=1;continue}
   const x=Math.round(o.x),y=Math.round(o.y);
+  if(ship.alive&&inBlast(o,br)){                 // 照準の範囲に入っている地上の敵：狙っている印
+   const k=Math.floor(time*10)%2?'#e2624a':'#ffffff',d=24;ctx.fillStyle=k;
+   for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    ctx.fillRect(x+sx*d-(sx>0?8:0),y+sy*d-(sy>0?2:0),8,2);ctx.fillRect(x+sx*d-(sx>0?2:0),y+sy*d-(sy>0?8:0),2,8)}}
   if(o.kind==='turret'){ctx.fillStyle='#3a2a1a';ctx.fillRect(x-14,y-14,28,28);
    ctx.fillStyle='#6d5a44';ctx.fillRect(x-10,y-10,20,20);
    const a=Math.atan2(ship.y-o.y,ship.x-o.x);ctx.strokeStyle='#1a140e';ctx.lineWidth=5;
@@ -410,7 +429,7 @@ function drawGroundObjs(){
   ctx.globalAlpha=.18;ctx.fillStyle='#fff';ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.globalAlpha=1;
   sightFrame(x0,y0,x1-x0,y1-y0,col,3)}
  else{const w=aim==='h'?power*CELL:CELL,h=aim==='h'?CELL:power*CELL;
-  sightFrame(sp.x-w/2,sp.y-h/2,w,h,sh&&sh.bad?'#e2624a':col,2)}
+  sightFrame(sp.x-w/2,sp.y-h/2,w,h,col,2)}
  ctx.strokeStyle='#ffffff33';ctx.lineWidth=1;ctx.setLineDash([3,5]);
  ctx.beginPath();ctx.moveTo(ship.x,ship.y-16);ctx.lineTo(sp.x,sp.y+14);ctx.stroke();ctx.setLineDash([])}
 function sightFrame(x,y,w,h,col,lw){
