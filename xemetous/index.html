@@ -88,6 +88,8 @@ const CFG_DEF=[
  {k:'sightAhead',name:'照準の距離',def:150,min:90,max:240,step:2,unit:'px',note:'自機から照準まで'},
  {k:'shotMax',name:'空中弾の数',def:3,min:1,max:8,step:1,unit:'発',note:'画面に出せる数'},
  {k:'bombT',name:'地上弾が落ちる時間',def:.55,min:.2,max:1.2,step:.05,unit:'秒',note:''},
+ {k:'voice',name:'声',def:1,min:0,max:2,step:1,labels:['なし','男の人（低め）','女の人'],note:'言葉ができた時に読み上げる（端末の日本語音声）'},
+ {k:'vpitch',name:'男の人の声の高さ',def:.6,min:.1,max:1.2,step:.05,unit:'',note:'小さいほど低く渋い'},
  {k:'eFire',name:'敵弾の量',def:1,min:0,max:2,step:.1,unit:'倍',note:'画面に出る敵弾の数と撃つ間隔。0で撃ってこない'},
  {k:'eSpeed',name:'敵弾の速さ',def:150,min:80,max:260,step:10,unit:'px/秒',note:''},
  {k:'scroll',name:'スクロールの速さ',def:42,min:20,max:90,step:2,unit:'px/秒',note:'地面が流れる速さ'}];
@@ -129,7 +131,7 @@ const canvas=$('game'),ctx=canvas.getContext('2d');
 const MODES={
  normal:{name:'ノーマルモード',words:{'いぬ':'dog','ねこ':'cat','すいか':'suika','りんご':'ringo','さかな':'sakana','おにぎり':'onigiri'},
   script:['いぬ','ねこ','さかな','すいか'],pics:['nasu','neko'],picName:{nasu:'ナスの地上絵',neko:'ねこの地上絵'}},
- unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちち':'oppai','おちち':'oppaiL','ちんちん':'chin','おちんちん':'chinL'},
+ unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちち':'oppai','おちち':'oppaiL','ちんちん':'chin','おちんちん':'chinL','ちんこ':'chin'},
   script:['うんこ','ちち','ちんちん','おちち'],pics:['nasu','unko'],picName:{nasu:'ナスの地上絵',unko:'うんこの地上絵'}}};
 let mode=(()=>{try{return localStorage.getItem('xemetous_mode')==='unchi'?'unchi':'normal'}catch(e){return 'normal'}})();   // はじめてはノーマル
 let WORD_PART,WORDS,LETTER_POOL,PICS;
@@ -139,7 +141,7 @@ function setMode(m){mode=m;const M=MODES[m];WORD_PART=M.words;PICS=M.picName;
  try{localStorage.setItem('xemetous_mode',m)}catch(e){}}
 setMode(mode);
 const LETTER_COL={'う':'#fff6dc','ん':'#f6e27a','こ':'#e8a060','ち':'#a8e07a','お':'#ffb0c8'};
-const letterCol=ch=>LETTER_COL[ch]||['#fff6dc','#f6e27a','#e8a060','#a8e07a','#ffb0c8','#a8d8ff'][ch.charCodeAt(0)%6];
+const letterCol=ch=>ch==null?'#f2d9a4':LETTER_COL[ch]||['#fff6dc','#f6e27a','#e8a060','#a8e07a','#ffb0c8','#a8d8ff'][ch.charCodeAt(0)%6];
 function wordsFound(o){                       // 読める言葉（重なる時は長い方を優先）
  const cand=[],{w,h,cells}=o;
  const scan=(get,n,mk)=>{let s='';for(let i=0;i<n;i++)s+=get(i)||' ';
@@ -211,7 +213,10 @@ function boardAt(px,py){                       // 照準の下の板とマス
  return null}
 // つかんで動かす（パズドラ式）
 let grab=null;
-function startGrab(hit){grab={o:hit.o,r:hit.r,c:hit.c,moves:0};play('pickup',1.6,.4)}
+function isLocked(o,r,c){return !!(o.pend&&o.pend.words.some(f=>f.cs.some(([a,b])=>a===r&&b===c)))}   // できた言葉の文字は動かせない
+function startGrab(hit){
+ if(isLocked(hit.o,hit.r,hit.c)){play('deny',1,.4);groundHeld=armed=false;groundSrc=null;return}
+ grab={o:hit.o,r:hit.r,c:hit.c,moves:0};play('pickup',1.6,.4)}
 function updateGrab(){
  if(!grab)return;const o=grab.o;
  if(o.done||!ship.alive){endGrab();return}
@@ -220,6 +225,7 @@ function updateGrab(){
  let guard=0;
  while((grab.r!==r||grab.c!==c)&&guard++<12){         // 速く動いても1マスずつ入れ替える
   const nr=grab.c!==c?grab.r:grab.r+Math.sign(r-grab.r),nc=grab.c!==c?grab.c+Math.sign(c-grab.c):grab.c;
+  if(isLocked(o,nr,nc)){endGrab();return}             // できた言葉にぶつかったら、そこで終わり
   swapCells(o.cells,[grab.r,grab.c],[nr,nc]);grab.r=nr;grab.c=nc;grab.moves++;play('swap',1.3+Math.random()*.2,.35)}}
 function endGrab(){
  if(!grab)return;const o=grab.o,moved=grab.moves>0;grab=null;
@@ -267,22 +273,35 @@ function resolveBoard(o){
    items.push({x:cx,y:cy,t:0,part:o.pic,big:true,mult:1});popBig(cx,cy-40,PICS[o.pic]+'！','#c8a0ff',22);
    clearFx(o,cx,cy)}
   return}
- const made=[];
- for(let loop=0;loop<8;loop++){
-  const f=wordsFound(o);if(!f.length)break;
-  for(const x of f){made.push({word:x.word,cs:x.cs});for(const [r,c] of x.cs)o.cells[r][c]=null}
-  if(!o.grid)break;
-  for(let c=0;c<o.w;c++){const col=[];for(let r=o.h-1;r>=0;r--)if(o.cells[r][c])col.push(o.cells[r][c]);   // 上から落ちてくる
-   for(let r=o.h-1,i=0;r>=0;r--,i++)o.cells[r][c]=col[i]||randLetter()}}
- if(!made.length)return;
- const combo=made.length;
+ checkNewWords(o)}
+// 言葉ができたら、すぐには出さずに少しの間（PEND_T 秒）光らせておく。その間に同じ板でほかの言葉ができたら
+// それも光らせて待つ。時間が来たらまとめて出てくる＝コンボ（「おちんちん・ちんこ！」のように読み上げる）
+const PEND_T=2.2;
+function checkNewWords(o){
+ const nw=wordsFound(o).filter(f=>!f.cs.some(([r,c])=>isLocked(o,r,c)));
+ if(!nw.length)return;
+ if(!o.pend)o.pend={words:[],t:0};
+ o.pend.words.push(...nw);o.pend.t=PEND_T;
+ for(const f of nw){const [r,c]=f.cs[Math.floor(f.cs.length/2)];
+  popBig(o.x+c*CELL+CELL/2,o.y+r*CELL-10,f.word,'#ffffff',20+f.word.length*2)}
+ const n=o.pend.words.length;play('match',1+n*.12,.8);
+ if(n>1)pop(o.x+o.w*CELL/2,o.y-26,n+'コンボ…','#f6e27a',18)}
+function updatePend(o,dt){
+ if(!o.pend||o.done)return;
+ o.pend.t-=dt;if(o.pend.t<=0)materialize(o)}
+function materialize(o){
+ const made=o.pend.words;o.pend=null;const combo=made.length;
  for(const m of made){const [r,c]=m.cs[Math.floor(m.cs.length/2)],ix=o.x+c*CELL+CELL/2,iy=o.y+r*CELL+CELL/2;
-  items.push({x:ix,y:iy,t:0,part:WORD_PART[m.word],big:false,mult:combo});
-  score+=100*m.word.length*combo;popBig(ix,iy-24,'「'+m.word+'」！','#ffe0f0',18+m.word.length)}
+  items.push({x:ix,y:iy,t:0,part:WORD_PART[m.word],big:false,mult:combo});score+=100*m.word.length*combo}
  const cx=o.x+o.w*CELL/2,cy=o.y+o.h*CELL/2;
+ announce(made.map(m=>m.word),combo);
  if(combo>1){popBig(cx,cy-50,combo+'コンボ！ 威力×'+combo,'#f6e27a',24);play('chain',1,.8)}
- if(!o.grid){o.done=true;o.dieT=0}
  clearFx(o,cx,cy);
+ if(!o.grid){o.done=true;o.dieT=0}
+ else{for(const m of made)for(const [r,c] of m.cs)o.cells[r][c]=null;
+  for(let c=0;c<o.w;c++){const col=[];for(let r=o.h-1;r>=0;r--)if(o.cells[r][c])col.push(o.cells[r][c]);   // 上から落ちてくる
+   for(let r=o.h-1,i=0;r>=0;r--,i++)o.cells[r][c]=col[i]||randLetter()}
+  checkNewWords(o)}                                    // 落ちてきてできた言葉は、また光って待つ（連鎖）
  if(!ship.opts.length&&items.length<=combo)message('出てきた物を照準で捕まえよう。地上弾を2回すばやく押すと撃ち出す',3.5)}
 function clearFx(o,cx,cy){
  play('clear');play('boom_l',1.1,.6);shake=Math.max(shake,8);flash=.12;
@@ -379,7 +398,7 @@ function spawnLine(kind,x,stopY,n,dir,hold=8){
   else{const o=spawnGround(kind,x,{stopY:stopY+i*CELL,hold});o.y=-30-(n-1-i)*CELL}}}
 function updateGround(dt){
  for(const o of ground){
-  if(o.kind==='puz'&&o.stopY!==undefined){updateWander(o,dt)}
+  if(o.kind==='puz'){updatePend(o,dt);if(o.stopY!==undefined)updateWander(o,dt)}
   else if(o.stopY!==undefined&&o.hold>0&&o.y>=o.stopY){o.y=o.stopY;o.hold-=dt}   // 止まっている間は画面に固定
   else o.y+=SPD*dt;
   if(o.emerge!==undefined&&o.emerge<1)o.emerge=Math.min(1,o.emerge+dt/.7);   // ボス戦：地中からせり上がる
@@ -411,6 +430,7 @@ function updateWander(o,dt){
   for(const g of ground)if(g!==o&&g.kind==='puz'&&!g.done&&o.x<g.x+g.w*CELL+8&&g.x<o.x+pw+8&&o.y<g.y+g.h*CELL+8&&g.y<o.y+o.h*CELL+8)
    o.vx=(o.x<g.x?-1:1)*Math.abs(o.vx);
   o.y=o.stopY+Math.sin(o.wt*.7)*8;return}
+ if(o.pend)materialize(o);                           // 消える前に、光っている言葉は出してしまう
  o.left=true;o.y-=60*dt}                             // 時間切れ：画面の上へ消えていく
 
 // ---- 出てきた物（うんこ・うんち・おっぱい・ちんちん・デカうんこ・デカナス） -----
@@ -624,6 +644,53 @@ function drawOpts(){
    ctx.beginPath();ctx.arc(p.x,p.y,r+P.stink,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.lineDashOffset=0}
   drawPartIcon(o,p.x,p.y,1);ctx.globalAlpha=1;
   for(let k=0;k<o.hp;k++){ctx.fillStyle='#8fe0ff';ctx.fillRect(p.x-o.hp*2.5+k*5,p.y+r+3,3,3)}})}
+// ---- 読み上げとカットイン（女の子の絵と声） ---------------------------------
+// 声はブラウザの読み上げ（日本語）。ひらがなをそのまま読ませるので、アクセントは端末の日本語音声のもの。
+// 設定の「声」で なし／男の人（低め）／女の人 を選べる。
+let cutin=null,jaVoices=[];
+function loadVoices(){try{jaVoices=speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang))}catch(e){}}
+if(window.speechSynthesis){loadVoices();try{speechSynthesis.onvoiceschanged=loadVoices}catch(e){}}
+function pickVoice(male){
+ const M=/otoya|ichiro|keita|hattori|daichi|male|男/i,F=/kyoko|haruka|ayumi|nanami|o-ren|sayaka|mizuki|female|女/i;
+ return jaVoices.find(v=>(male?M:F).test(v.name))||jaVoices.find(v=>!(male?F:M).test(v.name))||jaVoices[0]||null}
+function speak(text){
+ if(!window.speechSynthesis||!CFG.voice||!sound)return;
+ try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ja-JP';
+  const male=CFG.voice===1,v=pickVoice(male);if(v)u.voice=v;
+  u.pitch=male?CFG.vpitch:1.25;u.rate=.92;u.volume=1;speechSynthesis.speak(u)}catch(e){}}
+function unlockSpeech(){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
+function announce(words,combo){
+ const text=words.join('・')+'！';
+ cutin={text,combo,t:0,life:2.4};
+ speak(words.join('、')+(combo>1?'。'+combo+'コンボ！':'！'))}
+function drawGirl(x,y,s,talk){                       // 女の子（ちびキャラ）
+ const hair='#5a3020',skin='#ffe0cc';
+ ctx.fillStyle=hair;ctx.beginPath();ctx.arc(x,y,s*.62,0,Math.PI*2);ctx.fill();          // 後ろ髪
+ ctx.fillRect(x-s*.62,y,s*.26,s*.7);ctx.fillRect(x+s*.36,y,s*.26,s*.7);
+ ctx.fillStyle='#ff8ab0';ctx.beginPath();ctx.moveTo(x-s*.55,y+s*1.1);ctx.quadraticCurveTo(x,y+s*.55,x+s*.55,y+s*1.1);ctx.fill();   // 服
+ ctx.fillStyle=skin;ctx.beginPath();ctx.ellipse(x,y+s*.08,s*.46,s*.48,0,0,Math.PI*2);ctx.fill();   // 顔
+ ctx.fillStyle=hair;ctx.beginPath();ctx.moveTo(x-s*.5,y);ctx.quadraticCurveTo(x-s*.4,y-s*.6,x,y-s*.58);   // 前髪
+ ctx.quadraticCurveTo(x+s*.4,y-s*.6,x+s*.5,y);ctx.lineTo(x+s*.3,y-s*.18);ctx.lineTo(x+s*.14,y-s*.06);ctx.lineTo(x,y-s*.22);
+ ctx.lineTo(x-s*.14,y-s*.06);ctx.lineTo(x-s*.3,y-s*.18);ctx.closePath();ctx.fill();
+ for(const d of [-1,1]){ctx.fillStyle='#2a1a40';ctx.beginPath();ctx.ellipse(x+d*s*.19,y+s*.1,s*.1,s*.14,0,0,Math.PI*2);ctx.fill();   // 目
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x+d*s*.19-s*.03,y+s*.05,s*.04,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ff9aa866';ctx.beginPath();ctx.ellipse(x+d*s*.3,y+s*.28,s*.08,s*.05,0,0,Math.PI*2);ctx.fill()}   // ほっぺ
+ ctx.fillStyle='#c0405a';ctx.beginPath();
+ if(talk)ctx.ellipse(x,y+s*.33,s*.07,s*.06,0,0,Math.PI*2);else ctx.ellipse(x,y+s*.32,s*.06,s*.025,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#e8404a';for(const d of [-1,1]){ctx.beginPath();ctx.moveTo(x+s*.38,y-s*.46);ctx.lineTo(x+s*.38+d*s*.22,y-s*.6);ctx.lineTo(x+s*.38+d*s*.22,y-s*.32);ctx.fill()}   // リボン
+ ctx.beginPath();ctx.arc(x+s*.38,y-s*.46,s*.07,0,Math.PI*2);ctx.fill()}
+function drawCutin(){
+ if(!cutin)return;const c=cutin,k=Math.min(1,c.t/.15),out=Math.max(0,(c.t-(c.life-.3))/.3);
+ const y=50-(1-k)*30,a=1-out;ctx.globalAlpha=a*.85;ctx.fillStyle='#1a140e';ctx.fillRect(8,y,W-16,84);
+ ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=2;ctx.strokeRect(8,y,W-16,84);
+ drawGirl(54,y+36,40,Math.floor(c.t*8)%2===0&&c.t<1.6);
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(98,y+42);ctx.lineTo(112,y+34);ctx.lineTo(112,y+50);ctx.fill();   // 吹き出し
+ ctx.fillRect(110,y+10,W-130,64);
+ const fs=Math.min(28,Math.floor((W-140)/Math.max(4,[...c.text].length)*1.05));
+ ctx.font='bold '+fs+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#e8404a';ctx.fillText(c.text,110+(W-130)/2,y+44+fs*.3);
+ if(c.combo>1){ctx.font='bold 12px monospace';ctx.fillStyle='#a8743a';ctx.fillText(c.combo+'コンボ　威力×'+c.combo,110+(W-130)/2,y+70)}
+ ctx.textAlign='left';ctx.globalAlpha=1}
+
 // ---- 面の台本（出す時刻・種類・位置） ----------------------------------------
 // ゼビウスの1面のように「空の山場」と「地上をじっくり狙う間」を交互に置いてメリハリを付ける。
 // 地上は「そろえる（ことば・ピース）」と「けす（横・縦に並んだ敵）」を混ぜる。
@@ -703,7 +770,7 @@ function startArea(){
  ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:2,deadT:0,opts:ship&&ship.opts||[]};   // くっつけたパーツは次のエリアへ持ち越す
  items=[];missiles=[];boss=null;
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
- t=0;timers=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
+ t=0;timers=[];cutin=null;fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
  phase='play';$('overlay').classList.add('hidden');
  bgmVolume(sound&&!paused?.3:0);play('start');
  message('AREA '+area+'　空の敵は通常弾、地上は地上弾',3);ui()}
@@ -784,6 +851,7 @@ function update(dt){
  for(const p of parts){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}parts=parts.filter(p=>p.life>0);
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
  for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
+ if(cutin){cutin.t+=dt;if(cutin.t>cutin.life)cutin=null}
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
@@ -815,7 +883,11 @@ function drawGroundObjs(){
    ctx.strokeStyle=SAND.deep;ctx.lineWidth=3;ctx.strokeRect(o.x-5,o.y-5,o.w*CELL+10,o.h*CELL+10);
    for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++){const id=o.cells[r][c],x=o.x+c*CELL,y=o.y+r*CELL,ok=m.has(r*o.w+c);
     if(grab&&grab.o===o&&grab.r===r&&grab.c===c){ctx.fillStyle='#1a140e88';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);continue}   // つかんでいるマスは浮かせて描く
-    drawCell(o,id,x,y,ok)}
+    drawCell(o,id,x,y,ok);
+    if(isLocked(o,r,c)){const b=.5+Math.sin(time*12)*.5;ctx.globalAlpha=a*(.25+b*.3);ctx.fillStyle='#fff6a0';ctx.fillRect(x,y,CELL,CELL);ctx.globalAlpha=a;
+     ctx.strokeStyle='#f6e27a';ctx.lineWidth=3;ctx.strokeRect(x+1.5,y+1.5,CELL-3,CELL-3)}}
+   if(o.pend){const k=o.pend.t/PEND_T;ctx.strokeStyle='#f6e27a';ctx.lineWidth=4;ctx.beginPath();   // 出てくるまでの残り
+    ctx.arc(o.x+o.w*CELL+10,o.y-10,9,-Math.PI/2,-Math.PI/2+Math.PI*2*k);ctx.stroke()}
    if(o.arrived&&!o.left&&!o.done&&o.hold0){ctx.fillStyle='#1a140e';ctx.fillRect(o.x,o.y+o.h*CELL+4,o.w*CELL,3);   // ウロウロしていられる残り時間
     ctx.fillStyle='#c8a0ff';ctx.fillRect(o.x,o.y+o.h*CELL+4,o.w*CELL*Math.max(0,o.hold/o.hold0),3)}
    ctx.globalAlpha=1;continue}
@@ -862,6 +934,7 @@ function drawCell(o,id,x,y,ok,k=1){
  if(has('slab'))ctx.drawImage(o.done||ok?IMG.slab_lit:IMG.slab,x,y,S,S);else{ctx.fillStyle=SAND.base;ctx.fillRect(x+1,y+1,S-2,S-2)}
  if(o.type==='pic'){ctx.drawImage(ART[o.pic],(id%3)*CELL,Math.floor(id/3)*CELL,CELL,CELL,x,y,S,S);
   ctx.strokeStyle='#3a2a1a88';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,S-1,S-1);return}
+ if(id==null)return;                                  // 空いたマス（消えた所）は板だけ
  ctx.font='bold '+Math.round(S*.7)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+2,y+S*.74+2);
  ctx.fillStyle=ok?'#ffffff':letterCol(id);ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
 function sightFrame(x,y,w,h,col,lw){
@@ -917,6 +990,7 @@ function draw(){
   ctx.font='bold '+Math.round(p.size*sc)+'px monospace';
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
+ drawCutin();
  if(phase==='play'){ctx.font='bold 11px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('AREA '+area,10,18);
   if(boss&&!boss.dead){const k=boss.hp/boss.max;                       // ボスの体力：上に大きく
    ctx.fillStyle='#1a140e';ctx.fillRect(8,24,W-16,18);ctx.fillStyle='#4a3620';ctx.fillRect(11,27,W-22,12);
@@ -1012,12 +1086,12 @@ $('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');bgmVolume(sound&&!paused&&bgmOn?.3:0)};
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
-for(const id of ['start','start2']){const el=$(id);el.onclick=()=>{setMode(el.dataset.mode);audio();goFullscreen();keepAwake();reset()}}
+for(const id of ['start','start2']){const el=$(id);el.onclick=()=>{setMode(el.dataset.mode);audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
 // Enter・Space は前に選んだモードを押す
 if(mode==='unchi'){const a=$('start'),b=$('start2');a.id='start2';b.id='start'}   // 並びはそのまま、Enter で押されるのを入れ替える
 // ---- 設定（スマホでもPCでも：スライダーと −／＋ ボタン） ---------------------
 let cfgPausedByMe=false;
-const fmtCfg=(d,v)=>(d.step<1?v.toFixed(d.step<.1?2:1):String(v))+(d.unit?' '+d.unit:'');
+const fmtCfg=(d,v)=>d.labels?d.labels[v]:(d.step<1?v.toFixed(d.step<.1?2:1):String(v))+(d.unit?' '+d.unit:'');
 function saveCfg(){try{localStorage.setItem('xemetous_cfg',JSON.stringify(CFG))}catch(e){}}
 function setCfg(d,v){v=Math.round(Math.min(d.max,Math.max(d.min,v))/d.step)*d.step;v=+v.toFixed(3);
  CFG[d.k]=v;applyCfg();saveCfg();const el=document.querySelector('[data-k="'+d.k+'"]');
@@ -1143,7 +1217,8 @@ if(window.ResizeObserver)new ResizeObserver(resize).observe($('stage'));resize()
 ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:0,opts:[]};shots=[];ebul=[];air=[];ground=[];caps=[];parts=[];booms=[];pops=[];script=[];si=0;
 let last=performance.now();
 function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
- if(phase==='play'&&!paused)update(dt);else scroll+=dt*SPD*.5;
- draw();requestAnimationFrame(frame)}
+ try{if(phase==='play'&&!paused)update(dt);else scroll+=dt*SPD*.5;
+  draw()}catch(e){console.error(e)}                  // 1つの不具合で画面が止まらないように
+ requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 </script></body></html>
