@@ -66,7 +66,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：こいぬ・こねこ・すいか・ごりら・きりん…<br>うんち：うんこ・うんち・ちんこ・おちんちん…<br>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　女の子の絵：画像生成AI（Counterfeit-V2.5）</div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -291,7 +291,7 @@ function resolveBoard(o){
    const cx=o.x+o.w*CELL/2,cy=o.y+o.h*CELL/2;o.done=true;o.dieT=0;
    if(o.legend){legendAttack(o,cx,cy);return}
    score+=1500;items.push({x:cx,y:cy,t:0,part:o.pic,big:true,mult:1,g:++gseq,born:time});popBig(cx,cy-40,PICS[o.pic]+'！','#c8a0ff',22);
-   sayWord({nasu:'なす',neko:'こねこ',unko:'うんこ'}[o.pic]);
+   const nm={nasu:'なす',neko:'こねこ',unko:'うんこ'}[o.pic];sayWord(nm);showCutin([nm],1);
    clearFx(o,cx,cy)}
   return}
  checkNewWords(o)}
@@ -306,6 +306,7 @@ function checkNewWords(o){
  for(const f of nw){const [r,c]=f.cs[Math.floor(f.cs.length/2)];
   popBig(o.x+c*CELL+CELL/2,o.y+r*CELL-10,f.word,'#ffffff',20+f.word.length*2);sayWord(f.word)}
  const n=o.pend.words.length;play('match',1+n*.12,.8);
+ showCutin(o.pend.words.map(f=>f.word),n);           // 声と同時に女の子が出る
  if(n>1)pop(o.x+o.w*CELL/2,o.y-26,n+'コンボ…','#f6e27a',18)}
 function updatePend(o,dt){
  if(!o.pend||o.done)return;
@@ -735,10 +736,14 @@ function speakTTS(text){
   const v=jaVoices.find(v=>/kyoko|haruka|ayumi|nanami|o-ren|sayaka|mizuki|female|女/i.test(v.name))||jaVoices[0];if(v)u.voice=v;
   u.pitch=1.3;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
 function unlockSpeech(){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
-function announce(words,combo){
- const text=words.join('・')+'！';
- cutin={text,combo,t:0,life:Math.max(2.4,.9+words.length*.7)};
- if(!CFG.voice||!sound||combo<2)return;             // 言葉はできた時に読んだので、ここではコンボだけ
+// カットイン：言葉ができた瞬間（声と同時）に出す。待っている間にほかの言葉が増えたら、吹き出しを書き足す
+function showCutin(words,combo){
+ const keep=cutin&&cutin.t<cutin.life-.3;              // 出ている途中なら、出し直しの動きはしない
+ cutin={text:words.join('・')+'！',combo,t:keep?Math.min(cutin.t,.3):0,life:Math.max(2.6,1.2+words.length*.7)}}
+function announce(words,combo){                       // まとめて出る時：コンボなら「ツーコンボ！」
+ if(combo<2)return;
+ showCutin(words,combo);
+ if(!CFG.voice||!sound)return;
  if(!playVoice([combo<=6?'c'+combo:'c'],true))speakTTS(combo+'コンボ！')}
 function drawGirl(x,y,s,talk){                       // 女の子（ちびキャラ）
  const hair='#5a3020',skin='#ffe0cc';
@@ -758,16 +763,18 @@ function drawGirl(x,y,s,talk){                       // 女の子（ちびキャ
  ctx.beginPath();ctx.arc(x+s*.38,y-s*.46,s*.07,0,Math.PI*2);ctx.fill()}
 function drawCutin(){
  if(!cutin)return;const c=cutin,k=Math.min(1,c.t/.15),out=Math.max(0,(c.t-(c.life-.3))/.3);
- const y=H-112+(1-k)*30,a=1-out;                     // 画面の下（敵も地上物もいない所）に出すctx.globalAlpha=a*.85;ctx.fillStyle='#1a140e';ctx.fillRect(8,y,W-16,84);
- ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=2;ctx.strokeRect(8,y,W-16,84);
- if(has('girl')){const g=74,gx=16,gy=y+5,bounce=c.t<1.6?Math.abs(Math.sin(c.t*14))*2:0;   // 女の子の絵（AIで作った）
-  ctx.fillStyle='#f6e27a';ctx.fillRect(gx-2,gy-2-bounce,g+4,g+4);ctx.imageSmoothingEnabled=true;ctx.drawImage(IMG.girl,gx,gy-bounce,g,g);ctx.imageSmoothingEnabled=false}
- else drawGirl(54,y+36,40,Math.floor(c.t*8)%2===0&&c.t<1.6);
- ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(98,y+42);ctx.lineTo(112,y+34);ctx.lineTo(112,y+50);ctx.fill();   // 吹き出し
- ctx.fillRect(110,y+10,W-130,64);
- const fs=Math.min(28,Math.floor((W-140)/Math.max(4,[...c.text].length)*1.05));
- ctx.font='bold '+fs+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#e8404a';ctx.fillText(c.text,110+(W-130)/2,y+44+fs*.3);
- if(c.combo>1){ctx.font='bold 12px monospace';ctx.fillStyle='#a8743a';ctx.fillText(c.combo+'コンボ　威力×'+c.combo,110+(W-130)/2,y+70)}
+ const PH=104,y=H-PH-14+(1-k)*40,a=1-out;            // 画面の下（敵も地上物もいない所）に出す
+ ctx.globalAlpha=a*.85;ctx.fillStyle='#1a140e';ctx.fillRect(8,y,W-16,PH);
+ ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=2;ctx.strokeRect(8,y,W-16,PH);
+ const talk=Math.floor(c.t*8)%2===0&&c.t<1.8,bounce=c.t<1.8?Math.abs(Math.sin(c.t*12))*3:0;
+ ctx.save();ctx.beginPath();ctx.rect(9,y-60,W-18,PH+59);ctx.clip();   // 下は枠でそろえる（上ははみ出してよい）
+ drawGirl(70,y+PH*.46-bounce,78,talk);ctx.restore();  // 女の子（前の絵を2倍に）
+ const bx=136,bw=W-bx-20;
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(bx-14,y+PH*.5);ctx.lineTo(bx+2,y+PH*.4);ctx.lineTo(bx+2,y+PH*.6);ctx.fill();   // 吹き出し
+ ctx.fillRect(bx,y+12,bw,PH-24);
+ const fs=Math.min(30,Math.floor(bw/Math.max(4,[...c.text].length)*1.05));
+ ctx.font='bold '+fs+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#e8404a';ctx.fillText(c.text,bx+bw/2,y+PH/2+fs*.3-(c.combo>1?6:0));
+ if(c.combo>1){ctx.font='bold 13px monospace';ctx.fillStyle='#a8743a';ctx.fillText(c.combo+'コンボ　威力×'+c.combo,bx+bw/2,y+PH-22)}
  ctx.textAlign='left';ctx.globalAlpha=1}
 
 // ---- 面の台本（出す時刻・種類・位置） ----------------------------------------
@@ -1204,7 +1211,7 @@ $('cfgbtn').onclick=()=>{if($('cfg').classList.contains('hidden'))openCfg();else
 $('cfgclose').onclick=closeCfg;
 $('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 // ---- アセット（本編と共用） -------------------------------------------------
-const IMG={},IMG_NAMES=['items','girl','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
+const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
  'boss1','boss2','boss3','boss4','enemy4'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;

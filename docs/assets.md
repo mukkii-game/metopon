@@ -71,10 +71,6 @@
 `tools/logo_nasu.html` をブラウザ（Playwright）で描いて書き出した。文字は Google Fonts の **Dela Gothic One** と
 **DotGothic16**（どちらも SIL Open Font License。npm の @fontsource から取得）、背景は砂の絵（assets/img/sand.png）と線で描いたナス。
 
-## 女の子の絵 — `assets/img/girl.png`
-画像生成AI **gsdf/Counterfeit-V2.5**（CreativeML OpenRAIL-M。商用可、使い方の制限あり）でこの環境の CPU で作った（`tools/gen_girl.py`、1枚約2分）。
-6枚作って、カットインで小さく出しても分かりやすい顔のアップ（seed 1005）を選び、192px に切り抜いた。
-
 ## 声 — `assets/voice/`（`python3 tools/gen_voice.py` で再生成）
 **VOICEVOX:春日部つむぎ**（ノーマル）で作った、言葉とコンボのかけ声。VOICEVOX エンジンを Docker で動かして書き出した。
 エンジンの付ける高さはアクセントが崩れることがあるので、1語ずつ東京式アクセント（いぬ＝尾高、ねこ＝頭高、すいか＝平板 …）
