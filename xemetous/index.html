@@ -89,6 +89,8 @@ const CFG_DEF=[
  {k:'sightAhead',name:'照準の距離',def:118,min:70,max:200,step:2,unit:'px',note:'自機から照準まで'},
  {k:'shotMax',name:'空中弾の数',def:3,min:1,max:8,step:1,unit:'発',note:'画面に出せる数'},
  {k:'bombT',name:'地上弾が落ちる時間',def:.55,min:.2,max:1.2,step:.05,unit:'秒',note:''},
+ {k:'eFire',name:'敵弾の量',def:1,min:0,max:2,step:.1,unit:'倍',note:'画面に出る敵弾の数と撃つ間隔。0で撃ってこない'},
+ {k:'eSpeed',name:'敵弾の速さ',def:150,min:80,max:260,step:10,unit:'px/秒',note:''},
  {k:'scroll',name:'スクロールの速さ',def:42,min:20,max:90,step:2,unit:'px/秒',note:'地面が流れる速さ'}];
 const CFG={};
 for(const d of CFG_DEF)CFG[d.k]=d.def;
@@ -216,44 +218,69 @@ function destroyFixed(o){
  if(o.kind==='tower'){caps.push({x:o.x,y:o.y,t:0});message('カプセル！ 取ると照準が伸びる',2.2)}}
 
 // ---- 空の敵（ゼビウスの敵の「型」を借りたオリジナル） -------------------------
-//  ring   … 近づいて、並んだら逃げる（トーロイド型）
-//  torkan … 降りてきて止まり、狙い撃ちして帰る（トーカン型）
-//  zakato … ふっと現れて撃ち、消える（ザカート型）
-//  plate  … 弾が効かない回る板。避けるしかない（バキュラ型）
-//  giddo  … 速いジグザグ（ギド型）
+//  ring   … 自機の方へ寄ってきて、縦に並ぶ（x がそろう）と引き返す。ただし慣性があって
+//            すぐには戻れないので、引きつけて追いかければ落とせる（トーロイド型）
+//  torkan … 降りてきてブレーキ、止まって光ってから1発、加速して帰る（トーカン型）
+//  zakato … ふっと現れ、光ってから1発撃って消える（ザカート型）
+//  plate  … 弾が効かない回る板。壁になって降りてくる（バキュラ型）
+//  giddo  … S字に大きくうねって通り抜ける。撃たない（ジアラ型）
+// 敵の弾は「撃つ前に必ず光る（予告）」「画面に出せる数に上限」「撃つ間隔を空ける」
+// 「自機の近く・後ろからは撃たない」。パズルをしながらでも避けられる量にしてある。
+let fireT=-9,groups={};
+function ebMax(){return Math.round((2+(diff-1)*2)*CFG.eFire)}    // 画面に出せる敵弾の数
+function canFire(x,y){
+ if(!ship.alive||CFG.eFire<=0)return false;
+ if(ebul.length>=ebMax()||t-fireT<.55/CFG.eFire)return false;     // 弾の数と、撃つ間隔
+ if(y>ship.y-60||Math.hypot(ship.x-x,ship.y-y)<130)return false;  // 後ろ・目の前からは撃たない
+ return true}
+function enemyShot(x,y,spd){if(!canFire(x,y))return false;fireT=t;aimShot(x,y,spd);play('hit',1.6,.35);return true}
 function spawnAir(kind,x,o={}){
- const e={kind,x,y:-24,t:0,vx:0,vy:0,hp:1,alpha:1,...o};
- if(kind==='ring'){e.vy=150;e.sprite='enemy1';e.size=30}
- if(kind==='torkan'){e.vy=170;e.stopY=90+rnd(170);e.sprite='enemy4';e.size=34}
- if(kind==='zakato'){e.y=90+rnd(260);e.alpha=0;e.sprite='zako22';e.size=32}
- if(kind==='plate'){e.vy=SPD+34;e.size=34;e.hp=Infinity}
- if(kind==='giddo'){e.vy=230;e.x0=x;e.sprite='enemy2';e.size=34}
+ const e={kind,x,y:-24,t:0,vx:0,vy:0,hp:1,alpha:1,warn:0,...o};
+ if(e.g)groups[e.g]=(groups[e.g]||0)+1;
+ if(kind==='ring'){e.vy=185;e.sprite='enemy1';e.size=30}
+ if(kind==='torkan'){e.vy=260;e.stopY=e.stopY||110+rnd(120);e.sprite='enemy4';e.size=34}
+ if(kind==='zakato'){e.y=e.y0||90+rnd(220);e.alpha=0;e.sprite='zako22';e.size=32}
+ if(kind==='plate'){e.vy=SPD+40;e.size=34;e.hp=Infinity}
+ if(kind==='giddo'){e.vy=190;e.x0=x;e.amp=e.amp||100;e.sprite='enemy2';e.size=34}
  air.push(e)}
-function aimShot(x,y,spd=175){
+function aimShot(x,y,spd=CFG.eSpeed){
  if(!ship.alive)return;
  const dx=ship.x-x,dy=ship.y-y,d=Math.hypot(dx,dy)||1;
  ebul.push({x,y,vx:dx/d*spd,vy:dy/d*spd})}
+const toward=(v,goal,acc,dt)=>v<goal?Math.min(goal,v+acc*dt):Math.max(goal,v-acc*dt);
 function updateAir(dt){
  for(const e of air){
-  e.t+=dt;
+  e.t+=dt;if(e.warn>0)e.warn-=dt;
   if(e.kind==='ring'){
-   if(!e.flee&&(Math.abs(e.x-ship.x)<30||e.y>ship.y-150||e.t>1.6)){
-    e.flee=true;e.vx=(e.x<ship.x?-1:1)*190;e.vy=-70}
-   if(!e.flee)e.vx=clamp((ship.x-e.x)*1.8,-150,150)}
+   if(!e.flee){
+    e.vx=toward(e.vx,clamp((ship.x-e.x)*1.1,-120,120),240,dt);      // ゆるく寄ってくる
+    if((Math.abs(e.x-ship.x)<20&&e.y>70)||e.y>ship.y-190){
+     e.flee=true;e.ft=0;e.dir=e.x<ship.x?-1:e.x>ship.x?1:(Math.random()<.5?-1:1);
+     if(e.shooter)e.warn=.45}}
+   else{e.ft+=dt;
+    if(e.ft>.2){                                                      // 気づくまで少し遅れ、そこから慣性で切り返す
+     e.vy=toward(e.vy,-250,430,dt);e.vx=toward(e.vx,e.dir*210,330,dt);
+     if(e.shooter&&!e.shot&&e.ft>.45){e.shot=true;enemyShot(e.x,e.y)}}}}
   if(e.kind==='torkan'){
-   if(!e.st&&e.y>=e.stopY){e.st=1;e.vy=0;e.wait=.55}
-   if(e.st===1){e.wait-=dt;if(e.wait<=0){e.st=2;aimShot(e.x,e.y);play('hit',1.6,.4);e.vy=-150}}}
+   if(!e.st){e.vy=Math.max(26,(e.stopY-e.y)*3.2);if(e.y>=e.stopY-3){e.st=1;e.vy=0;e.hold=.75;e.warn=.75}}
+   else if(e.st===1){e.hold-=dt;if(e.hold<=0){e.st=2;e.hold=.3;enemyShot(e.x,e.y)}}
+   else if(e.st===2){e.hold-=dt;if(e.hold<=0)e.st=3}
+   else{e.vy=toward(e.vy,-300,420,dt);e.vx=toward(e.vx,(e.x<W/2?-1:1)*60,120,dt)}}
   if(e.kind==='zakato'){
-   if(e.t<.45)e.alpha=e.t/.45;
-   else if(!e.shot){e.shot=true;aimShot(e.x,e.y,190);play('hit',1.8,.4)}
-   if(e.t>1.3){e.alpha=Math.max(0,1-(e.t-1.3)/.3);if(e.t>1.6)e.gone=true}}
-  if(e.kind==='giddo')e.x=e.x0+Math.sin(e.t*5.5)*70;
-  e.x+=e.vx*dt;e.y+=e.vy*dt;
+   if(e.t<.5)e.alpha=e.t/.5;
+   else if(!e.shot){if(!e.warned){e.warned=true;e.warn=.4}
+    else if(e.warn<=0){e.shot=true;enemyShot(e.x,e.y)}}
+   if(e.t>1.5){e.alpha=Math.max(0,1-(e.t-1.5)/.3);if(e.t>1.8)e.gone=true}}
+  if(e.kind==='giddo')e.x=e.x0+Math.sin(e.t*2.6)*e.amp;
+  if(e.kind!=='giddo')e.x+=e.vx*dt;
+  e.y+=e.vy*dt;
   if(e.y>H+40||e.y<-60||e.x<-60||e.x>W+60)e.gone=true}
  air=air.filter(e=>!e.gone&&!e.dead)}
 function killAir(e){
  e.dead=true;const pts={ring:30,torkan:50,zakato:150,giddo:80}[e.kind]||30;score+=pts;
- boom(e.x,e.y,2);burst(e.x,e.y,8,'#ffe0a0');play('boom_s')}
+ boom(e.x,e.y,2);burst(e.x,e.y,8,'#ffe0a0');play('boom_s');
+ if(e.g&&--groups[e.g]===0&&e.gn>=4){const b=100*e.gn;score+=b;        // 編隊を全部落とした
+  popBig(e.x,e.y-24,'編隊全滅 +'+b,'#f6e27a',17);play('sq2',1,.6)}}
 
 // ---- 地上の固定物 -----------------------------------------------------------
 function spawnGround(kind,x){
@@ -262,41 +289,58 @@ function spawnGround(kind,x){
 function updateGround(dt){
  for(const o of ground){
   o.y+=SPD*dt;
-  if(o.kind==='turret'&&!o.dead&&o.y>30&&o.y<H-120){o.cd-=dt;
-   if(o.cd<=0){o.cd=2.2/diff;aimShot(o.x,o.y,150);play('hit',1.2,.35)}}
+  if(o.warn>0)o.warn-=dt;
+  if(o.kind==='turret'&&!o.dead&&o.y>40&&o.y<ship.y-80){o.cd-=dt;   // 砲台：光ってから1発。間はたっぷり
+   if(o.cd<=0&&!o.warn){o.warn=.6;o.cd=9}
+   if(o.cd>8&&o.warn<=0){o.cd=3.6/Math.sqrt(diff);o.warn=0;enemyShot(o.x,o.y)}}
   if(o.done)o.dieT+=dt;
   if(o.hitT>0)o.hitT-=dt}
  ground=ground.filter(o=>o.y<H+60&&!(o.done&&o.dieT>.5)&&!o.dead)}
 
 // ---- 面の台本（出す時刻・種類・位置） ----------------------------------------
-// ゼビウスの1面のテンポ：空の小隊が交互に来て、合間に地上物が流れてくる。
+// ゼビウスの1面のように「空の山場」と「地上をじっくり狙う間」を交互に置いてメリハリを付ける。
+//  導入 → 地上の間 → 空の山 → 休み（パズル） → バキュラの壁 → 締めの山 → 静かに終わる
+const AREA_LEN=70;
+let gid=0;
+function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
+ const g=++gid;for(let i=0;i<n;i++)later(i*gap,()=>{
+  const x=x0!==undefined?x0+(side<0?i*26:-i*26):side<0?50+i*30:W-50-i*30;
+  spawnAir('ring',x,{g,gn:n,shooter:shooters.includes(i)})})}
 function areaScript(){
- const grp=[];const G=(tm,f)=>grp.push([tm,f]);
- G(1.0,()=>{for(let i=0;i<3;i++)later(i*0.26,()=>spawnAir('ring',80+i*20))});
- G(3.0,()=>{spawnGround('puz',140);spawnGround('pyramid',330)});
- G(5.0,()=>{for(let i=0;i<3;i++)later(i*0.26,()=>spawnAir('ring',W-80-i*20))});
- G(7.5,()=>spawnGround('puz',W/2));
- G(9.0,()=>{spawnAir('torkan',140);spawnAir('torkan',300)});
- G(11.0,()=>{spawnGround('turret',110);spawnGround('puz',290)});
- G(13.0,()=>{for(let i=0;i<3;i++)spawnAir('giddo',110+i*110,{t:-i*.3})});
- G(15.0,()=>{spawnAir('zakato',120);spawnAir('zakato',320)});
- G(17.0,()=>{spawnGround('tower',W/2);spawnGround('puz',90)});
- G(19.0,()=>{spawnAir('plate',150);spawnAir('plate',290)});
- G(21.0,()=>{for(let i=0;i<5;i++)later(i*0.2,()=>spawnAir('ring',60+i*80))});
- G(24.0,()=>{spawnGround('puz',W/2);spawnGround('turret',370)});
- G(27.0,()=>{for(let i=0;i<3;i++)spawnAir('torkan',110+i*110)});
- G(30.0,()=>{spawnAir('zakato',100);spawnAir('zakato',220);spawnAir('zakato',340);spawnAir('plate',W/2)});
- G(33.0,()=>{spawnGround('puz',110);spawnGround('puz',330)});
- G(35.0,()=>spawnGround('pyramid',W/2));
- G(36.5,()=>{for(let i=0;i<4;i++)spawnAir('giddo',80+i*95,{t:-i*.25})});
- G(39.0,()=>{spawnGround('tower',120);spawnGround('turret',300);spawnGround('turret',380)});
- G(42.0,()=>{for(let i=0;i<6;i++)later(i*0.22,()=>spawnAir('ring',i%2?W-90:90));
-  spawnAir('plate',120);spawnAir('plate',W/2);spawnAir('plate',320)});
- G(46.0,()=>{spawnGround('puz',W/2)});
- G(49.0,()=>{for(let i=0;i<4;i++)spawnAir('torkan',80+i*95);spawnAir('zakato',W/2)});
- G(52.0,()=>{spawnGround('puz',120);spawnGround('pyramid',330)});
- G(55.0,()=>{for(let i=0;i<5;i++)later(i*0.18,()=>spawnAir('ring',W/2+(i-2)*60))});
- G(62.0,()=>areaClear());
+ const grp=[];const G=(tm,f)=>grp.push([tm,f]);const late=area>=2;
+ // 導入：撃ってこないトーロイドで引きつけて落とす練習
+ G(1.0,()=>ringWave(-1,5));
+ G(4.0,()=>ringWave(1,5));
+ G(6.5,()=>{spawnGround('puz',W/2);spawnGround('pyramid',90)});
+ // 地上の間：空は撃たない敵だけ
+ G(10.0,()=>{spawnGround('turret',360)});
+ G(11.5,()=>{spawnAir('giddo',W/2,{amp:120})});
+ G(13.5,()=>{spawnGround('puz',130)});
+ G(15.0,()=>{spawnAir('giddo',W/2-40,{amp:110});later(.5,()=>spawnAir('giddo',W/2+40,{amp:110}))});
+ // 空の山：トーカンの二段構え、撃つトーロイド、ザカート
+ G(19.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
+ G(21.5,()=>ringWave(-1,6,{shooters:[5]}));
+ G(23.0,()=>{spawnAir('torkan',W/2,{stopY:170})});
+ G(24.5,()=>ringWave(1,6,{shooters:late?[0,5]:[5]}));
+ G(27.0,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
+ // 休み：空は空っぽ。地上パズルとPの塔をじっくり
+ G(30.5,()=>{spawnGround('puz',110);spawnGround('tower',330)});
+ G(34.0,()=>{spawnGround('puz',W-120);spawnGround('pyramid',100)});
+ // バキュラの壁：すき間をくぐる。合間をトーロイドが横切る
+ G(38.5,()=>{for(const x of [50,120,190])spawnAir('plate',x);for(const x of [330,400])spawnAir('plate',x)});
+ G(40.5,()=>{for(const x of [120,190,260,330])spawnAir('plate',x)});
+ G(41.0,()=>ringWave(-1,4,{x0:60}));
+ G(43.0,()=>{for(const x of [50,120,260,330,400])spawnAir('plate',x);spawnGround('turret',W/2)});
+ G(45.0,()=>ringWave(1,4,{x0:W-60,shooters:[3]}));
+ // 締めの山
+ G(48.5,()=>{for(let i=0;i<3;i++)later(i*.35,()=>spawnAir('torkan',110+i*110,{stopY:100+i%2*60}))});
+ G(51.0,()=>{spawnAir('giddo',100,{amp:80});spawnAir('giddo',W-100,{amp:80})});
+ G(52.5,()=>ringWave(-1,6,{shooters:[2]}));
+ G(53.5,()=>ringWave(1,6,{shooters:late?[2,5]:[]}));
+ G(56.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
+ // 静かに終わる：最後のパズル
+ G(59.5,()=>{spawnGround('puz',W/2);spawnGround('pyramid',80);spawnGround('pyramid',W-80)});
+ G(AREA_LEN,()=>areaClear());
  return grp.map(([tm,f])=>[tm/diff**.15,f])}
 function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLock()}catch(e){}}
 function areaClear(){
@@ -323,7 +367,7 @@ function reset(){score=0;lives=LIVES;power=2;area=1;diff=1;startArea()}
 function startArea(){
  ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:2,deadT:0};
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
- t=0;timers=[];script=areaScript();si=0;time=0;aim='h';holdT=0;groundHeld=armed=false;
+ t=0;timers=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';holdT=0;groundHeld=armed=false;
  phase='play';$('overlay').classList.add('hidden');
  bgmVolume(sound&&!paused?.3:0);play('start');
  message('AREA '+area+'　空の敵は通常弾、地上は地上弾',3);ui()}
@@ -444,7 +488,8 @@ function drawGroundObjs(){
    ctx.fillStyle='#6d5a44';ctx.fillRect(x-10,y-10,20,20);
    const a=Math.atan2(ship.y-o.y,ship.x-o.x);ctx.strokeStyle='#1a140e';ctx.lineWidth=5;
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*16,y+Math.sin(a)*16);ctx.stroke();
-   ctx.fillStyle='#e2624a';ctx.fillRect(x-3,y-3,6,6)}
+   ctx.fillStyle=o.warn>0&&Math.floor(time*20)%2?'#ffffff':'#e2624a';ctx.fillRect(x-3,y-3,6,6);
+   if(o.warn>0)warnRing(x,y,14,o.warn)}
   if(o.kind==='pyramid'){                      // ピラミッド：左右で明暗、太い輪郭
    const P=[[x,y-20],[x+22,y+14],[x-22,y+14]];
    ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x,y-24);ctx.lineTo(x+26,y+17);ctx.lineTo(x-26,y+17);ctx.closePath();ctx.fill();
@@ -490,7 +535,11 @@ function drawAir(){
    ctx.fillStyle=s>.5?'#b8c4cc':'#7c8a94';ctx.fillRect(e.x-e.size/2,e.y-e.size*s/2,e.size,Math.max(2,e.size*s))}
   else if(has(e.sprite)){const im=IMG[e.sprite],w=e.size,h=e.size*im.height/im.width;
    ctx.drawImage(im,Math.round(e.x-w/2),Math.round(e.y-h/2),w,h)}
-  ctx.globalAlpha=1}}
+  ctx.globalAlpha=1;
+  if(e.warn>0)warnRing(e.x,e.y,e.size*.5+4,e.warn)}}
+function warnRing(x,y,r,left){                     // 撃つ前の予告：点滅する輪が縮む
+ if(Math.floor(time*20)%2)return;
+ ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+left*18,0,Math.PI*2);ctx.stroke()}
 function drawShip(){
  if(!ship.alive)return;
  if(ship.inv>0&&Math.floor(time*16)%2)return;
@@ -527,7 +576,7 @@ function draw(){
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
  if(phase==='play'){ctx.font='bold 11px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('AREA '+area,10,18);
-  const left=Math.max(0,62-t);ctx.textAlign='right';ctx.fillText('残り '+Math.ceil(left)+'秒',W-10,18);ctx.textAlign='left'}
+  const left=Math.max(0,AREA_LEN/diff**.15-t);ctx.textAlign='right';ctx.fillText('残り '+Math.ceil(left)+'秒',W-10,18);ctx.textAlign='left'}
  ctx.restore();
  if(flash>0){ctx.globalAlpha=Math.min(.8,flash);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
  ctx.globalAlpha=.08;ctx.fillStyle='#000';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);ctx.globalAlpha=1}
