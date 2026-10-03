@@ -65,7 +65,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
-<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：いぬ・ねこ・すいか・りんご・さかな・おにぎり<br>うんち：うんこ・うんち・ちんちん・ちんこ…<br>Enter・Space で前に選んだモード</small></p>
+<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：こいぬ・こねこ・すいか・ごりら・きりん…<br>うんち：うんこ・うんち・ちんこ・おちんちん…<br>Enter・Space で前に選んだモード</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
@@ -128,10 +128,12 @@ const canvas=$('game'),ctx=canvas.getContext('2d');
 //  けす   … 横や縦に並んだ砲台・ピラミッド。照準の範囲で一度に壊すとボーナス（地上弾）
 // モード：ノーマル（いぬ・ねこ・すいか…）と うんち（うんこ・ちち・ちんちん…）。言葉と地上絵と出てくる物が変わる
 const MODES={
- normal:{name:'ノーマルモード',words:{'いぬ':'dog','ねこ':'cat','すいか':'suika','りんご':'ringo','さかな':'sakana','おにぎり':'onigiri'},
-  script:['いぬ','ねこ','さかな','すいか'],pics:['nasu','neko'],picName:{nasu:'ナスの地上絵',neko:'ねこの地上絵'}},
- unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちんちん':'chin','おちんちん':'chinL','ちんこ':'chin'},
-  script:['うんこ','うんち','ちんちん','ちんこ'],pics:['nasu','unko'],picName:{nasu:'ナスの地上絵',unko:'うんこの地上絵'}}};
+ // 言葉は3文字から（マッチ3が基本）
+ normal:{name:'ノーマルモード',words:{'こいぬ':'dog','こねこ':'cat','すいか':'suika','りんご':'ringo','さかな':'sakana','おさかな':'sakana',
+   'おにぎり':'onigiri','ごりら':'gorira','きりん':'kirin','いるか':'iruka'},
+  script:['こいぬ','こねこ','ごりら','おさかな'],pics:['nasu','neko'],picName:{nasu:'ナスの地上絵',neko:'ねこの地上絵'}},
+ unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちんちん':'chin','おちんちん':'chinL','ちんこ':'chin','おちんこ':'chinL','おうち':'ouchi'},
+  script:['うんこ','うんち','ちんちん','おちんこ'],pics:['nasu','unko'],picName:{nasu:'ナスの地上絵',unko:'うんこの地上絵'}}};
 let mode=(()=>{try{return localStorage.getItem('xemetous_mode')==='unchi'?'unchi':'normal'}catch(e){return 'normal'}})();   // はじめてはノーマル
 let WORD_PART,WORDS,LETTER_POOL,PICS;
 function setMode(m){mode=m;const M=MODES[m];WORD_PART=M.words;PICS=M.picName;
@@ -453,6 +455,10 @@ const PART={
  ringo:{name:'りんご',pow:12,hp:3,r:22*Z/1.5,u:1,reflect:true},
  sakana:{name:'さかな',pow:17,hp:2,r:22*Z/1.5,u:1,crush:true},
  onigiri:{name:'おにぎり',pow:28,hp:3,r:22*Z/1.5,u:1,crush:true},
+ gorira:{name:'ごりら',pow:24,hp:4,r:22*Z/1.5,u:1,crush:true},
+ kirin:{name:'きりん',pow:15,hp:3,r:22*Z/1.5,u:1,reflect:true},
+ iruka:{name:'いるか',pow:15,hp:3,r:22*Z/1.5,u:1,say:'キュイー！'},
+ ouchi:{name:'おうち',pow:12,hp:4,r:22*Z/1.5,u:1,reflect:true},
  bigneko:{name:'デカねこ',pow:160,hp:14,r:42*Z,u:4,stink:20*Z,say:'ニャー！？'},
  bigunko:{name:'デカうんこ',pow:160,hp:14,r:42*Z,u:4,stink:20*Z},
  bignasu:{name:'デカナス',pow:120,hp:16,r:40*Z,u:4,crush:true}};
@@ -603,12 +609,30 @@ function drawNormalIcon(p,x,y,s){                  // ノーマルモードの�
   ctx.fillStyle='#5aa0e8';ctx.beginPath();ctx.ellipse(x-s*.1,y,s*.62,s*.33,0,0,Math.PI*2);ctx.fill();
   ctx.beginPath();ctx.moveTo(x+s*.5,y);ctx.lineTo(x+s*.95,y-s*.3);ctx.lineTo(x+s*.95,y+s*.3);ctx.fill();
   ctx.fillStyle='#fff';ctx.fillRect(x-s*.55,y-s*.15,s*.18,s*.18);ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.5,y-s*.1,s*.08,s*.08);return}
+ if(p==='gorira'){ring(s*.66,'#3a3a44');ctx.fillStyle='#8a7a6a';ctx.beginPath();ctx.ellipse(x,y+s*.12,s*.44,s*.36,0,0,Math.PI*2);ctx.fill();   // ごりら
+  ctx.fillStyle='#3a3a44';ctx.fillRect(x-s*.42,y-s*.18,s*.84,s*.12);eyes(-s*.02);
+  ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.12,y+s*.18,s*.08,s*.06);ctx.fillRect(x+s*.04,y+s*.18,s*.08,s*.06);ctx.fillRect(x-s*.2,y+s*.34,s*.4,s*.05);return}
+ if(p==='kirin'){ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.24,y-s*.1,s*.48,s*1.0);                   // きりん：長い首と頭
+  ctx.fillStyle='#f0c050';ctx.fillRect(x-s*.17,y-s*.1,s*.34,s*.95);
+  ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(x+s*.1,y-s*.4,s*.55,s*.36,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#f0c050';ctx.beginPath();ctx.ellipse(x+s*.1,y-s*.4,s*.46,s*.28,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#a8642a';for(const [dx,dy] of [[-.1,.15],[.06,.45],[-.08,.7],[.2,-.5]])ctx.fillRect(x+dx*s-s*.07,y+dy*s-s*.07,s*.14,s*.14);
+  ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.2,y-s*.86,s*.06,s*.24);ctx.fillRect(x+s*.06,y-s*.86,s*.06,s*.24);ctx.fillRect(x+s*.2,y-s*.48,s*.1,s*.1);return}
+ if(p==='iruka'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(x,y,s*.8,s*.4,-.2,0,Math.PI*2);ctx.fill();      // いるか
+  ctx.beginPath();ctx.moveTo(x-s*.1,y-s*.3);ctx.lineTo(x+s*.15,y-s*.75);ctx.lineTo(x+s*.3,y-s*.25);ctx.fill();
+  ctx.fillStyle='#6ab0e0';ctx.beginPath();ctx.ellipse(x,y,s*.7,s*.31,-.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#e8f4ff';ctx.beginPath();ctx.ellipse(x+s*.05,y+s*.14,s*.48,s*.12,-.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.42,y-s*.1,s*.1,s*.1);return}
+ if(p==='ouchi'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x,y-s*.85);ctx.lineTo(x+s*.85,y-s*.1);ctx.lineTo(x-s*.85,y-s*.1);ctx.fill();   // おうち
+  ctx.fillRect(x-s*.62,y-s*.15,s*1.24,s*.85);ctx.fillStyle='#e8504a';ctx.beginPath();ctx.moveTo(x,y-s*.72);ctx.lineTo(x+s*.72,y-s*.14);ctx.lineTo(x-s*.72,y-s*.14);ctx.fill();
+  ctx.fillStyle='#fff3d8';ctx.fillRect(x-s*.54,y-s*.1,s*1.08,s*.72);ctx.fillStyle='#a8642a';ctx.fillRect(x-s*.14,y+s*.18,s*.28,s*.44);
+  ctx.fillStyle='#6ab0e0';ctx.fillRect(x+s*.2,y,s*.22,s*.2);return}
  if(p==='onigiri'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x,y-s*.85);ctx.lineTo(x+s*.85,y+s*.6);ctx.lineTo(x-s*.85,y+s*.6);ctx.closePath();ctx.fill();
   ctx.fillStyle='#fffaf0';ctx.beginPath();ctx.moveTo(x,y-s*.7);ctx.lineTo(x+s*.72,y+s*.52);ctx.lineTo(x-s*.72,y+s*.52);ctx.closePath();ctx.fill();
   ctx.fillStyle='#1a2a1a';ctx.fillRect(x-s*.3,y+s*.05,s*.6,s*.47);return}}
 function drawPartIcon(o,x,y,k=1){
  if(o.part==='refl'){ctx.fillStyle='#ffd0e0';ctx.fillRect(x-3,y-3,6,6);return}
- if(['dog','cat','suika','ringo','sakana','onigiri','neko'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:14)*k);return}
+ if(['dog','cat','suika','ringo','sakana','onigiri','neko','gorira','kirin','iruka','ouchi'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:14)*k);return}
  k*=Z;
  if(o.part==='chin'||o.part==='chinL'){drawZou(x,y,14*k);return}
  if(o.part==='nasu'){const s=(o.big?96:30)*k;
@@ -643,8 +667,9 @@ function drawOpts(){
 // 声は VOICEVOX（春日部つむぎ）で作った音声ファイル。1語ずつ東京式アクセントに直してから書き出してある
 // （tools/gen_voice.py）。読み込めていない時だけ、端末の読み上げ（女性の声）で代わりに読む。
 let cutin=null,jaVoices=[];
-const VOICE_FILE={'いぬ':'inu','ねこ':'neko','すいか':'suika','りんご':'ringo','さかな':'sakana','おにぎり':'onigiri',
- 'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko',
+const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','りんご':'ringo','さかな':'sakana','おさかな':'osakana','おにぎり':'onigiri',
+ 'ごりら':'gorira','きりん':'kirin','いるか':'iruka',
+ 'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko','おちんこ':'ochinko','おうち':'ouchi',
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
 function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;

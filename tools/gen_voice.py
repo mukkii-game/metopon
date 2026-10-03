@@ -35,17 +35,23 @@ def make(text,accent,out,speed=1.0,pitch=0.0):
     open(out,'wb').write(post('/synthesis?speaker=%d'%SP,q))
     return ''.join(m['text'] for m in moras),[round(m['pitch'],2) for m in q['accent_phrases'][0]['moras']]
 LIST="""
-いぬ 2 inu.wav
-ねこ 1 neko.wav
+こいぬ 0 koinu.wav
+こねこ 0 koneko.wav
 すいか 0 suika.wav
 りんご 0 ringo.wav
 さかな 0 sakana.wav
+おさかな 0 osakana.wav
 おにぎり 2 onigiri.wav
+ごりら 1 gorira.wav
+きりん 0 kirin.wav
+いるか 0 iruka.wav
 うんこ 1 unko.wav
 うんち 0 unchi.wav
 ちんちん 0 chinchin.wav
 おちんちん 0 ochinchin.wav
 ちんこ 1 chinko.wav
+おちんこ 0 ochinko.wav
+おうち 0 ouchi.wav
 ツーコンボ 3 combo2.wav
 スリーコンボ 4 combo3.wav
 フォーコンボ 3 combo4.wav
