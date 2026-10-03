@@ -59,15 +59,15 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <h2>砂漠を飛び、地上をそろえて撃ち抜け。</h2>
 <p><b>空の敵は通常弾</b>。<b>地上は地上弾</b>。<br>敵の弾に当たるとやられる（残機3）。</p>
 <p>地上を流れてくる<b>模様の板</b>は、<br><b>ちょうどいい所に地上弾を1発</b>当てると全部そろって壊れる。</p>
-<p><b>空中弾は自動</b>（画面に3発まで）。地上弾は<b>マウスなら左クリックで発射、右クリックで照準の 横／縦</b>。<br>タッチは<b>画面をちょんとタップで発射</b>、<b>右下のボタンで横／縦</b>。当てた範囲を順繰りに回す。</p>
+<p><b>空中弾は自動</b>（画面に3発まで）。地上弾は<b>マウスなら左クリック</b>、<b>タッチは画面をちょんとタップ</b>で発射。<br>照準の<b>横／縦は自機の動きで変わる</b>（横に動くと横、縦に動くと縦）。当てた範囲を順繰りに回す。</p>
 <p><b>P の塔</b>を地上弾で壊すとカプセル。取ると照準が <b>3 → 4マス</b>に伸びる。<br>回る板は弾が効かない。避けるしかない。</p>
 <p><small>移動はゼビウスのように<b>動かした方向へ</b>進む（触った場所へ飛ばない）<br>
-タッチ：どこでもなぞって移動、ちょんとタップで地上弾、右下のボタンで縦横<br>
-マウス：動かして移動、<b>左クリック＝地上弾</b>、<b>右クリック＝縦横</b>（クリックでカーソルを固定、Escで解除）<br>
-キー：矢印/WASD、Z・M＝地上弾、X・N＝縦横<br>通常弾はどの操作でも自動で出る</small></p>
+タッチ：どこでもなぞって移動、ちょんとタップで地上弾<br>
+マウス：動かして移動、<b>左クリック＝地上弾</b>（クリックでカーソルを固定、Escで解除）<br>
+キー：矢印/WASD、Z・M・X・N＝地上弾<br>通常弾はどの操作でも自動で出る</small></p>
 <button id="start">あそぶ</button><p><small>Enter・Space・N・M でも始められる</small></p>
 <p><button id="aimmode" style="background:#3a2a17;color:#f2d9a4;font-weight:normal;padding:8px 14px;font-size:12px">照準の向き：移動の向き</button><br>
-<small>移動の向き＝横に動くと横、縦に動くと縦（斜めは変わらない）<br>移動と直交＝横に動くと縦、縦に動くと横<br>手動＝右下ボタン／右クリック／X だけ（プレイ中は V キーで切替）</small></p>
+<small>移動の向き＝横に動くと横、縦に動くと縦（斜めは変わらない）<br>移動と直交＝横に動くと縦、縦に動くと横<br>（プレイ中は V キーで切替）</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
@@ -405,9 +405,9 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
- if(mouseMode)return'マウス：動かした方向へ移動（通常弾は自動）　左クリック＝地上弾　右クリック＝縦横（Escでカーソル解放）';
- if(usedTouch)return'なぞる＝移動（空中弾は自動）　ちょんとタップ＝地上弾　右下ボタン＝縦横';
- return'矢印/WASD＝移動（通常弾は自動）　Z・M＝地上弾　X・N＝縦横'}
+ if(mouseMode)return'マウス：動かした方向へ移動（通常弾は自動）　左クリック＝地上弾　照準の縦横は動きで変わる（Escでカーソル解放）';
+ if(usedTouch)return'なぞる＝移動（空中弾は自動）　ちょんとタップ＝地上弾　照準の縦横は動きで変わる';
+ return'矢印/WASD＝移動（通常弾は自動）　Z・M＝地上弾　照準の縦横は動きで変わる'}
 
 // ---- 描画 -------------------------------------------------------------------
 function glyph(k,x,y,size){
@@ -504,17 +504,6 @@ function drawBomb(){
  ctx.beginPath();ctx.arc(bomb.tx,bomb.ty,(1-k)*26+5,0,Math.PI*2);ctx.stroke();
  ctx.fillStyle='#1a140e';ctx.fillRect(x-d/2-2,y-d/2-2,d+4,d+4);
  ctx.fillStyle=Math.floor(time*24)%2?'#f6e27a':'#e2624a';ctx.fillRect(x-d/2,y-d/2,d,d)}
-function drawPad(){                               // 右下に固定：照準の縦横切り替えボタン
- if(phase!=='play')return;const b=padRect(),on=!!touchBtn;
- ctx.globalAlpha=on?.6:.38;ctx.fillStyle='#1a140e';
- ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
- ctx.strokeStyle=on?'#f6e27a':'#ffffffaa';ctx.lineWidth=3;ctx.stroke();
- const fw=aim==='h'?36:14,fh=aim==='h'?14:36;               // いまの向きを枠の形で
- ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.strokeRect(b.x-fw/2,b.y-fh/2-6,fw,fh);
- ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillStyle=on?'#f6e27a':'#ffffffdd';
- ctx.fillText((aim==='h'?'横':'縦')+'　切替',b.x,b.y+27);
- ctx.font='9px monospace';ctx.fillStyle='#b79b6c';ctx.fillText(aimMode==='manual'?'手動':aimMode==='move'?'自動：移動の向き':'自動：直交',b.x,b.y-b.r-6);ctx.textAlign='left'}
-function padRect(){return{x:W-52,y:H-58,r:40}}
 function draw(){
  ctx.save();
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
@@ -537,7 +526,6 @@ function draw(){
   ctx.font='bold '+Math.round(p.size*sc)+'px monospace';
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
- drawPad();
  if(phase==='play'){ctx.font='bold 11px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('AREA '+area,10,18);
   const left=Math.max(0,62-t);ctx.textAlign='right';ctx.fillText('残り '+Math.ceil(left)+'秒',W-10,18);ctx.textAlign='left'}
  ctx.restore();
@@ -549,7 +537,7 @@ function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.l
 // 地上弾ボタン：タップ＝照準の縦横を切り替え／長押しして離す＝発射
 function groundDown(){if(groundHeld)return;groundHeld=true;holdT=0;armed=false}
 // 照準の向きの決め方（試し）。'move'＝動いている向き、'cross'＝動いている向きと直交、'manual'＝手動のみ
-const AIM_MODES=['move','cross','manual'],AIM_MODE_NAME={move:'移動の向き',cross:'移動と直交',manual:'手動'};
+const AIM_MODES=['move','cross'],AIM_MODE_NAME={move:'移動の向き',cross:'移動と直交'};
 let aimMode=(()=>{try{const m=localStorage.getItem('xemetous_aimmode');return AIM_MODES.includes(m)?m:'move'}catch(e){return 'move'}})();
 let dirHold=0,dirWant=null;
 function cycleAimMode(){aimMode=AIM_MODES[(AIM_MODES.indexOf(aimMode)+1)%AIM_MODES.length];
@@ -557,7 +545,6 @@ function cycleAimMode(){aimMode=AIM_MODES[(AIM_MODES.indexOf(aimMode)+1)%AIM_MOD
  const b=$('aimmode');if(b)b.textContent='照準の向き：'+AIM_MODE_NAME[aimMode];
  if(phase==='play')message('照準の向き：'+AIM_MODE_NAME[aimMode],2)}
 function autoAim(vx,vy,dt){                        // 横か縦にはっきり動いている時だけ変える。斜めは今のまま
- if(aimMode==='manual')return;
  const sp=Math.hypot(vx,vy);let want=null;
  if(sp>45){if(Math.abs(vx)>Math.abs(vy)*2.2)want='h';else if(Math.abs(vy)>Math.abs(vx)*2.2)want='v'}
  if(want&&aimMode==='cross')want=want==='h'?'v':'h';
@@ -569,13 +556,12 @@ function groundUp(){if(!groundHeld)return;groundHeld=false;
  if(armed)fireBomb();
  else toggleAim();
  armed=false;holdT=0}
-// タッチ：右下のボタン＝縦横切り替え。それ以外の場所は、なぞる＝移動、タップ＝地上弾
+// タッチ：なぞる＝移動、タップ＝地上弾（照準の縦横は動きで決まる）
 canvas.addEventListener('pointerdown',e=>{
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
  try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
- const p=point(e),b=padRect();
- if(Math.hypot(p.x-b.x,p.y-b.y)<b.r+10){touchBtn=e.pointerId;toggleAim();return}
+ const p=point(e);
  if(touchMover){fireBomb();return}                 // 動かしている間に別の指で触れたら即、地上弾
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,moved:false}});
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
@@ -594,15 +580,13 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
  if(touchMover&&touchMover.id===e.pointerId){
   const tap=!touchMover.moved&&time-touchMover.t0<TAP_T&&e.type==='pointerup';
   touchMover=null;if(tap)fireBomb()}});                // 動かさずにちょんと触れて離した＝地上弾
-// マウス：通常弾は自動。左クリック＝地上弾を発射、右クリック＝照準の縦横を切り替え
+// マウス：通常弾は自動。左クリック＝地上弾を発射
 canvas.addEventListener('mousedown',e=>{
  if(phase!=='play'||paused)return;e.preventDefault();audio();mouseMode=true;
  if(document.pointerLockElement!==canvas&&canvas.requestPointerLock)try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(err){}
- const p=point(e),b=padRect(),onPad=document.pointerLockElement!==canvas&&Math.hypot(p.x-b.x,p.y-b.y)<b.r+6;
- if(e.button===0){if(onPad)toggleAim();else fireBomb()}
- if(e.button===2)toggleAim()});
+ if(e.button===0)fireBomb()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-// キーボード：通常弾は自動。矢印/WASD＝移動、Z・M＝地上弾を発射、X・N＝照準の縦横を切り替え
+// キーボード：通常弾は自動。矢印/WASD＝移動、Z・M・X・N＝地上弾を発射
 window.addEventListener('keydown',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;
  if(!$('cfg').classList.contains('hidden')){                 // 設定を開いている間はゲームに渡さない
@@ -614,8 +598,7 @@ window.addEventListener('keydown',e=>{
  keys.add(k);
  if(phase!=='play'||paused)return;
  if(e.repeat)return;
- if(k==='z'||k==='m'){audio();fireBomb()}
- if(k==='x'||k==='n'){audio();toggleAim()}
+ if(k==='z'||k==='m'||k==='x'||k==='n'){audio();fireBomb()}
  if(k==='v')cycleAimMode()});
 window.addEventListener('keyup',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;keys.delete(k);
@@ -742,6 +725,12 @@ if($('ios')&&isIOS&&!isStandalone&&!canFullscreen){
  $('ios').onclick=()=>$('ios').classList.add('hidden');
  $('ios').classList.remove('hidden')}
 syncFullBtn();
+// ブラウザは「ユーザーが触った瞬間」にしか全画面にできない。開いた直下は無理なので、
+// 最初に画面のどこかを触った時点で全画面にする（あそぶを押す前でも）
+function firstTouchFull(e){if(e.pointerType&&e.pointerType!=='touch')return;
+ document.removeEventListener('pointerup',firstTouchFull,true);
+ if(!inFullscreen())goFullscreen()}
+document.addEventListener('pointerup',firstTouchFull,true);
 function resize(){const d=Math.min(devicePixelRatio||1,2);canvas.width=W*d;canvas.height=H*d;
  ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false}
 window.addEventListener('resize',resize);resize();
