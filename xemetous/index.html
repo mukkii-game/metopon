@@ -65,8 +65,8 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
-<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：いぬ・ねこ・すいか・りんご・さかな・おにぎり<br>うんち：うんこ・うんち・ちち・ちんちん…<br>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div>
+<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：いぬ・ねこ・すいか・りんご・さかな・おにぎり<br>うんち：うんこ・うんち・ちんちん・ちんこ…<br>Enter・Space で前に選んだモード</small></p>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -88,8 +88,7 @@ const CFG_DEF=[
  {k:'sightAhead',name:'照準の距離',def:150,min:90,max:240,step:2,unit:'px',note:'自機から照準まで'},
  {k:'shotMax',name:'空中弾の数',def:3,min:1,max:8,step:1,unit:'発',note:'画面に出せる数'},
  {k:'bombT',name:'地上弾が落ちる時間',def:.55,min:.2,max:1.2,step:.05,unit:'秒',note:''},
- {k:'voice',name:'声',def:1,min:0,max:2,step:1,labels:['なし','男の人（低め）','女の人'],note:'言葉ができた時に読み上げる（端末の日本語音声）'},
- {k:'vpitch',name:'男の人の声の高さ',def:.6,min:.1,max:1.2,step:.05,unit:'',note:'小さいほど低く渋い'},
+ {k:'voice',name:'声',def:1,min:0,max:1,step:1,labels:['なし','あり'],note:'言葉ができた時に女の子の声で読み上げる'},
  {k:'eFire',name:'敵弾の量',def:1,min:0,max:2,step:.1,unit:'倍',note:'画面に出る敵弾の数と撃つ間隔。0で撃ってこない'},
  {k:'eSpeed',name:'敵弾の速さ',def:150,min:80,max:260,step:10,unit:'px/秒',note:''},
  {k:'scroll',name:'スクロールの速さ',def:42,min:20,max:90,step:2,unit:'px/秒',note:'地面が流れる速さ'}];
@@ -131,8 +130,8 @@ const canvas=$('game'),ctx=canvas.getContext('2d');
 const MODES={
  normal:{name:'ノーマルモード',words:{'いぬ':'dog','ねこ':'cat','すいか':'suika','りんご':'ringo','さかな':'sakana','おにぎり':'onigiri'},
   script:['いぬ','ねこ','さかな','すいか'],pics:['nasu','neko'],picName:{nasu:'ナスの地上絵',neko:'ねこの地上絵'}},
- unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちち':'oppai','おちち':'oppaiL','ちんちん':'chin','おちんちん':'chinL','ちんこ':'chin'},
-  script:['うんこ','ちち','ちんちん','おちち'],pics:['nasu','unko'],picName:{nasu:'ナスの地上絵',unko:'うんこの地上絵'}}};
+ unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちんちん':'chin','おちんちん':'chinL','ちんこ':'chin'},
+  script:['うんこ','うんち','ちんちん','ちんこ'],pics:['nasu','unko'],picName:{nasu:'ナスの地上絵',unko:'うんこの地上絵'}}};
 let mode=(()=>{try{return localStorage.getItem('xemetous_mode')==='unchi'?'unchi':'normal'}catch(e){return 'normal'}})();   // はじめてはノーマル
 let WORD_PART,WORDS,LETTER_POOL,PICS;
 function setMode(m){mode=m;const M=MODES[m];WORD_PART=M.words;PICS=M.picName;
@@ -292,7 +291,8 @@ function updatePend(o,dt){
 function materialize(o){
  const made=o.pend.words;o.pend=null;const combo=made.length;
  for(const m of made){const [r,c]=m.cs[Math.floor(m.cs.length/2)],ix=o.x+c*CELL+CELL/2,iy=o.y+r*CELL+CELL/2;
-  items.push({x:ix,y:iy,t:0,part:WORD_PART[m.word],big:false,mult:combo});score+=100*m.word.length*combo}
+  for(const [rr,cc] of m.cs)items.push({x:o.x+cc*CELL+CELL/2,y:o.y+rr*CELL+CELL/2,t:0,part:WORD_PART[m.word],big:false,mult:combo});   // 文字の数だけ出てくる
+  score+=100*m.word.length*combo}
  const cx=o.x+o.w*CELL/2,cy=o.y+o.h*CELL/2;
  announce(made.map(m=>m.word),combo);
  if(combo>1){popBig(cx,cy-50,combo+'コンボ！ 威力×'+combo,'#f6e27a',24);play('chain',1,.8)}
@@ -442,29 +442,28 @@ function updateWander(o,dt){
 //  ・デカナスは触れた敵をつぶす。敵の弾はどれも受け止める（そのぶん減る）
 // 地上弾を**2回すばやく押す**と、くっついている物を全部撃ち出す。n 個同時なら威力 n 倍。
 const PART={
- unko:{name:'うんこ',pow:40,hp:6,r:15*Z,u:1},
- unchi:{name:'うんち',pow:25,hp:4,r:14*Z,u:1,stink:30*Z},
- oppai:{name:'おっぱい',pow:30,hp:6,r:16*Z,u:1,reflect:true},
- oppaiL:{name:'おちち',pow:70,hp:10,r:24*Z,u:2,reflect:true},
- chin:{name:'ちんちん',pow:50,hp:5,r:15*Z,u:1,crush:true},
- chinL:{name:'おちんちん',pow:110,hp:9,r:22*Z,u:2,crush:true},
- dog:{name:'いぬ',pow:40,hp:6,r:15*Z,u:1,say:'キャー！'},
- cat:{name:'ねこ',pow:25,hp:4,r:14*Z,u:1,stink:30*Z,say:'ひえー！'},
- suika:{name:'すいか',pow:60,hp:10,r:22*Z,u:2,reflect:true},
- ringo:{name:'りんご',pow:30,hp:6,r:15*Z,u:1,reflect:true},
- sakana:{name:'さかな',pow:50,hp:5,r:15*Z,u:1,crush:true},
- onigiri:{name:'おにぎり',pow:110,hp:9,r:22*Z,u:2,crush:true},
- bigneko:{name:'デカねこ',pow:160,hp:14,r:42*Z,u:3,stink:20*Z,say:'ニャー！？'},
- bigunko:{name:'デカうんこ',pow:160,hp:14,r:42*Z,u:3,stink:20*Z},
- bignasu:{name:'デカナス',pow:120,hp:16,r:40*Z,u:3,crush:true}};
-const HOLD_MAX=3;                                     // 照準に付けられる量（デカいのは3つぶん）
+ // 1語の文字の数だけ出てくるので、1つあたりの威力は「1語ぶん÷文字数」くらい
+ unko:{name:'うんこ',pow:15,hp:3,r:22*Z/1.5,u:1},
+ unchi:{name:'うんち',pow:10,hp:2,r:22*Z/1.5,u:1,stink:24*Z},
+ chin:{name:'ちんちん',pow:14,hp:2,r:22*Z/1.5,u:1,crush:true},
+ chinL:{name:'おちんちん',pow:24,hp:3,r:22*Z/1.5,u:1,crush:true},
+ dog:{name:'いぬ',pow:20,hp:3,r:22*Z/1.5,u:1,say:'キャー！'},
+ cat:{name:'ねこ',pow:13,hp:2,r:22*Z/1.5,u:1,stink:24*Z,say:'ひえー！'},
+ suika:{name:'すいか',pow:20,hp:4,r:22*Z/1.5,u:1,reflect:true},
+ ringo:{name:'りんご',pow:12,hp:3,r:22*Z/1.5,u:1,reflect:true},
+ sakana:{name:'さかな',pow:17,hp:2,r:22*Z/1.5,u:1,crush:true},
+ onigiri:{name:'おにぎり',pow:28,hp:3,r:22*Z/1.5,u:1,crush:true},
+ bigneko:{name:'デカねこ',pow:160,hp:14,r:42*Z,u:4,stink:20*Z,say:'ニャー！？'},
+ bigunko:{name:'デカうんこ',pow:160,hp:14,r:42*Z,u:4,stink:20*Z},
+ bignasu:{name:'デカナス',pow:120,hp:16,r:40*Z,u:4,crush:true}};
+const HOLD_MAX=4;                                     // 照準に付けられる量（デカいのは1つで全部ぶん）
 const kindOf=o=>o.big?'big'+o.part:o.part;
 const partOf=o=>PART[kindOf(o)];
 const heldUnits=()=>ship.opts.reduce((a,o)=>a+partOf(o).u,0);
 function optPos(i){const sp=sightPoint(),o=ship.opts[i];
  if(o.big)return{x:sp.x,y:sp.y-46*Z};
  const smalls=ship.opts.filter(q=>!q.big),k=smalls.indexOf(o),hasBig=ship.opts.some(q=>q.big);
- const S=[[0,-30],[-32,-12],[32,-12]],s=hasBig?[[-50,-12],[50,-12]][k]||[0,-30]:S[k]||[0,-30];
+ const S=[[0,-34],[-36,-8],[36,-8],[0,30]],s=hasBig?[[-50,-12],[50,-12]][k]||[0,-34]:S[k]||[0,-34];
  return{x:sp.x+s[0]*Z,y:sp.y+s[1]*Z}}
 function panic(e,from,big,txt){                       // ウワー！と逃げる
  if(e.panic)return;e.panic=true;e.warn=0;
@@ -483,11 +482,11 @@ function updateParts(dt){
  if(ship.alive)for(let i=0;i<ship.opts.length;i++){const o=ship.opts[i],p=optPos(i),P=partOf(o),r=P.r;
   if(o.hitT>0)o.hitT-=dt;
   for(const b of ebul)if(!b.dead&&Math.hypot(b.x-p.x,b.y-p.y)<r+4){b.dead=true;o.hp--;o.hitT=.15;burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.4);
-   if(P.reflect){missiles.push({x:b.x,y:b.y-6,vy:-340,t:0,part:'refl',pow:3,mult:1,r:6,refl:true});pop(b.x,b.y-10,mode==='unchi'?'ボヨン':'ポン','#ffd0e0',12)}}
+   if(P.reflect){missiles.push({x:b.x,y:b.y-6,vy:-340,t:0,part:'refl',pow:3,mult:1,r:6,refl:true});pop(b.x,b.y-10,'ポン','#ffd0e0',12)}}
   for(const e of air){if(e.dead||e.panic||e.alpha<.5)continue;
    const d=Math.hypot(e.x-p.x,e.y-p.y),touch=d<e.size*.4+r;
    if(P.crush&&touch&&e.hp!==Infinity){killAir(e);o.hp--;o.hitT=.15;continue}
-   if(touch||(P.stink&&d<e.size*.4+r+P.stink)){panic(e,p,o.big,P.say||(P.reflect?(mode==='unchi'?'ボヨーン！':'ポーン！'):null));if(touch){o.hp--;o.hitT=.15}}}
+   if(touch||(P.stink&&d<e.size*.4+r+P.stink)){panic(e,p,o.big,P.say||(P.reflect?'ポーン！':null));if(touch){o.hp--;o.hitT=.15}}}
   if(o.hp<=0){o.dead=true;boom(p.x,p.y,o.big?3:1.6);play('boom_s',1.4)}}
  ship.opts=ship.opts.filter(o=>!o.dead);
  ebul=ebul.filter(b=>!b.dead);
@@ -577,11 +576,6 @@ function drawUnko(x,y,s,soft){                      // とぐろ3段。うんち
  ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x-s*.25,y-s*.4);ctx.quadraticCurveTo(x+(soft?s*.3:0),y-s*(soft?.8:1.05),x+s*.3,y-s*.7);ctx.lineTo(x+s*.1,y-s*.4);ctx.fill();ctx.stroke();
  ctx.fillStyle='#fff';ctx.fillRect(x-s*.42,y+s*.02,s*.24,s*.24);ctx.fillRect(x+s*.18,y+s*.02,s*.24,s*.24);
  ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.32,y+s*.1,s*.1,s*.12);ctx.fillRect(x+s*.28,y+s*.1,s*.1,s*.12)}
-function drawOppai(x,y,s){                          // おっぱい：丸いおまんじゅう2つ
- for(const dx of [-.55,.55]){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.arc(x+dx*s,y,s*.62,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#f8d0b0';ctx.beginPath();ctx.arc(x+dx*s,y,s*.52,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#ff9ab0';ctx.beginPath();ctx.arc(x+dx*s,y+s*.08,s*.1,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#ffffffaa';ctx.fillRect(x+dx*s-s*.3,y-s*.32,s*.14,s*.14)}}
 function drawZou(x,y,s){                            // ちんちん：ぞうさん
  ctx.fillStyle='#1a140e';ctx.beginPath();ctx.arc(x,y-s*.2,s*.62,0,Math.PI*2);ctx.fill();
  for(const dx of [-1,1]){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(x+dx*s*.62,y-s*.2,s*.36,s*.46,0,0,Math.PI*2);ctx.fill();
@@ -614,25 +608,24 @@ function drawNormalIcon(p,x,y,s){                  // ノーマルモードの�
   ctx.fillStyle='#1a2a1a';ctx.fillRect(x-s*.3,y+s*.05,s*.6,s*.47);return}}
 function drawPartIcon(o,x,y,k=1){
  if(o.part==='refl'){ctx.fillStyle='#ffd0e0';ctx.fillRect(x-3,y-3,6,6);return}
- if(['dog','cat','suika','ringo','sakana','onigiri','neko'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:(o.part==='suika'||o.part==='onigiri'?20:14))*k);return}
+ if(['dog','cat','suika','ringo','sakana','onigiri','neko'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:14)*k);return}
  k*=Z;
- if(o.part==='oppai'||o.part==='oppaiL'){drawOppai(x,y,(o.part==='oppaiL'?20:13)*k);return}
- if(o.part==='chin'||o.part==='chinL'){drawZou(x,y,(o.part==='chinL'?20:13)*k);return}
+ if(o.part==='chin'||o.part==='chinL'){drawZou(x,y,14*k);return}
  if(o.part==='nasu'){const s=(o.big?96:30)*k;
   if(has('nasu'))ctx.drawImage(IMG.nasu,Math.round(x-s/2),Math.round(y-s/2),s,s);
   else{ctx.fillStyle='#5b3a8a';ctx.beginPath();ctx.ellipse(x,y,s*.3,s*.45,-.5,0,Math.PI*2);ctx.fill()}return}
- const s=(o.big?38:13)*k;drawUnko(x,y,s,o.part==='unchi');
+ const s=(o.big?38:14)*k;drawUnko(x,y,s,o.part==='unchi');
  if(o.part==='unchi'||o.big){ctx.strokeStyle='#a8e07a99';ctx.lineWidth=2;        // 臭い
   for(let i=-1;i<=1;i++){const bx=x+i*s*.6,ph=time*6+i;ctx.beginPath();
    for(let j=0;j<5;j++)ctx.lineTo(bx+Math.sin(ph+j)*3,y-s*1.1-j*4);ctx.stroke()}}}
 function drawParts(){
  for(const it of items){const lift=Math.min(1,it.t/.6),bob=Math.sin(it.t*5)*2;
   ctx.globalAlpha=.3;ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(it.x,it.y+18,14,4,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-  drawPartIcon(it,it.x,it.y-lift*8+bob,.8+lift*.2);
+  drawPartIcon(it,it.x,it.y-lift*8+bob,(.8+lift*.2)*(it.big?1:1.5));
   if(Math.floor(it.t*4)%2){ctx.strokeStyle='#8fe0ff';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(it.x,it.y-lift*8+bob,Math.min(partOf(it).r+8,52),0,Math.PI*2);ctx.stroke()}}
  for(const m of missiles){
   ctx.globalAlpha=.5;ctx.fillStyle='#8fe0ff';ctx.fillRect(m.x-3,m.y+10,6,18);ctx.globalAlpha=1;
-  drawPartIcon(m,m.x,m.y,1);
+  drawPartIcon(m,m.x,m.y,m.big?1:1.5);
   if(m.mult>1){ctx.font='bold 10px monospace';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText('×'+m.mult,m.x,m.y-16);ctx.textAlign='left'}}}
 function drawOpts(){
  if(!ship.alive)return;
@@ -642,27 +635,42 @@ function drawOpts(){
   const P=partOf(o),r=P.r;
   if(P.stink){ctx.strokeStyle='#a8e07a55';ctx.setLineDash([4,6]);ctx.lineDashOffset=-time*12;ctx.lineWidth=2;
    ctx.beginPath();ctx.arc(p.x,p.y,r+P.stink,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.lineDashOffset=0}
-  drawPartIcon(o,p.x,p.y,1);ctx.globalAlpha=1;
+  drawPartIcon(o,p.x,p.y,o.big?1:1.35);ctx.globalAlpha=1;
   for(let k=0;k<o.hp;k++){ctx.fillStyle='#8fe0ff';ctx.fillRect(p.x-o.hp*2.5+k*5,p.y+r+3,3,3)}})}
 // ---- 読み上げとカットイン（女の子の絵と声） ---------------------------------
 // 声はブラウザの読み上げ（日本語）。ひらがなをそのまま読ませるので、アクセントは端末の日本語音声のもの。
 // 設定の「声」で なし／男の人（低め）／女の人 を選べる。
+// 声は VOICEVOX（春日部つむぎ）で作った音声ファイル。1語ずつ東京式アクセントに直してから書き出してある
+// （tools/gen_voice.py）。読み込めていない時だけ、端末の読み上げ（女性の声）で代わりに読む。
 let cutin=null,jaVoices=[];
+const VOICE_FILE={'いぬ':'inu','ねこ':'neko','すいか':'suika','りんご':'ringo','さかな':'sakana','おにぎり':'onigiri',
+ 'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko',
+ c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
+const VOX={};let voxLoaded=false;
+function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;
+ for(const [k,f] of Object.entries(VOICE_FILE))fetch('../assets/voice/'+f+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{VOX[k]=b}).catch(()=>{})}
+let voxSrcs=[];
+function playVoice(keys){                            // 言葉を順につなげて読む
+ if(!ac)return false;const bufs=keys.map(k=>VOX[k]);if(bufs.some(b=>!b))return false;
+ for(const s of voxSrcs)try{s.stop()}catch(e){}voxSrcs=[];
+ let at=ac.currentTime+.02;
+ for(const b of bufs){const s=ac.createBufferSource(),g=ac.createGain();s.buffer=b;g.gain.value=1.1;s.connect(g);g.connect(ac.destination);
+  s.start(at);voxSrcs.push(s);at+=Math.max(.2,b.duration-.1)}
+ return true}
 function loadVoices(){try{jaVoices=speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang))}catch(e){}}
 if(window.speechSynthesis){loadVoices();try{speechSynthesis.onvoiceschanged=loadVoices}catch(e){}}
-function pickVoice(male){
- const M=/otoya|ichiro|keita|hattori|daichi|male|男/i,F=/kyoko|haruka|ayumi|nanami|o-ren|sayaka|mizuki|female|女/i;
- return jaVoices.find(v=>(male?M:F).test(v.name))||jaVoices.find(v=>!(male?F:M).test(v.name))||jaVoices[0]||null}
-function speak(text){
- if(!window.speechSynthesis||!CFG.voice||!sound)return;
+function speakTTS(text){
+ if(!window.speechSynthesis)return;
  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ja-JP';
-  const male=CFG.voice===1,v=pickVoice(male);if(v)u.voice=v;
-  u.pitch=male?CFG.vpitch:1.25;u.rate=.92;u.volume=1;speechSynthesis.speak(u)}catch(e){}}
+  const v=jaVoices.find(v=>/kyoko|haruka|ayumi|nanami|o-ren|sayaka|mizuki|female|女/i.test(v.name))||jaVoices[0];if(v)u.voice=v;
+  u.pitch=1.3;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
 function unlockSpeech(){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
 function announce(words,combo){
  const text=words.join('・')+'！';
- cutin={text,combo,t:0,life:2.4};
- speak(words.join('、')+(combo>1?'。'+combo+'コンボ！':'！'))}
+ cutin={text,combo,t:0,life:Math.max(2.4,.9+words.length*.7)};
+ if(!CFG.voice||!sound)return;
+ const keys=words.slice();if(combo>1)keys.push(combo<=6?'c'+combo:'c');
+ if(!playVoice(keys))speakTTS(words.join('、')+(combo>1?'。'+combo+'コンボ！':'！'))}
 function drawGirl(x,y,s,talk){                       // 女の子（ちびキャラ）
  const hair='#5a3020',skin='#ffe0cc';
  ctx.fillStyle=hair;ctx.beginPath();ctx.arc(x,y,s*.62,0,Math.PI*2);ctx.fill();          // 後ろ髪
@@ -884,7 +892,10 @@ function drawGroundObjs(){
    for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++){const id=o.cells[r][c],x=o.x+c*CELL,y=o.y+r*CELL,ok=m.has(r*o.w+c);
     if(grab&&grab.o===o&&grab.r===r&&grab.c===c){ctx.fillStyle='#1a140e88';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);continue}   // つかんでいるマスは浮かせて描く
     drawCell(o,id,x,y,ok);
-    if(isLocked(o,r,c)){const b=.5+Math.sin(time*12)*.5;ctx.globalAlpha=a*(.25+b*.3);ctx.fillStyle='#fff6a0';ctx.fillRect(x,y,CELL,CELL);ctx.globalAlpha=a;
+    if(isLocked(o,r,c)){const f=o.pend.words.find(f=>f.cs.some(([a2,b2])=>a2===r&&b2===c)),b=.5+Math.sin(time*12)*.5;   // できた言葉のパネルは、出てくる物の絵に変わる
+     if(has('slab'))ctx.drawImage(IMG.slab_lit,x,y,CELL,CELL);
+     ctx.globalAlpha=a*(.2+b*.2);ctx.fillStyle='#fff6a0';ctx.fillRect(x,y,CELL,CELL);ctx.globalAlpha=a;
+     drawPartIcon({part:WORD_PART[f.word]},x+CELL/2,y+CELL/2+2,1.6+b*.1);
      ctx.strokeStyle='#f6e27a';ctx.lineWidth=3;ctx.strokeRect(x+1.5,y+1.5,CELL-3,CELL-3)}}
    if(o.pend){const k=o.pend.t/PEND_T;ctx.strokeStyle='#f6e27a';ctx.lineWidth=4;ctx.beginPath();   // 出てくるまでの残り
     ctx.arc(o.x+o.w*CELL+10,o.y-10,9,-Math.PI/2,-Math.PI/2+Math.PI*2*k);ctx.stroke()}
@@ -1154,7 +1165,7 @@ function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
 function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
  o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
  o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
-function audio(){unlockAudio();
+function audio(){unlockAudio();setTimeout(loadVoice,0);
  if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
  ac.resume().catch(()=>{});loadSfx()}
 
