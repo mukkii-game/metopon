@@ -67,6 +67,10 @@
 - BGM（ループ版）：道中＝8bit27「キャロットマンステージ」、ボス＝8bit25「bravery heart」、タイトル・クリア＝8bit29「子猫のもんたのクッキー屋さん」。
 画面のクレジットに「音楽・効果音：魔王魂」と出している。ほかの試作（本編・BLAST など）は前の合成音のまま。
 
+## タイトルロゴ — `assets/img/logo_nasu.png`
+`tools/logo_nasu.html` をブラウザ（Playwright）で描いて書き出した。文字は Google Fonts の **Dela Gothic One** と
+**DotGothic16**（どちらも SIL Open Font License。npm の @fontsource から取得）、背景は砂の絵（assets/img/sand.png）と線で描いたナス。
+
 ## 女の子の絵 — `assets/img/girl.png`
 画像生成AI **gsdf/Counterfeit-V2.5**（CreativeML OpenRAIL-M。商用可、使い方の制限あり）でこの環境の CPU で作った（`tools/gen_girl.py`、1枚約2分）。
 6枚作って、カットインで小さく出しても分かりやすい顔のアップ（seed 1005）を選び、192px に切り抜いた。

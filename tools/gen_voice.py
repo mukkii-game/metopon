@@ -14,26 +14,30 @@ SP=8  # 春日部つむぎ ノーマル
 def post(path,body=None,ctype='application/json'):
     req=urllib.request.Request('http://localhost:50021'+path,data=(json.dumps(body).encode() if body is not None else b''),method='POST',headers={'Content-Type':ctype})
     return urllib.request.urlopen(req).read()
-def make(text,accent,out,speed=1.0,pitch=0.0):
+def phrase(text,accent,down=0.0):
+    """1つのアクセント句を作り、東京式の決まりで高さを付け直す（down＝後ろの句ほど少し低く）"""
     q=json.loads(post('/audio_query?speaker=%d&text=%s'%(SP,urllib.parse.quote(text))))
-    ap=q['accent_phrases']
-    # 1つのアクセント句にまとめて、アクセントの位置を指定（0＝平板はモーラ数で表す）
-    moras=[m for a in ap for m in a['moras']]
-    one={'moras':moras,'accent':accent if accent>0 else len(moras),'pause_mora':None,'is_interrogative':False}
-    q['accent_phrases']=[one]
-    q['accent_phrases']=json.loads(post('/mora_pitch?speaker=%d'%SP,q['accent_phrases']))
-    # 東京式アクセントの決まりで高さを付け直す：1拍目と2拍目は高さが違う、アクセント核の後で下がる
-    ms=q['accent_phrases'][0]['moras'];n=len(ms);acc=accent if accent>0 else 0
-    vo=[m['pitch'] for m in ms if m['pitch']>0];base=sum(vo)/len(vo)
+    moras=[m for a in q['accent_phrases'] for m in a['moras']]
+    ap=[{'moras':moras,'accent':accent if accent>0 else len(moras),'pause_mora':None,'is_interrogative':False}]
+    ap=json.loads(post('/mora_pitch?speaker=%d'%SP,ap))
+    ms=ap[0]['moras'];vo=[m['pitch'] for m in ms if m['pitch']>0];base=sum(vo)/len(vo)-down
     for i,m in enumerate(ms,1):
-        if acc==1: hi=(i==1)
-        elif acc==0: hi=(i>=2)
-        else: hi=(2<=i<=acc)
+        if accent==1: hi=(i==1)
+        elif accent==0: hi=(i>=2)
+        else: hi=(2<=i<=accent)
         if m['pitch']>0: m['pitch']=round(base+(0.32 if hi else -0.18)-0.025*i,3)
+    return q,ap[0]
+def make(text,accent,out,speed=1.0,pitch=0.0):
+    """text は「なすの|ちじょうえ」のように | で句に分けられる（accent も 1|3 のように）"""
+    texts=text.split('|');accs=[int(x) for x in str(accent).split('|')]
+    q=None;aps=[]
+    for k,(t,a) in enumerate(zip(texts,accs)):
+        qq,ap=phrase(t,a,down=0.12*k);q=q or qq;aps.append(ap)
+    q['accent_phrases']=aps
     q['speedScale']=speed;q['pitchScale']=pitch;q['intonationScale']=1.0;q['prePhonemeLength']=0.05;q['postPhonemeLength']=0.12
     q['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%SP,q))
-    return ''.join(m['text'] for m in moras),[round(m['pitch'],2) for m in q['accent_phrases'][0]['moras']]
+    return '/'.join(''.join(m['text'] for m in ap['moras']) for ap in aps),[[round(m['pitch'],2) for m in ap['moras']] for ap in aps]
 LIST="""
 こいぬ 0 koinu.wav
 こねこ 0 koneko.wav
@@ -58,10 +62,12 @@ LIST="""
 ファイブコンボ 4 combo5.wav
 シックスコンボ 5 combo6.wav
 コンボ 1 combo.wav
+なす 1 nasu.wav
+なすの|ちじょうえ 1|3 legend.wav
 """
 if __name__=='__main__':
     import os
     out=os.path.join(os.path.dirname(__file__),'..','assets','voice')
     for line in LIST.strip().splitlines():
         t,a,f=line.split()
-        print(f,*make(t,int(a),os.path.join(out,f)))
+        print(f,*make(t,a,os.path.join(out,f)))
