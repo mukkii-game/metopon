@@ -73,7 +73,8 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 'use strict';
 // ---- 状態 -------------------------------------------------------------------
 const W=440,H=680,KINDS=5,NASU=4;
-const CELL=34;                  // 地上パズルの1マス
+const CELL=52;                  // 照準1マス＝文字1つ。ゼビウスの照準くらいの大きさ（前は34）
+const Z=CELL/34;                // 前の大きさからの倍率（自機・敵・弾・地上の敵もこれだけ大きくする）
 // 調整できる数値は CFG にまとめ、「設定」画面から変えられる（端末に残る）
 const CFG_DEF=[
  {k:'shipSpeed',name:'自機の速さ',def:1.5,min:.5,max:3,step:.1,unit:'倍',note:'タッチ・マウス・キーすべての移動量にかかる'},
@@ -81,7 +82,7 @@ const CFG_DEF=[
  {k:'mouseSens',name:'マウス感度',def:1.2,min:.3,max:3,step:.1,unit:'倍',note:'マウスを動かした量×これ'},
  {k:'keySpeed',name:'キー移動の速さ',def:300,min:100,max:600,step:10,unit:'px/秒',note:'矢印・WASD'},
  {k:'follow',name:'自機の追従',def:16,min:4,max:40,step:1,unit:'',note:'大きいほど操作にぴったり付いてくる'},
- {k:'sightAhead',name:'照準の距離',def:118,min:70,max:200,step:2,unit:'px',note:'自機から照準まで'},
+ {k:'sightAhead',name:'照準の距離',def:150,min:90,max:240,step:2,unit:'px',note:'自機から照準まで'},
  {k:'shotMax',name:'空中弾の数',def:3,min:1,max:8,step:1,unit:'発',note:'画面に出せる数'},
  {k:'bombT',name:'地上弾が落ちる時間',def:.55,min:.2,max:1.2,step:.05,unit:'秒',note:''},
  {k:'eFire',name:'敵弾の量',def:1,min:0,max:2,step:.1,unit:'倍',note:'画面に出る敵弾の数と撃つ間隔。0で撃ってこない'},
@@ -91,6 +92,7 @@ const CFG={};
 for(const d of CFG_DEF)CFG[d.k]=d.def;
 try{const o=JSON.parse(localStorage.getItem('xemetous_cfg')||'{}');
  for(const d of CFG_DEF)if(typeof o[d.k]==='number'&&isFinite(o[d.k]))CFG[d.k]=Math.min(d.max,Math.max(d.min,o[d.k]))}catch(e){}
+if(CFG.sightAhead===118)CFG.sightAhead=150;      // 前の初期値のままなら、大きくした照準に合わせる
 let SPD,SIGHT_AHEAD,BOMB_T,SHOT_MAX,TOUCH_SENS,MOUSE_SENS;
 function applyCfg(){SPD=CFG.scroll;SIGHT_AHEAD=CFG.sightAhead;BOMB_T=CFG.bombT;SHOT_MAX=CFG.shotMax;
  TOUCH_SENS=CFG.touchSens*CFG.shipSpeed;MOUSE_SENS=CFG.mouseSens*CFG.shipSpeed}
@@ -162,7 +164,7 @@ function puzMatched(o){                       // 光らせるマス（言葉は�
  for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++)if(o.cells[r][c]===r*o.w+c)m.add(r*o.w+c);return m}
 // 地上絵（地面に刻んだ線）。3×3 に切って欠片にする
 function geoArt(draw){const S=CELL*3,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
- g.lineCap=g.lineJoin='round';for(const [col,lw] of [['#3a2a1a',9],['#faeecd',4.5]]){g.strokeStyle=col;g.lineWidth=lw;draw(g,S)}return c}
+ g.lineCap=g.lineJoin='round';for(const [col,lw] of [['#3a2a1a',9*Z],['#faeecd',4.5*Z]]){g.strokeStyle=col;g.lineWidth=lw;draw(g,S)}return c}
 const ART={
  nasu:geoArt((g,S)=>{g.beginPath();g.ellipse(S*.56,S*.6,S*.27,S*.36,-.62,0,Math.PI*2);g.stroke();
   g.beginPath();g.moveTo(S*.2,S*.12);g.lineTo(S*.34,S*.3);g.moveTo(S*.22,S*.36);g.lineTo(S*.34,S*.3);g.lineTo(S*.3,S*.46);
@@ -292,11 +294,11 @@ function enemyShot(x,y,spd){if(!canFire(x,y))return false;fireT=t;aimShot(x,y,sp
 function spawnAir(kind,x,o={}){
  const e={kind,x,y:-24,t:0,vx:0,vy:0,hp:1,alpha:1,warn:0,...o};
  if(e.g)groups[e.g]=(groups[e.g]||0)+1;
- if(kind==='ring'){e.vy=185;e.sprite='enemy1';e.size=30}
- if(kind==='torkan'){e.vy=260;e.stopY=e.stopY||110+rnd(120);e.sprite='enemy4';e.size=34}
- if(kind==='zakato'){e.y=e.y0||90+rnd(220);e.alpha=0;e.sprite='zako22';e.size=32}
- if(kind==='plate'){e.vy=SPD+40;e.size=34;e.hp=Infinity}
- if(kind==='giddo'){e.vy=190;e.x0=x;e.amp=e.amp||100;e.sprite='enemy2';e.size=34}
+ if(kind==='ring'){e.vy=185;e.sprite='enemy1';e.size=30*Z}
+ if(kind==='torkan'){e.vy=260;e.stopY=e.stopY||110+rnd(120);e.sprite='enemy4';e.size=34*Z}
+ if(kind==='zakato'){e.y=e.y0||90+rnd(220);e.alpha=0;e.sprite='zako22';e.size=32*Z}
+ if(kind==='plate'){e.vy=SPD+40;e.size=34*Z;e.hp=Infinity}
+ if(kind==='giddo'){e.vy=190;e.x0=x;e.amp=e.amp||100;e.sprite='enemy2';e.size=34*Z}
  air.push(e)}
 function aimShot(x,y,spd=CFG.eSpeed){
  if(!ship.alive)return;
@@ -345,7 +347,9 @@ function killAir(e,mult=1){
 // そのあとはまた地面と一緒に流れて消える。
 // そろえる板は、ある程度降りてきたら画面の中をしばらくウロウロして（hold 秒）、そのあと画面の上へ消えていく。
 function spawnGround(kind,x,{stopY,hold=8,arg}={}){
- if(kind==='word'||kind==='big'||kind==='pic'){const o=makePuzzle(x,-120,kind,arg);o.y=-o.h*CELL-10;
+ if(kind==='word'||kind==='grid'||kind==='pic'){
+  if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length>=2){later(1,()=>spawnGround(kind,x,{stopY,hold,arg}));return null}   // 板は同時に2枚まで（空くまで待つ）
+  const o=makePuzzle(x,-120,kind,arg);o.y=-o.h*CELL-10;
   o.stopY=stopY;o.hold=o.hold0=hold;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}
  const o={kind,x,y:-30,cd:2+Math.random()*2,stopY,hold};ground.push(o);return o}
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
@@ -367,18 +371,16 @@ function updateGround(dt){
   if(o.hitT>0)o.hitT-=dt}
  ground=ground.filter(o=>o.y<H+60&&!(o.done&&o.dieT>.5)&&!o.dead&&!(o.left&&o.y<-o.h*CELL-20))}
 function pickLane(o){
- const hh=o.h*CELL,pw=o.w*CELL,busy=ground.filter(g=>g!==o&&g.kind==='puz'&&!g.done&&g.lane!==undefined&&!g.left);
- const free=y=>busy.every(g=>y+hh+18<g.lane||g.lane+g.h*CELL+18<y);
+ const hh=o.h*CELL,busy=ground.filter(g=>g!==o&&g.kind==='puz'&&!g.done&&g.lane!=null&&!g.left);
+ const fixed=ground.filter(g=>g.kind!=='puz'&&!g.dead&&g.stopY!==undefined&&g.hold>0);   // 止まっている砲台・ピラミッドの高さも避ける
+ const free=y=>busy.every(g=>y+hh+18<g.lane||g.lane+g.h*CELL+18<y)&&fixed.every(g=>y+hh+8<g.stopY-22*Z||g.stopY+22*Z+8<y);
  const cand=[o.stopY];for(let y=100;y<=420;y+=20)cand.push(y);
  for(const y of cand)if(y>=100&&y+hh<=H-160&&free(y))return y;
- // 上下に空きが無い時は、重なる板の反対側に寄せて並べる（ウロウロの左右の跳ね返りで重ならない）
- const g=busy.find(g=>!(o.stopY+hh+18<g.lane||g.lane+g.h*CELL+18<o.stopY));
- if(g){const gc=g.x+g.w*CELL/2;o.x=gc<W/2?W-12-pw:12;o.vx=gc<W/2?Math.abs(o.vx):-Math.abs(o.vx)}
- return o.stopY}
+ return null}                                         // 空きが無ければ、画面の上で待つ
 function updateWander(o,dt){
  if(o.done)return;
  if(!o.arrived){
-  if(o.lane===undefined)o.lane=pickLane(o);           // ほかの板と上下に重ならない高さを選ぶ
+  if(o.lane===undefined||o.lane===null){o.lane=pickLane(o);if(o.lane===null){o.y=Math.min(o.y,-o.h*CELL-10);return}}   // ほかの板と上下に重ならない高さを選ぶ
   o.stopY=o.lane;o.y+=Math.max(SPD,70)*dt;if(o.y>=o.stopY){o.y=o.stopY;o.arrived=true}return}
  if(grab&&grab.o===o)return;                          // つかんでいる間は板は止まる
  if(o.hold>0){o.hold-=dt;o.wt+=dt;                    // ウロウロ：ゆっくり左右に、少し上下に
@@ -400,23 +402,23 @@ function updateWander(o,dt){
 //  ・デカナスは触れた敵をつぶす。敵の弾はどれも受け止める（そのぶん減る）
 // 地上弾を**2回すばやく押す**と、くっついている物を全部撃ち出す。n 個同時なら威力 n 倍。
 const PART={
- unko:{name:'うんこ',pow:40,hp:6,r:15,u:1},
- unchi:{name:'うんち',pow:25,hp:4,r:14,u:1,stink:30},
- oppai:{name:'おっぱい',pow:30,hp:6,r:16,u:1,reflect:true},
- oppaiL:{name:'おちち',pow:70,hp:10,r:24,u:2,reflect:true},
- chin:{name:'ちんちん',pow:50,hp:5,r:15,u:1,crush:true},
- chinL:{name:'おちんちん',pow:110,hp:9,r:22,u:2,crush:true},
- bigunko:{name:'デカうんこ',pow:160,hp:14,r:42,u:3,stink:20},
- bignasu:{name:'デカナス',pow:120,hp:16,r:40,u:3,crush:true}};
+ unko:{name:'うんこ',pow:40,hp:6,r:15*Z,u:1},
+ unchi:{name:'うんち',pow:25,hp:4,r:14*Z,u:1,stink:30*Z},
+ oppai:{name:'おっぱい',pow:30,hp:6,r:16*Z,u:1,reflect:true},
+ oppaiL:{name:'おちち',pow:70,hp:10,r:24*Z,u:2,reflect:true},
+ chin:{name:'ちんちん',pow:50,hp:5,r:15*Z,u:1,crush:true},
+ chinL:{name:'おちんちん',pow:110,hp:9,r:22*Z,u:2,crush:true},
+ bigunko:{name:'デカうんこ',pow:160,hp:14,r:42*Z,u:3,stink:20*Z},
+ bignasu:{name:'デカナス',pow:120,hp:16,r:40*Z,u:3,crush:true}};
 const HOLD_MAX=3;                                     // 照準に付けられる量（デカいのは3つぶん）
 const kindOf=o=>o.big?'big'+o.part:o.part;
 const partOf=o=>PART[kindOf(o)];
 const heldUnits=()=>ship.opts.reduce((a,o)=>a+partOf(o).u,0);
 function optPos(i){const sp=sightPoint(),o=ship.opts[i];
- if(o.big)return{x:sp.x,y:sp.y-46};
+ if(o.big)return{x:sp.x,y:sp.y-46*Z};
  const smalls=ship.opts.filter(q=>!q.big),k=smalls.indexOf(o),hasBig=ship.opts.some(q=>q.big);
  const S=[[0,-30],[-32,-12],[32,-12]],s=hasBig?[[-50,-12],[50,-12]][k]||[0,-30]:S[k]||[0,-30];
- return{x:sp.x+s[0],y:sp.y+s[1]}}
+ return{x:sp.x+s[0]*Z,y:sp.y+s[1]*Z}}
 function panic(e,from,big,txt){                       // ウワー！と逃げる
  if(e.panic)return;e.panic=true;e.warn=0;
  const d=e.x<from.x?-1:1;e.vx=d*(200+Math.random()*80);e.vy=-240-Math.random()*80;
@@ -493,8 +495,8 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  if(b.spawnT<=0){b.spawnT=6;b.n=(b.n||0)+1;
   const type=b.n%3===0?'pic':b.n%3===2?'grid':'word';
   let o=null;for(let k=0;k<10;k++){const q=makePuzzle(60+Math.random()*(W-120),H*.4,type);    // 他の板と重ならない所に
-   if(!ground.some(g=>g.kind==='puz'&&!g.done&&q.x<g.x+g.w*CELL+10&&g.x<q.x+q.w*CELL+10&&q.y<g.y+g.h*CELL+10&&g.y<q.y+q.h*CELL+10)){o=q;break}}
-  if(o){o.emerge=0;o.stopY=o.y;o.arrived=true;o.hold=o.hold0=11;o.vx=(Math.random()<.5?-1:1)*16;o.wt=0;ground.push(o)}else b.spawnT=1}
+   if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length<2&&!ground.some(g=>g.kind==='puz'&&!g.done&&q.x<g.x+g.w*CELL+10&&g.x<q.x+q.w*CELL+10&&q.y<g.y+g.h*CELL+10&&g.y<q.y+q.h*CELL+10)){o=q;break}}
+  if(o){o.emerge=0;o.stopY=o.lane=o.y;o.arrived=true;o.hold=o.hold0=11;o.vx=(Math.random()<.5?-1:1)*16;o.wt=0;ground.push(o)}else b.spawnT=1}
  b.waveT=(b.waveT||7)-dt;
  if(b.waveT<=0){b.waveT=rage?8:11;ringWave(Math.random()<.5?-1:1,5,{shooters:[4]})}}
 function drawBoss(){const b=boss;if(!b)return;
@@ -543,6 +545,7 @@ function drawZou(x,y,s){                            // ちんちん：ぞうさ�
  ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.26,y-s*.36,s*.12,s*.14);ctx.fillRect(x+s*.14,y-s*.36,s*.12,s*.14)}
 function drawPartIcon(o,x,y,k=1){
  if(o.part==='refl'){ctx.fillStyle='#ffd0e0';ctx.fillRect(x-3,y-3,6,6);return}
+ k*=Z;
  if(o.part==='oppai'||o.part==='oppaiL'){drawOppai(x,y,(o.part==='oppaiL'?20:13)*k);return}
  if(o.part==='chin'||o.part==='chinL'){drawZou(x,y,(o.part==='chinL'?20:13)*k);return}
  if(o.part==='nasu'){const s=(o.big?96:30)*k;
@@ -586,13 +589,8 @@ function areaScript(){
  // 導入：撃ってこないトーロイドで引きつけて落とす練習
  G(1.0,()=>ringWave(-1,5));
  G(4.0,()=>ringWave(1,5));
- G(5.5,()=>spawnGround('word',W/2,{stopY:210,hold:14,arg:'うんこ'}));           // ことば（横か縦の1列）
- G(9.0,()=>spawnLine('pyramid',110,150,3,'h'));                                  // けす：横に3つ
  // 地上の間：空は撃たない敵だけ
- G(11.0,()=>spawnGround('word',350,{stopY:180,hold:14,arg:'ちち'}));
  G(11.5,()=>{spawnAir('giddo',W/2,{amp:120})});
- G(14.0,()=>spawnLine('turret',80,120,3,'v'));                                   // けす：縦に3つ（撃ってくる）
- G(16.5,()=>spawnGround('grid',W/2,{stopY:200,hold:18}));                         // 5×3：何を作る？ 連鎖でコンボ
  G(15.0,()=>{spawnAir('giddo',W/2-40,{amp:110});later(.5,()=>spawnAir('giddo',W/2+40,{amp:110}))});
  // 空の山：トーカンの二段構え、撃つトーロイド、ザカート
  G(19.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
@@ -600,18 +598,11 @@ function areaScript(){
  G(23.0,()=>{spawnAir('torkan',W/2,{stopY:170})});
  G(24.5,()=>ringWave(1,6,{shooters:late?[0,5]:[5]}));
  G(27.0,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
- // 休み：空は空っぽ。地上パズルとPの塔をじっくり
- G(21.0,()=>spawnLine('pyramid',W/2,350,4,'h',7));
- G(30.5,()=>{spawnGround('pic',120,{stopY:210,hold:15,arg:'nasu'});spawnGround('tower',340,{stopY:160})});   // ピースそろえ：ナス
- G(33.0,()=>spawnLine('turret',W/2,340,4,'h'));
- G(36.0,()=>spawnGround('word',330,{stopY:250,hold:14,arg:'ちんちん'}));
- G(40.0,()=>spawnGround('word',110,{stopY:300,hold:13,arg:'おちち'}));
+ // 休み：空は空っぽ（地上は下にまとめて書いた）
  // バキュラの壁：すき間をくぐる。合間をトーロイドが横切る
  G(38.5,()=>{for(const x of [50,120,190])spawnAir('plate',x);for(const x of [330,400])spawnAir('plate',x)});
  G(40.5,()=>{for(const x of [120,190,260,330])spawnAir('plate',x)});
  G(41.0,()=>ringWave(-1,4,{x0:60}));
- G(43.0,()=>{for(const x of [50,120,260,330,400])spawnAir('plate',x);spawnLine('turret',80,140,3,'v')});
- G(46.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:'unko'}));             // ピースそろえ：うんこ
  G(45.0,()=>ringWave(1,4,{x0:W-60,shooters:[3]}));
  // 締めの山
  G(48.5,()=>{for(let i=0;i<3;i++)later(i*.35,()=>spawnAir('torkan',110+i*110,{stopY:100+i%2*60}))});
@@ -619,12 +610,23 @@ function areaScript(){
  G(52.5,()=>ringWave(-1,6,{shooters:[2]}));
  G(53.5,()=>ringWave(1,6,{shooters:late?[2,5]:[]}));
  G(56.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- // 静かに終わる：最後のパズル
- G(55.0,()=>{spawnGround('grid',150,{stopY:190,hold:16});spawnLine('pyramid',340,290,3,'h')});
- G(58.0,()=>spawnLine('turret',W/2,320,3,'h',6));
+ // ---- 地上（大きな文字盤は同時に2枚まで） ----
+ G(5.5,()=>spawnGround('word',W/2,{stopY:200,hold:12,arg:'うんこ'}));           // ことば（横か縦の1列）
+ G(9.0,()=>spawnLine('pyramid',110,130,3,'h'));                                  // けす：横に3つ
+ G(11.0,()=>spawnGround('word',350,{stopY:260,hold:11,arg:'ちち'}));
+ G(15.0,()=>spawnLine('turret',W/2,120,2,'h'));                                  // けす：撃ってくる
+ G(19.0,()=>spawnGround('grid',W/2,{stopY:200,hold:14}));                         // 5×3：何を作る？ 連鎖でコンボ
+ G(24.0,()=>spawnLine('pyramid',W/2,420,4,'h',7));
+ G(30.5,()=>{spawnGround('pic',120,{stopY:200,hold:13,arg:'nasu'});spawnGround('tower',350,{stopY:140})});   // ピースそろえ：ナス
+ G(34.0,()=>spawnLine('turret',W/2,420,3,'h'));
+ G(37.0,()=>spawnGround('word',330,{stopY:200,hold:11,arg:'ちんちん'}));
+ G(43.0,()=>spawnLine('turret',70,120,3,'v'));
+ G(46.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:'unko'}));             // ピースそろえ：うんこ
+ G(52.0,()=>{spawnGround('word',110,{stopY:200,hold:10,arg:'おちち'});spawnLine('pyramid',340,420,3,'h')});
+ G(57.0,()=>spawnLine('turret',W/2,130,3,'h',6));
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
- return grp.map(([tm,f])=>[tm/diff**.15,f])}
+ return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm/diff**.15,f])}   // 時刻順に（書いた順に依らない）
 function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLock()}catch(e){}}
 function areaClear(){
  phase='clear';unlockMouse();bgmVolume(.12);
@@ -684,7 +686,7 @@ function update(dt){
   const kx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
         ky=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
   if(kx||ky){const n=kx&&ky?Math.SQRT1_2:1;const v=CFG.keySpeed*CFG.shipSpeed*n*dt;ship.tx+=kx*v;ship.ty+=ky*v}
-  ship.tx=clamp(ship.tx,18,W-18);ship.ty=clamp(ship.ty,SIGHT_AHEAD+40,H-24);
+  ship.tx=clamp(ship.tx,24,W-24);ship.ty=clamp(ship.ty,SIGHT_AHEAD+40,H-30);
   const px=ship.x,py=ship.y;
   const f=Math.min(1,dt*CFG.follow);ship.x+=(ship.tx-ship.x)*f;ship.y+=(ship.ty-ship.y)*f;
   ship.inv=Math.max(0,ship.inv-dt)}
@@ -696,7 +698,7 @@ function update(dt){
  const wantShoot=!groundMode();                  // 通常弾は自動。地上攻撃モード（押している間～着弾まで）は止まる
  ship.cd=(ship.cd||0)-dt;
  if(ship.alive&&wantShoot&&ship.cd<=0&&shots.length<SHOT_MAX){ship.cd=SHOT_RATE;
-  shots.push({x:ship.x,y:ship.y-14});play('shot',1.3,.2)}   // 1発＝2本並びの弾
+  shots.push({x:ship.x,y:ship.y-14*Z});play('shot',1.3,.2)}   // 1発＝2本並びの弾
  for(const s of shots){const y0=s.y;s.y-=640*dt;
   for(const e of air){if(e.dead||e.alpha<.5)continue;
    if(Math.abs(s.x-e.x)<e.size*.55+6&&e.y+e.size/2>=s.y&&e.y-e.size/2<=y0){
@@ -721,7 +723,7 @@ function update(dt){
  // 当たり（自機の当たりは小さめ）
  if(ship.alive&&ship.inv<=0){
   for(const b of ebul)if(Math.hypot(b.x-ship.x,b.y-ship.y)<6){b.y=H+99;loseLife();break}
-  for(const e of air)if(!e.dead&&!e.panic&&e.alpha>.5&&Math.hypot(e.x-ship.x,e.y-ship.y)<e.size*.4+6){loseLife();break}}
+  for(const e of air)if(!e.dead&&!e.panic&&e.alpha>.5&&Math.hypot(e.x-ship.x,e.y-ship.y)<e.size*.32+6){loseLife();break}}
  updateParts(dt);
 
  for(const c of caps){c.t+=dt;c.y+=SPD*dt;
@@ -771,9 +773,10 @@ function drawGroundObjs(){
    ctx.globalAlpha=1;continue}
   const x=Math.round(o.x),y=Math.round(o.y);
   if(ship.alive&&sd&&inBlast(o,br)){                 // 照準の範囲に入っている地上の敵：狙っている印
-   const k=Math.floor(time*10)%2?'#e2624a':'#ffffff',d=24;ctx.fillStyle=k;
+   const k=Math.floor(time*10)%2?'#e2624a':'#ffffff',d=24*Z;ctx.fillStyle=k;
    for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
     ctx.fillRect(x+sx*d-(sx>0?8:0),y+sy*d-(sy>0?2:0),8,2);ctx.fillRect(x+sx*d-(sx>0?2:0),y+sy*d-(sy>0?8:0),2,8)}}
+  ctx.save();ctx.translate(x,y);ctx.scale(Z,Z);ctx.translate(-x,-y);   // 地上の敵も大きく
   if(o.kind==='turret'){ctx.fillStyle='#3a2a1a';ctx.fillRect(x-14,y-14,28,28);
    ctx.fillStyle='#6d5a44';ctx.fillRect(x-10,y-10,20,20);
    const a=Math.atan2(ship.y-o.y,ship.x-o.x);ctx.strokeStyle='#1a140e';ctx.lineWidth=5;
@@ -788,7 +791,8 @@ function drawGroundObjs(){
    ctx.fillStyle='#f6e27a';ctx.fillRect(x-2,y-14,4,4)}
   if(o.kind==='tower'){ctx.fillStyle='#3a6ac0';ctx.fillRect(x-10,y-16,20,32);
    ctx.fillStyle='#f6e27a';ctx.fillRect(x-6,y-12,12,6);ctx.strokeStyle='#1a140e';ctx.lineWidth=2;ctx.strokeRect(x-10,y-16,20,32);
-   ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('P',x,y+8);ctx.textAlign='left'}}
+   ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('P',x,y+8);ctx.textAlign='left'}
+  ctx.restore()}
  // 照準は自機の前に固定（いまどこを狙っているか）。地上パズルに重なっている時は、
  // それとは別に「回るマス」を板の上に二重に出す（照準そのものは動かさない）。
  if(!ship.alive)return;
@@ -810,8 +814,8 @@ function drawCell(o,id,x,y,ok,k=1){
  if(has('slab'))ctx.drawImage(o.done||ok?IMG.slab_lit:IMG.slab,x,y,S,S);else{ctx.fillStyle=SAND.base;ctx.fillRect(x+1,y+1,S-2,S-2)}
  if(o.type==='pic'){ctx.drawImage(ART[o.pic],(id%3)*CELL,Math.floor(id/3)*CELL,CELL,CELL,x,y,S,S);
   ctx.strokeStyle='#3a2a1a88';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,S-1,S-1);return}
- ctx.font='bold '+Math.round(23*k)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+1.5,y+S/2+9.5*k);
- ctx.fillStyle=ok?'#ffffff':LETTER_COL[id]||'#f2d9a4';ctx.fillText(id,x+S/2,y+S/2+8*k);ctx.textAlign='left'}
+ ctx.font='bold '+Math.round(S*.7)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+2,y+S*.74+2);
+ ctx.fillStyle=ok?'#ffffff':LETTER_COL[id]||'#f2d9a4';ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
 function sightFrame(x,y,w,h,col,lw){
  ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+3;ctx.strokeRect(x,y,w,h);
  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
@@ -833,8 +837,8 @@ function warnRing(x,y,r,left){                     // 撃つ前の予告：点�
 function drawShip(){
  if(!ship.alive)return;
  if(ship.inv>0&&Math.floor(time*16)%2)return;
- ctx.globalAlpha=.25;ctx.fillStyle='#1a140e';ctx.fillRect(ship.x-12,ship.y+14,24,6);ctx.globalAlpha=1;
- if(has('ship'))ctx.drawImage(IMG.ship,Math.round(ship.x-18),Math.round(ship.y-18),36,36);
+ const SS=Math.round(36*Z);ctx.globalAlpha=.25;ctx.fillStyle='#1a140e';ctx.fillRect(ship.x-SS/3,ship.y+SS*.4,SS*.66,6*Z);ctx.globalAlpha=1;
+ if(has('ship'))ctx.drawImage(IMG.ship,Math.round(ship.x-SS/2),Math.round(ship.y-SS/2),SS,SS);
  ctx.fillStyle='#ffffff';ctx.fillRect(ship.x-2,ship.y-2,4,4)}      // 当たりの芯
 function drawBomb(){
  if(!bomb)return;const k=Math.min(1,bomb.t/BOMB_T);
@@ -851,7 +855,7 @@ function draw(){
   ctx.fillStyle='#1a140e';ctx.fillRect(c.x-13,c.y-13,26,26);ctx.fillStyle=b>.5?'#8fe0ff':'#fff';ctx.fillRect(c.x-11,c.y-11,22,22);
   ctx.fillStyle='#1a140e';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('P',c.x,c.y+5);ctx.textAlign='left'}
  drawBomb();
- for(const s of shots){if(has('shot'))for(const dx of [-6,6])ctx.drawImage(IMG.shot,Math.round(s.x+dx-2),Math.round(s.y-7),4,14)}
+ for(const s of shots){if(has('shot'))for(const dx of [-6*Z,6*Z])ctx.drawImage(IMG.shot,Math.round(s.x+dx-2*Z),Math.round(s.y-7*Z),Math.round(4*Z),Math.round(14*Z))}
  drawAir();drawShip();drawOpts();
  for(const b of ebul){ctx.fillStyle='#1a140e';ctx.fillRect(b.x-5,b.y-5,10,10);   // 敵の弾：砂の上でも見える大きさ
   ctx.fillStyle=Math.floor(time*20)%2?'#ffffff':'#ff6a4d';ctx.fillRect(b.x-4,b.y-4,8,8)}
@@ -908,7 +912,7 @@ canvas.addEventListener('pointerdown',e=>{
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,moved:false,dir};
  const sp=sightPoint();if(!boardAt(sp.x,sp.y))groundDown('t'+e.pointerId,dir)});   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
-function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,18,W-18);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-24)}
+function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,24,W-24);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-30)}
 canvas.addEventListener('pointermove',e=>{
  if(phase!=='play'||paused)return;
  if(e.pointerType==='mouse'){mouseMode=true;
