@@ -18,6 +18,7 @@ main{max-width:max(470px,calc((100dvh - 130px) * 0.647 + 20px));margin:auto;heig
 header{display:flex;align-items:center;justify-content:space-between;gap:6px}
 header>div:first-child{min-width:0}
 h1{font-size:18px;letter-spacing:3px;margin:0;color:#f2d9a4}
+@media (max-width:400px){h1{font-size:14px;letter-spacing:1px}#top button{padding:7px 6px}}
 small{font-size:10px;color:#b79b6c;display:block}
 button{font:inherit;color:inherit;background:#3a2a17;border:1px solid #7a5a2e;border-radius:12px;padding:8px;touch-action:none}
 button:active{background:#8a6528}
@@ -36,6 +37,8 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #overlay p{font-size:12.5px;line-height:1.6;color:#d9c49a;margin:6px 0}
 #overlay b{color:#f2d9a4}#overlay small{display:inline}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
+#overlay button[data-mode]{padding:12px 14px;margin:8px 2px 0}
+#overlay button[data-mode=unchi]{background:#a8743a}
 .hidden{display:none!important}
 #cfg{position:absolute;inset:0;z-index:5;overflow-y:auto;touch-action:pan-y;background:#1a1109f2;padding:10px 14px 20px}
 #cfg h2{font-size:17px;margin:4px 0 8px;color:#f2d9a4;text-align:center}
@@ -54,15 +57,15 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 </style></head><body><main>
 <header><div><h1>XEMETOUS</h1><small>AREA SHOOTER</small></div>
 <div id="top"><button id="sound">音 ON</button><button id="bgm">BGM OFF</button><button id="full">全画面</button><button id="pause">停止</button><button id="cfgbtn">設定</button></div></header>
-<div id="status"><span id="score">SCORE 0</span><span id="power">BLASTER 2</span><span id="lives">残機 ▲▲▲</span></div>
+<div id="status"><span id="score">SCORE 0</span><span id="power"></span><span id="lives">残機 ▲▲▲</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
 <h2>文字をつかんで、そろえて、撃ち込め。</h2>
-<p>地上の文字は<b>つかんで動かす</b>と入れ替わる。<br><b>うんこ・うんち・ちち・ちんちん</b>…読めたら何か出てくる。</p>
+<p>地上の文字は<b>つかんで動かす</b>と入れ替わる。<br>言葉が読めたら何か出てくる。</p>
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
-つかむ・地上弾：タッチは長押し／左右クリック／N・M<br>
+つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
-<button id="start">あそぶ</button><p><small>Enter・Space・N・M でも始められる</small></p>
+<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：いぬ・ねこ・すいか・りんご・さかな・おにぎり<br>うんち：うんこ・うんち・ちち・ちんちん…<br>Enter・Space で前に選んだモード</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
@@ -122,11 +125,21 @@ const canvas=$('game'),ctx=canvas.getContext('2d');
 //            大きな板は消えた所に上から文字が落ちてきて、続けてそろうと連鎖。1回の操作でできた数が「コンボ」で、
 //            出てきた物の威力はコンボ数倍。
 //  けす   … 横や縦に並んだ砲台・ピラミッド。照準の範囲で一度に壊すとボーナス（地上弾）
-const WORD_PART={'うんこ':'unko','うんち':'unchi','ちち':'oppai','おちち':'oppaiL','ちんちん':'chin','おちんちん':'chinL'};
-const WORDS=Object.keys(WORD_PART).sort((a,b)=>b.length-a.length);   // 長い言葉を優先
-const LETTER_POOL='ちちちんんうこお';
+// モード：ノーマル（いぬ・ねこ・すいか…）と うんち（うんこ・ちち・ちんちん…）。言葉と地上絵と出てくる物が変わる
+const MODES={
+ normal:{name:'ノーマルモード',words:{'いぬ':'dog','ねこ':'cat','すいか':'suika','りんご':'ringo','さかな':'sakana','おにぎり':'onigiri'},
+  script:['いぬ','ねこ','さかな','すいか'],pics:['nasu','neko'],picName:{nasu:'ナスの地上絵',neko:'ねこの地上絵'}},
+ unchi:{name:'うんちモード',words:{'うんこ':'unko','うんち':'unchi','ちち':'oppai','おちち':'oppaiL','ちんちん':'chin','おちんちん':'chinL'},
+  script:['うんこ','ちち','ちんちん','おちち'],pics:['nasu','unko'],picName:{nasu:'ナスの地上絵',unko:'うんこの地上絵'}}};
+let mode=(()=>{try{return localStorage.getItem('xemetous_mode')==='unchi'?'unchi':'normal'}catch(e){return 'normal'}})();   // はじめてはノーマル
+let WORD_PART,WORDS,LETTER_POOL,PICS;
+function setMode(m){mode=m;const M=MODES[m];WORD_PART=M.words;PICS=M.picName;
+ WORDS=Object.keys(WORD_PART).sort((a,b)=>b.length-a.length);   // 長い言葉を優先
+ LETTER_POOL=WORDS.join('');                                    // 言葉に出てくる文字を、出てくる回数の割合で
+ try{localStorage.setItem('xemetous_mode',m)}catch(e){}}
+setMode(mode);
 const LETTER_COL={'う':'#fff6dc','ん':'#f6e27a','こ':'#e8a060','ち':'#a8e07a','お':'#ffb0c8'};
-const PICS={nasu:'ナスの地上絵',unko:'うんこの地上絵'};
+const letterCol=ch=>LETTER_COL[ch]||['#fff6dc','#f6e27a','#e8a060','#a8e07a','#ffb0c8','#a8d8ff'][ch.charCodeAt(0)%6];
 function wordsFound(o){                       // 読める言葉（重なる時は長い方を優先）
  const cand=[],{w,h,cells}=o;
  const scan=(get,n,mk)=>{let s='';for(let i=0;i<n;i++)s+=get(i)||' ';
@@ -143,7 +156,7 @@ const randLetter=()=>LETTER_POOL[rnd(LETTER_POOL.length)];
 function makePuzzle(x,y,type='word',arg){
  let w,h,cells,o;
  if(type==='word'){                           // 1列：言葉1つ（短い言葉には余分な1文字）をばらばらに
-  const word=arg||WORDS[rnd(WORDS.length)],dir=Math.random()<.5?'h':'v';
+  const word=typeof arg==='number'?MODES[mode].script[arg]:arg||WORDS[rnd(WORDS.length)],dir=Math.random()<.5?'h':'v';
   const extra=word.length<3||(word.length<5&&Math.random()<.4);let L;
   for(let k=0;k<200;k++){L=[...word];if(extra)L.push(randLetter());shuffle(L);   // 最初から読めてしまう並びは作り直す
    const q={w:dir==='h'?L.length:1,h:dir==='h'?1:L.length,cells:dir==='h'?[L.slice()]:L.map(c=>[c])};
@@ -151,9 +164,10 @@ function makePuzzle(x,y,type='word',arg){
   w=dir==='h'?L.length:1;h=dir==='h'?1:L.length;cells=dir==='h'?[L.slice()]:L.map(c=>[c]);o={type:'word',word}}
  else if(type==='grid'){                      // 5×3：いろいろ作れる大きな板。そろったら上から落ちて連鎖
   w=5;h=3;cells=Array.from({length:h},()=>Array.from({length:w},randLetter));
+  for(const wd of [WORDS[rnd(WORDS.length)],WORDS[rnd(WORDS.length)]])for(const ch of wd)cells[rnd(h)][rnd(w)]=ch;   // 作れる言葉の文字を混ぜておく
   for(let k=0;k<500;k++){const f=wordsFound({w,h,cells});if(!f.length)break;const [r,c]=f[0].cs[rnd(f[0].cs.length)];cells[r][c]=randLetter()}
   o={type:'word',grid:true}}
- else{const pic=arg||(Math.random()<.5?'nasu':'unko');w=3;h=3;o={type:'pic',pic};
+ else{const P=MODES[mode].pics,pic=typeof arg==='number'?P[arg]:arg||P[rnd(2)];w=3;h=3;o={type:'pic',pic};
   cells=[];for(let r=0;r<3;r++){cells.push([]);for(let c=0;c<3;c++)cells[r].push(r*3+c)}
   do{for(let k=0;k<3;k++){const r=rnd(3),c=rnd(2);Math.random()<.5?swapCells(cells,[r,c],[r,c+1]):swapCells(cells,[c,r],[c+1,r])}}
   while(cells.every((row,r)=>row.every((v,c)=>v===r*3+c)))}
@@ -170,6 +184,12 @@ const ART={
   g.beginPath();g.moveTo(S*.2,S*.12);g.lineTo(S*.34,S*.3);g.moveTo(S*.22,S*.36);g.lineTo(S*.34,S*.3);g.lineTo(S*.3,S*.46);
   g.moveTo(S*.34,S*.3);g.lineTo(S*.5,S*.26);g.moveTo(S*.34,S*.3);g.lineTo(S*.46,S*.4);g.stroke();
   g.beginPath();g.ellipse(S*.5,S*.62,S*.12,S*.22,-.62,Math.PI*.9,Math.PI*1.4);g.stroke()}),
+ neko:geoArt((g,S)=>{g.beginPath();g.moveTo(S*.2,S*.42);g.lineTo(S*.24,S*.12);g.lineTo(S*.42,S*.3);   // ねこの顔：耳・輪郭・目・ひげ
+  g.quadraticCurveTo(S*.5,S*.27,S*.58,S*.3);g.lineTo(S*.76,S*.12);g.lineTo(S*.8,S*.42);
+  g.quadraticCurveTo(S*.88,S*.86,S*.5,S*.88);g.quadraticCurveTo(S*.12,S*.86,S*.2,S*.42);g.stroke();
+  g.beginPath();g.arc(S*.38,S*.55,S*.04,0,Math.PI*2);g.stroke();g.beginPath();g.arc(S*.62,S*.55,S*.04,0,Math.PI*2);g.stroke();
+  g.beginPath();g.moveTo(S*.46,S*.68);g.lineTo(S*.5,S*.72);g.lineTo(S*.54,S*.68);
+  for(const d of [-1,1]){g.moveTo(S*(.5+d*.14),S*.7);g.lineTo(S*(.5+d*.4),S*.64);g.moveTo(S*(.5+d*.14),S*.74);g.lineTo(S*(.5+d*.4),S*.78)}g.stroke()}),
  unko:geoArt((g,S)=>{g.beginPath();g.moveTo(S*.12,S*.86);g.lineTo(S*.88,S*.86);                  // とぐろ3段と先っぽ
   g.ellipse(S*.5,S*.78,S*.38,S*.1,0,0,Math.PI,true);g.stroke();
   g.beginPath();g.ellipse(S*.5,S*.62,S*.3,S*.12,0,Math.PI*.05,Math.PI*.95,true);g.stroke();
@@ -181,7 +201,7 @@ function sightPoint(){return{x:ship.x,y:ship.y-SIGHT_AHEAD}}
 // 地上攻撃モード：ボタンを押している間と、撃った地上弾が着弾するまで。照準が 横／縦 の長さになる。
 // それ以外の時の照準は1マス。
 function groundMode(){return groundHeld||!!bomb||!!pendBomb}
-function sightDir(){return grab?null:groundHeld?aim:pendBomb?pendBomb.dir:bomb?bomb.dir:null}
+function sightDir(){return null}                 // 照準はいつも1マス（ゼビウスと同じ。横・縦に伸ばすのはやめた）
 function sightRect(){const p=sightPoint(),d=sightDir();return d?blastRect(p.x,p.y,d):{x:p.x-CELL/2,y:p.y-CELL/2,w:CELL,h:CELL}}
 function boardAt(px,py){                       // 照準の下の板とマス
  for(const o of ground){
@@ -209,9 +229,9 @@ function endGrab(){
 function fireBomb(){
  if(bomb||!ship.alive)return;
  const p=sightPoint();
- bomb={sx:ship.x,sy:ship.y,tx:p.x,ty:p.y,t:0,dir:aim,n:power};   // 撃った時の向きと長さで当たる
+ bomb={sx:ship.x,sy:ship.y,tx:p.x,ty:p.y,t:0,dir:'h',n:1};      // 当たるのは照準の1マス
  // 狙った地上物があれば、着弾点はそれに付いていく（止まっている物にも流れている物にも当たる）
- const hit=boardAt(p.x,p.y),r=blastRect(p.x,p.y,aim);
+ const hit=boardAt(p.x,p.y),r=blastRect(p.x,p.y,'h',1);
  const f=hit?hit.o:ground.find(o=>o.kind!=='puz'&&!o.dead&&inBlast(o,r))||(boss&&!boss.dead&&bossHit(p.x,p.y,0)?boss:null);
  if(f){bomb.f=f;bomb.ox=p.x-f.x;bomb.oy=p.y-f.y}
  play('launch',1.5,.45)}
@@ -408,6 +428,13 @@ const PART={
  oppaiL:{name:'おちち',pow:70,hp:10,r:24*Z,u:2,reflect:true},
  chin:{name:'ちんちん',pow:50,hp:5,r:15*Z,u:1,crush:true},
  chinL:{name:'おちんちん',pow:110,hp:9,r:22*Z,u:2,crush:true},
+ dog:{name:'いぬ',pow:40,hp:6,r:15*Z,u:1,say:'キャー！'},
+ cat:{name:'ねこ',pow:25,hp:4,r:14*Z,u:1,stink:30*Z,say:'ひえー！'},
+ suika:{name:'すいか',pow:60,hp:10,r:22*Z,u:2,reflect:true},
+ ringo:{name:'りんご',pow:30,hp:6,r:15*Z,u:1,reflect:true},
+ sakana:{name:'さかな',pow:50,hp:5,r:15*Z,u:1,crush:true},
+ onigiri:{name:'おにぎり',pow:110,hp:9,r:22*Z,u:2,crush:true},
+ bigneko:{name:'デカねこ',pow:160,hp:14,r:42*Z,u:3,stink:20*Z,say:'ニャー！？'},
  bigunko:{name:'デカうんこ',pow:160,hp:14,r:42*Z,u:3,stink:20*Z},
  bignasu:{name:'デカナス',pow:120,hp:16,r:40*Z,u:3,crush:true}};
 const HOLD_MAX=3;                                     // 照準に付けられる量（デカいのは3つぶん）
@@ -436,11 +463,11 @@ function updateParts(dt){
  if(ship.alive)for(let i=0;i<ship.opts.length;i++){const o=ship.opts[i],p=optPos(i),P=partOf(o),r=P.r;
   if(o.hitT>0)o.hitT-=dt;
   for(const b of ebul)if(!b.dead&&Math.hypot(b.x-p.x,b.y-p.y)<r+4){b.dead=true;o.hp--;o.hitT=.15;burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.4);
-   if(P.reflect){missiles.push({x:b.x,y:b.y-6,vy:-340,t:0,part:'refl',pow:3,mult:1,r:6,refl:true});pop(b.x,b.y-10,'ボヨン','#ffd0e0',12)}}
+   if(P.reflect){missiles.push({x:b.x,y:b.y-6,vy:-340,t:0,part:'refl',pow:3,mult:1,r:6,refl:true});pop(b.x,b.y-10,mode==='unchi'?'ボヨン':'ポン','#ffd0e0',12)}}
   for(const e of air){if(e.dead||e.panic||e.alpha<.5)continue;
    const d=Math.hypot(e.x-p.x,e.y-p.y),touch=d<e.size*.4+r;
    if(P.crush&&touch&&e.hp!==Infinity){killAir(e);o.hp--;o.hitT=.15;continue}
-   if(touch||(P.stink&&d<e.size*.4+r+P.stink)){panic(e,p,o.big,P.reflect?'ボヨーン！':null);if(touch){o.hp--;o.hitT=.15}}}
+   if(touch||(P.stink&&d<e.size*.4+r+P.stink)){panic(e,p,o.big,P.say||(P.reflect?(mode==='unchi'?'ボヨーン！':'ポーン！'):null));if(touch){o.hp--;o.hitT=.15}}}
   if(o.hp<=0){o.dead=true;boom(p.x,p.y,o.big?3:1.6);play('boom_s',1.4)}}
  ship.opts=ship.opts.filter(o=>!o.dead);
  ebul=ebul.filter(b=>!b.dead);
@@ -469,7 +496,7 @@ function startBoss(){
  const hp=Math.round(700*(1+(area-1)*.35));
  boss={x:W/2,y:-90,ty:150,w:240,h:126,hp,max:hp,t:0,flash:0,dead:false,deadT:0,
   turrets:[[-88,-34],[88,-34],[-88,34],[88,34]].map(([dx,dy])=>({dx,dy,hp:1,cd:2+Math.random()*2,warn:0}))};
- message('WARNING　地を這う要塞。うんこを撃ち込め',3.5);play('warn');
+ message('WARNING　地を這う要塞。出てきた物を撃ち込め',3.5);play('warn');
  }
 function bossHit(x,y,r){const b=boss;return Math.abs(x-b.x)<b.w/2+r-10&&Math.abs(y-b.y)<b.h/2+r-10}
 function bossDamage(d,x,y,big){
@@ -543,8 +570,31 @@ function drawZou(x,y,s){                            // ちんちん：ぞうさ�
  ctx.strokeStyle='#1a140e';ctx.lineWidth=s*.34;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+s*.05,y+s*.6,x+s*.4,y+s*.7);ctx.stroke();
  ctx.strokeStyle='#f0c8b4';ctx.lineWidth=s*.22;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+s*.05,y+s*.6,x+s*.4,y+s*.7);ctx.stroke();ctx.lineCap='butt';
  ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.26,y-s*.36,s*.12,s*.14);ctx.fillRect(x+s*.14,y-s*.36,s*.12,s*.14)}
+function drawNormalIcon(p,x,y,s){                  // ノーマルモードの物
+ const ring=(r,col)=>{ctx.fillStyle='#1a140e';ctx.beginPath();ctx.arc(x,y,r+s*.1,0,Math.PI*2);ctx.fill();ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill()};
+ const eyes=(dy=0)=>{ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.3,y-s*.12+dy,s*.14,s*.18);ctx.fillRect(x+s*.16,y-s*.12+dy,s*.14,s*.18)};
+ if(p==='dog'){for(const d of [-1,1]){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(x+d*s*.62,y,s*.26,s*.5,d*.3,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#7a5030';ctx.beginPath();ctx.ellipse(x+d*s*.62,y,s*.18,s*.42,d*.3,0,Math.PI*2);ctx.fill()}
+  ring(s*.6,'#d8a060');eyes();ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(x,y+s*.22,s*.14,s*.1,0,0,Math.PI*2);ctx.fill();return}
+ if(p==='cat'||p==='neko'){for(const d of [-1,1]){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x+d*s*.62,y-s*.2);ctx.lineTo(x+d*s*.5,y-s*.85);ctx.lineTo(x+d*s*.1,y-s*.5);ctx.fill()}
+  ring(s*.6,'#f0a050');eyes();ctx.strokeStyle='#1a140e';ctx.lineWidth=Math.max(1,s*.06);ctx.beginPath();
+  for(const d of [-1,1]){ctx.moveTo(x+d*s*.2,y+s*.18);ctx.lineTo(x+d*s*.7,y+s*.1);ctx.moveTo(x+d*s*.2,y+s*.24);ctx.lineTo(x+d*s*.7,y+s*.3)}ctx.stroke();return}
+ if(p==='suika'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.arc(x,y-s*.2,s*.86,0,Math.PI);ctx.fill();
+  ctx.fillStyle='#3a9a3a';ctx.beginPath();ctx.arc(x,y-s*.2,s*.78,0,Math.PI);ctx.fill();ctx.fillStyle='#e8404a';ctx.beginPath();ctx.arc(x,y-s*.2,s*.64,0,Math.PI);ctx.fill();
+  ctx.fillStyle='#1a140e';for(const d of [-.35,0,.35])ctx.fillRect(x+d*s-s*.04,y+s*.05,s*.08,s*.12);return}
+ if(p==='ringo'){ring(s*.6,'#d83a3a');ctx.fillStyle='#5a3a1a';ctx.fillRect(x-s*.05,y-s*.95,s*.1,s*.35);
+  ctx.fillStyle='#4aa83a';ctx.beginPath();ctx.ellipse(x+s*.22,y-s*.78,s*.2,s*.1,-.4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff99';ctx.fillRect(x-s*.32,y-s*.3,s*.14,s*.14);return}
+ if(p==='sakana'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.ellipse(x-s*.1,y,s*.72,s*.42,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(x+s*.5,y);ctx.lineTo(x+s*1.05,y-s*.4);ctx.lineTo(x+s*1.05,y+s*.4);ctx.fill();
+  ctx.fillStyle='#5aa0e8';ctx.beginPath();ctx.ellipse(x-s*.1,y,s*.62,s*.33,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(x+s*.5,y);ctx.lineTo(x+s*.95,y-s*.3);ctx.lineTo(x+s*.95,y+s*.3);ctx.fill();
+  ctx.fillStyle='#fff';ctx.fillRect(x-s*.55,y-s*.15,s*.18,s*.18);ctx.fillStyle='#1a140e';ctx.fillRect(x-s*.5,y-s*.1,s*.08,s*.08);return}
+ if(p==='onigiri'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x,y-s*.85);ctx.lineTo(x+s*.85,y+s*.6);ctx.lineTo(x-s*.85,y+s*.6);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#fffaf0';ctx.beginPath();ctx.moveTo(x,y-s*.7);ctx.lineTo(x+s*.72,y+s*.52);ctx.lineTo(x-s*.72,y+s*.52);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#1a2a1a';ctx.fillRect(x-s*.3,y+s*.05,s*.6,s*.47);return}}
 function drawPartIcon(o,x,y,k=1){
  if(o.part==='refl'){ctx.fillStyle='#ffd0e0';ctx.fillRect(x-3,y-3,6,6);return}
+ if(['dog','cat','suika','ringo','sakana','onigiri','neko'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:(o.part==='suika'||o.part==='onigiri'?20:14))*k);return}
  k*=Z;
  if(o.part==='oppai'||o.part==='oppaiL'){drawOppai(x,y,(o.part==='oppaiL'?20:13)*k);return}
  if(o.part==='chin'||o.part==='chinL'){drawZou(x,y,(o.part==='chinL'?20:13)*k);return}
@@ -611,18 +661,18 @@ function areaScript(){
  G(53.5,()=>ringWave(1,6,{shooters:late?[2,5]:[]}));
  G(56.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
  // ---- 地上（大きな文字盤は同時に2枚まで） ----
- G(5.5,()=>spawnGround('word',W/2,{stopY:200,hold:12,arg:'うんこ'}));           // ことば（横か縦の1列）
+ G(5.5,()=>spawnGround('word',W/2,{stopY:200,hold:12,arg:0}));           // ことば（横か縦の1列）
  G(9.0,()=>spawnLine('pyramid',110,130,3,'h'));                                  // けす：横に3つ
- G(11.0,()=>spawnGround('word',350,{stopY:260,hold:11,arg:'ちち'}));
+ G(11.0,()=>spawnGround('word',350,{stopY:260,hold:11,arg:1}));
  G(15.0,()=>spawnLine('turret',W/2,120,2,'h'));                                  // けす：撃ってくる
  G(19.0,()=>spawnGround('grid',W/2,{stopY:200,hold:14}));                         // 5×3：何を作る？ 連鎖でコンボ
  G(24.0,()=>spawnLine('pyramid',W/2,420,4,'h',7));
- G(30.5,()=>{spawnGround('pic',120,{stopY:200,hold:13,arg:'nasu'});spawnGround('tower',350,{stopY:140})});   // ピースそろえ：ナス
+ G(30.5,()=>{spawnGround('pic',120,{stopY:200,hold:13,arg:0});spawnGround('tower',350,{stopY:140})});   // ピースそろえ：ナス
  G(34.0,()=>spawnLine('turret',W/2,420,3,'h'));
- G(37.0,()=>spawnGround('word',330,{stopY:200,hold:11,arg:'ちんちん'}));
+ G(37.0,()=>spawnGround('word',330,{stopY:200,hold:11,arg:2}));
  G(43.0,()=>spawnLine('turret',70,120,3,'v'));
- G(46.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:'unko'}));             // ピースそろえ：うんこ
- G(52.0,()=>{spawnGround('word',110,{stopY:200,hold:10,arg:'おちち'});spawnLine('pyramid',340,420,3,'h')});
+ G(46.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:1}));             // ピースそろえ：2つ目の地上絵
+ G(52.0,()=>{spawnGround('word',110,{stopY:200,hold:10,arg:3});spawnLine('pyramid',340,420,3,'h')});
  G(57.0,()=>spawnLine('turret',W/2,130,3,'h',6));
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
@@ -645,7 +695,7 @@ function message(s,secs=2.2){$('hint').textContent=s;messageUntil=time+secs}
 function ui(){
  $('score').textContent='SCORE '+score;
  $('lives').textContent='残機 '+'▲'.repeat(Math.max(0,lives));
- $('power').textContent='BLASTER '+power}
+ $('power').textContent=MODES[mode].name}
 
 // ---- 流れ -------------------------------------------------------------------
 function reset(){if(ship)ship.opts=[];score=0;lives=LIVES;power=2;area=1;diff=1;startArea()}
@@ -728,9 +778,7 @@ function update(dt){
 
  for(const c of caps){c.t+=dt;c.y+=SPD*dt;
   if(ship.alive&&Math.hypot(c.x-ship.x,c.y-ship.y)<30){c.got=true;
-   if(power<4){power++;popBig(c.x,c.y-20,'BLASTER '+power+'マス','#8fe0ff',22);play('sq3');
-    message('パワーアップ！ 照準が'+power+'マスになった（当てた範囲を順繰りに回す）',2.6)}
-   else{score+=2000;pop(c.x,c.y-16,'+2000','#c8e6a0')}ui()}}
+   score+=2000;popBig(c.x,c.y-20,'+2000','#8fe0ff',20);play('sq3');ui()}}   // 照準は伸ばさないので、カプセルは点数
  caps=caps.filter(c=>!c.got&&c.y<H+30);
 
  for(const p of parts){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt}parts=parts.filter(p=>p.life>0);
@@ -739,7 +787,7 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
- if(mouseMode)return'マウス：移動（通常弾は自動）　文字の上で押す＝つかんで動かす／それ以外＝地上弾（左＝横・右＝縦）　2回すばやく＝撃ち出す';
+ if(mouseMode)return'マウス：移動（通常弾は自動）　左右どちらのボタンでも：文字の上ならつかんで動かす／それ以外は地上弾　2回すばやく＝撃ち出す';
  if(usedTouch)return'なぞる＝移動（通常弾は自動）　文字の上で長押し＝つかんでなぞる／それ以外で押して離す＝地上弾　2回すばやく＝撃ち出す';
  return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上ならつかむ（押したまま動かす）／それ以外は地上弾　2回すばやく＝撃ち出す'}
 // ---- 描画 -------------------------------------------------------------------
@@ -815,7 +863,7 @@ function drawCell(o,id,x,y,ok,k=1){
  if(o.type==='pic'){ctx.drawImage(ART[o.pic],(id%3)*CELL,Math.floor(id/3)*CELL,CELL,CELL,x,y,S,S);
   ctx.strokeStyle='#3a2a1a88';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,S-1,S-1);return}
  ctx.font='bold '+Math.round(S*.7)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+2,y+S*.74+2);
- ctx.fillStyle=ok?'#ffffff':LETTER_COL[id]||'#f2d9a4';ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
+ ctx.fillStyle=ok?'#ffffff':letterCol(id);ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
 function sightFrame(x,y,w,h,col,lw){
  ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+3;ctx.strokeRect(x,y,w,h);
  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
@@ -907,7 +955,7 @@ canvas.addEventListener('pointerdown',e=>{
  usedTouch=true;mouseMode=false;audio();
  try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
  const p=point(e);
- const dir=p.x<W/2?'h':'v';                         // 画面の左半分＝横、右半分＝縦
+ const dir='h';                                       // 照準は1マス（向きは無い）
  if(touchMover){touchBtn=e.pointerId;groundDown('t'+e.pointerId,dir);return}   // 動かしている間に別の指：押して離して地上弾
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,moved:false,dir};
  const sp=sightPoint();if(!boardAt(sp.x,sp.y))groundDown('t'+e.pointerId,dir)});   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
@@ -933,8 +981,8 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
 canvas.addEventListener('mousedown',e=>{
  if(phase!=='play'||paused)return;e.preventDefault();audio();mouseMode=true;
  if(document.pointerLockElement!==canvas&&canvas.requestPointerLock)try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(err){}
- if(e.button===0)groundDown('m0','h');               // 左＝横
- if(e.button===2)groundDown('m2','v')});              // 右＝縦
+ if(e.button===0)groundDown('m0','h');               // 左右どちらも同じ（照準の1マスで撃つ・つかむ）
+ if(e.button===2)groundDown('m2','v')});              // 右も同じ
 window.addEventListener('mouseup',e=>{groundUp('m'+e.button,phase==='play'&&!paused)});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // キーボード：通常弾は自動。矢印/WASD＝移動、Z・M・X・N を押して離す＝地上弾
@@ -964,7 +1012,9 @@ $('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');bgmVolume(sound&&!paused&&bgmOn?.3:0)};
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
-$('start').onclick=()=>{audio();goFullscreen();keepAwake();reset()};
+for(const id of ['start','start2']){const el=$(id);el.onclick=()=>{setMode(el.dataset.mode);audio();goFullscreen();keepAwake();reset()}}
+// Enter・Space は前に選んだモードを押す
+if(mode==='unchi'){const a=$('start'),b=$('start2');a.id='start2';b.id='start'}   // 並びはそのまま、Enter で押されるのを入れ替える
 // ---- 設定（スマホでもPCでも：スライダーと −／＋ ボタン） ---------------------
 let cfgPausedByMe=false;
 const fmtCfg=(d,v)=>(d.step<1?v.toFixed(d.step<.1?2:1):String(v))+(d.unit?' '+d.unit:'');
