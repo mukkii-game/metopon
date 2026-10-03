@@ -66,7 +66,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：こいぬ・こねこ・すいか・ごりら・きりん…<br>うんち：うんこ・うんち・ちんこ・おちんちん…<br>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　女の子の絵：画像生成AI（Counterfeit-V2.5）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -727,7 +727,9 @@ function drawCutin(){
  if(!cutin)return;const c=cutin,k=Math.min(1,c.t/.15),out=Math.max(0,(c.t-(c.life-.3))/.3);
  const y=50-(1-k)*30,a=1-out;ctx.globalAlpha=a*.85;ctx.fillStyle='#1a140e';ctx.fillRect(8,y,W-16,84);
  ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=2;ctx.strokeRect(8,y,W-16,84);
- drawGirl(54,y+36,40,Math.floor(c.t*8)%2===0&&c.t<1.6);
+ if(has('girl')){const g=74,gx=16,gy=y+5,bounce=c.t<1.6?Math.abs(Math.sin(c.t*14))*2:0;   // 女の子の絵（AIで作った）
+  ctx.fillStyle='#f6e27a';ctx.fillRect(gx-2,gy-2-bounce,g+4,g+4);ctx.imageSmoothingEnabled=true;ctx.drawImage(IMG.girl,gx,gy-bounce,g,g);ctx.imageSmoothingEnabled=false}
+ else drawGirl(54,y+36,40,Math.floor(c.t*8)%2===0&&c.t<1.6);
  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(98,y+42);ctx.lineTo(112,y+34);ctx.lineTo(112,y+50);ctx.fill();   // 吹き出し
  ctx.fillRect(110,y+10,W-130,64);
  const fs=Math.min(28,Math.floor((W-140)/Math.max(4,[...c.text].length)*1.05));
@@ -1167,7 +1169,7 @@ $('cfgbtn').onclick=()=>{if($('cfg').classList.contains('hidden'))openCfg();else
 $('cfgclose').onclick=closeCfg;
 $('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 // ---- アセット（本編と共用） -------------------------------------------------
-const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
+const IMG={},IMG_NAMES=['items','girl','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
  'boss1','boss2','boss3','boss4','enemy4'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
