@@ -36,11 +36,23 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 #overlay b{color:#f2d9a4}#overlay small{display:inline}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
 .hidden{display:none!important}
+#cfg{position:absolute;inset:0;z-index:5;overflow-y:auto;touch-action:pan-y;background:#1a1109f2;padding:10px 14px 20px}
+#cfg h2{font-size:17px;margin:4px 0 8px;color:#f2d9a4;text-align:center}
+#cfg p{text-align:center;font-size:12px;color:#d9c49a;margin:8px 0}
+.cf{border-bottom:1px solid #4a3620;padding:7px 0}
+.cf .row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.cf .val{color:#8fe0ff;font-weight:bold;font-variant-numeric:tabular-nums;min-width:74px;text-align:right}
+.cf .note{font-size:10.5px;color:#b79b6c}
+.cf .ctl{display:flex;align-items:center;gap:6px;margin-top:4px}
+.cf .ctl button{width:40px;height:36px;padding:0;font-size:18px;flex:0 0 auto;touch-action:manipulation}
+.cf input{flex:1;min-width:0;height:32px;accent-color:#e0a93c;touch-action:pan-x}
+#cfg p button{background:#3a2a17;padding:10px 16px;touch-action:manipulation}
+#cfgclose{background:#e0a93c!important;color:#2a1c0a;font-weight:bold}
 #ios{font-size:11px;color:#e0a93c;text-align:center}
 #hint{font-size:11.5px;min-height:32px;color:#d4bd8e;text-align:center;line-height:1.45}
 </style></head><body><main>
 <header><div><h1>XEMETOUS</h1><small>AREA SHOOTER ・ 第1段（ボス戦は次）</small></div>
-<div id="top"><button id="sound">音 ON</button><button id="bgm">BGM OFF</button><button id="full">全画面</button><button id="pause">停止</button></div></header>
+<div id="top"><button id="sound">音 ON</button><button id="bgm">BGM OFF</button><button id="full">全画面</button><button id="pause">停止</button><button id="cfgbtn">設定</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="power">BLASTER 2</span><span id="lives">残機 ▲▲▲</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo.jpg" alt="XEMETOUS">
@@ -56,7 +68,10 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 <button id="start">あそぶ</button><p><small>Enter・Space・N・M でも始められる</small></p>
 <p><button id="aimmode" style="background:#3a2a17;color:#f2d9a4;font-weight:normal;padding:8px 14px;font-size:12px">照準の向き：移動の向き</button><br>
 <small>移動の向き＝横に動くと横、縦に動くと縦（斜めは変わらない）<br>移動と直交＝横に動くと縦、縦に動くと横<br>手動＝右下ボタン／右クリック／X だけ（プレイ中は V キーで切替）</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div>
+<div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
+<p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
+<p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
 <div id="ios" class="hidden"></div>
 <div id="hint">空の敵は通常弾、地上は地上弾</div>
 </main><script>
@@ -64,15 +79,28 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 // ---- 状態 -------------------------------------------------------------------
 const W=440,H=680,KINDS=5,NASU=4;
 const CELL=34;                  // 地上パズルの1マス
-const SPD=42;                   // 地面が流れる速さ（px/秒）
-const SIGHT_AHEAD=118;          // 照準は自機のこれだけ前（ゼビウスのブラスター）
-const BOMB_T=.55;               // 地上弾が落ちるまでの秒数
+// 調整できる数値は CFG にまとめ、「設定」画面から変えられる（端末に残る）
+const CFG_DEF=[
+ {k:'shipSpeed',name:'自機の速さ',def:1.5,min:.5,max:3,step:.1,unit:'倍',note:'タッチ・マウス・キーすべての移動量にかかる'},
+ {k:'touchSens',name:'タッチ感度',def:1.3,min:.5,max:3,step:.1,unit:'倍',note:'指を動かした量×これ'},
+ {k:'mouseSens',name:'マウス感度',def:1.2,min:.3,max:3,step:.1,unit:'倍',note:'マウスを動かした量×これ'},
+ {k:'keySpeed',name:'キー移動の速さ',def:300,min:100,max:600,step:10,unit:'px/秒',note:'矢印・WASD'},
+ {k:'follow',name:'自機の追従',def:16,min:4,max:40,step:1,unit:'',note:'大きいほど操作にぴったり付いてくる'},
+ {k:'sightAhead',name:'照準の距離',def:118,min:70,max:200,step:2,unit:'px',note:'自機から照準まで'},
+ {k:'shotMax',name:'空中弾の数',def:3,min:1,max:8,step:1,unit:'発',note:'画面に出せる数'},
+ {k:'bombT',name:'地上弾が落ちる時間',def:.55,min:.2,max:1.2,step:.05,unit:'秒',note:''},
+ {k:'scroll',name:'スクロールの速さ',def:42,min:20,max:90,step:2,unit:'px/秒',note:'地面が流れる速さ'}];
+const CFG={};
+for(const d of CFG_DEF)CFG[d.k]=d.def;
+try{const o=JSON.parse(localStorage.getItem('xemetous_cfg')||'{}');
+ for(const d of CFG_DEF)if(typeof o[d.k]==='number'&&isFinite(o[d.k]))CFG[d.k]=Math.min(d.max,Math.max(d.min,o[d.k]))}catch(e){}
+let SPD,SIGHT_AHEAD,BOMB_T,SHOT_MAX,TOUCH_SENS,MOUSE_SENS;
+function applyCfg(){SPD=CFG.scroll;SIGHT_AHEAD=CFG.sightAhead;BOMB_T=CFG.bombT;SHOT_MAX=CFG.shotMax;
+ TOUCH_SENS=CFG.touchSens*CFG.shipSpeed;MOUSE_SENS=CFG.mouseSens*CFG.shipSpeed}
+applyCfg();
 const LONG_T=.28;               // これより長く押すと「長押し」＝離した時に発射。短ければタップ＝縦横切り替え
 const SHOT_RATE=.11;            // 通常弾の最短の間隔
-const SHOT_MAX=3;               // 空中弾は画面に3つまで（ゼビウスのように。近い敵ほど速く撃てる）
 const TAP_T=.25,TAP_MOVE=12;     // タッチ：これより短く・動かさずに離したら「タップ」＝地上弾
-const TOUCH_SENS=1.3;           // タッチ：指を動かした量×これだけ自機が動く（相対移動）
-const MOUSE_SENS=1.2;           // マウス：動かした量×これ
 const LIVES=3;
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
@@ -327,10 +355,10 @@ function update(dt){
  if(ship.alive){
   const kx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0),
         ky=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
-  if(kx||ky){const n=kx&&ky?Math.SQRT1_2:1;ship.tx+=kx*300*n*dt;ship.ty+=ky*300*n*dt}
+  if(kx||ky){const n=kx&&ky?Math.SQRT1_2:1;const v=CFG.keySpeed*CFG.shipSpeed*n*dt;ship.tx+=kx*v;ship.ty+=ky*v}
   ship.tx=clamp(ship.tx,18,W-18);ship.ty=clamp(ship.ty,SIGHT_AHEAD+40,H-24);
   const px=ship.x,py=ship.y;
-  ship.x+=(ship.tx-ship.x)*Math.min(1,dt*16);ship.y+=(ship.ty-ship.y)*Math.min(1,dt*16);
+  const f=Math.min(1,dt*CFG.follow);ship.x+=(ship.tx-ship.x)*f;ship.y+=(ship.ty-ship.y)*f;
   if(dt>0)autoAim((ship.x-px)/dt,(ship.y-py)/dt,dt);
   ship.inv=Math.max(0,ship.inv-dt)}
  else{ship.deadT+=dt;
@@ -577,6 +605,9 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // キーボード：通常弾は自動。矢印/WASD＝移動、Z・M＝地上弾を発射、X・N＝照準の縦横を切り替え
 window.addEventListener('keydown',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;
+ if(!$('cfg').classList.contains('hidden')){                 // 設定を開いている間はゲームに渡さない
+  if(k==='c'||k==='Escape'){e.preventDefault();closeCfg()}return}
+ if(k==='c'&&!e.repeat){e.preventDefault();openCfg();return}
  if(!$('overlay').classList.contains('hidden')&&['Enter',' ','n','m','z','x'].includes(k)){
   e.preventDefault();if(!e.repeat&&$('start'))$('start').click();return}
  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','n','m','z','x'].includes(k))e.preventDefault();
@@ -599,6 +630,33 @@ $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
 $('start').onclick=()=>{audio();goFullscreen();keepAwake();reset()};
+// ---- 設定（スマホでもPCでも：スライダーと −／＋ ボタン） ---------------------
+let cfgPausedByMe=false;
+const fmtCfg=(d,v)=>(d.step<1?v.toFixed(d.step<.1?2:1):String(v))+(d.unit?' '+d.unit:'');
+function saveCfg(){try{localStorage.setItem('xemetous_cfg',JSON.stringify(CFG))}catch(e){}}
+function setCfg(d,v){v=Math.round(Math.min(d.max,Math.max(d.min,v))/d.step)*d.step;v=+v.toFixed(3);
+ CFG[d.k]=v;applyCfg();saveCfg();const el=document.querySelector('[data-k="'+d.k+'"]');
+ if(el){el.querySelector('input').value=v;el.querySelector('.val').textContent=fmtCfg(d,v)}}
+function buildCfg(){const box=$('cfglist');box.innerHTML='';
+ for(const d of CFG_DEF){const el=document.createElement('div');el.className='cf';el.dataset.k=d.k;
+  el.innerHTML='<div class="row"><span>'+d.name+(d.def!==undefined?' <small style="display:inline">（初期 '+fmtCfg(d,d.def)+'）</small>':'')+
+   '</span><span class="val"></span></div><div class="ctl"><button class="dn">−</button>'+
+   '<input type="range" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'"><button class="up">＋</button></div>'+
+   (d.note?'<div class="note">'+d.note+'</div>':'');
+  box.appendChild(el);
+  el.querySelector('input').addEventListener('input',e=>setCfg(d,+e.target.value));
+  el.querySelector('.dn').onclick=()=>setCfg(d,CFG[d.k]-d.step);
+  el.querySelector('.up').onclick=()=>setCfg(d,CFG[d.k]+d.step);
+  setCfg(d,CFG[d.k])}}
+function openCfg(){if(!$('cfg').classList.contains('hidden'))return;
+ cfgPausedByMe=phase==='play'&&!paused;if(cfgPausedByMe)togglePause();else unlockMouse();
+ keys.clear();$('cfg').classList.remove('hidden')}
+function closeCfg(){$('cfg').classList.add('hidden');if(document.activeElement)document.activeElement.blur();
+ if(cfgPausedByMe&&paused)togglePause();cfgPausedByMe=false}
+buildCfg();
+$('cfgbtn').onclick=()=>{if($('cfg').classList.contains('hidden'))openCfg();else closeCfg()};
+$('cfgclose').onclick=closeCfg;
+$('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 if($('aimmode')){$('aimmode').textContent='照準の向き：'+AIM_MODE_NAME[aimMode];$('aimmode').onclick=cycleAimMode}
 // ---- アセット（本編と共用） -------------------------------------------------
 const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
@@ -676,7 +734,7 @@ document.addEventListener('dblclick',e=>e.preventDefault());
 for(const ev of ['gesturestart','gesturechange','gestureend'])
  document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
 document.addEventListener('touchmove',e=>{
- if(e.target&&e.target.closest&&e.target.closest('#overlay'))return;
+ if(e.target&&e.target.closest&&e.target.closest('#overlay,#cfg'))return;
  if(e.cancelable)e.preventDefault()},{passive:false});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake()});
 if($('ios')&&isIOS&&!isStandalone&&!canFullscreen){
