@@ -66,7 +66,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：こいぬ・こねこ・すいか・ごりら・きりん…<br>うんち：うんこ・うんち・ちんこ・おちんちん…<br>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ</div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -518,6 +518,7 @@ function launchParts(){
 //  ・地上弾を中央のコアに当てると少しダメージ、四隅の砲台は地上弾で壊せる
 //  ・戦っている間、下の方に地上パズルがせり上がってくる → そろえてパーツにして撃ち込む
 function startBoss(){
+ setBgm('boss');
  const hp=Math.round(700*(1+(area-1)*.35));
  boss={x:W/2,y:-90,ty:150,w:240,h:126,hp,max:hp,t:0,flash:0,dead:false,deadT:0,
   turrets:[[-88,-34],[88,-34],[-88,34],[88,34]].map(([dx,dy])=>({dx,dy,hp:1,cd:2+Math.random()*2,warn:0}))};
@@ -630,7 +631,16 @@ function drawNormalIcon(p,x,y,s){                  // ノーマルモードの�
  if(p==='onigiri'){ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x,y-s*.85);ctx.lineTo(x+s*.85,y+s*.6);ctx.lineTo(x-s*.85,y+s*.6);ctx.closePath();ctx.fill();
   ctx.fillStyle='#fffaf0';ctx.beginPath();ctx.moveTo(x,y-s*.7);ctx.lineTo(x+s*.72,y+s*.52);ctx.lineTo(x-s*.72,y+s*.52);ctx.closePath();ctx.fill();
   ctx.fillStyle='#1a2a1a';ctx.fillRect(x-s*.3,y+s*.05,s*.6,s*.47);return}}
+// 出てくる物の絵：Twemoji（CC-BY 4.0）を assets/img/items.png に並べたもの。無い時はコードで描いた絵
+const ITEM_IDX={dog:0,cat:1,neko:1,suika:2,ringo:3,sakana:4,onigiri:5,gorira:6,kirin:7,iruka:8,ouchi:9,unko:10,unchi:10,nasu:11,chin:12,chinL:12};
 function drawPartIcon(o,x,y,k=1){
+ const ix=ITEM_IDX[o.part];
+ if(ix!==undefined&&has('items')){const d=(o.big?100:19)*k*Z*(o.part==='chinL'?1.12:1);   // 小さい物はパネルにほぼいっぱい
+  ctx.globalAlpha*=.35;ctx.drawImage(IMG.items,ix*96,0,96,96,Math.round(x-d/2+3),Math.round(y-d/2+4),d,d);ctx.globalAlpha/=.35;   // 影
+  ctx.drawImage(IMG.items,ix*96,0,96,96,Math.round(x-d/2),Math.round(y-d/2),d,d);
+  if(o.part==='unchi'){ctx.strokeStyle='#a8e07acc';ctx.lineWidth=2;                // うんちは臭いの線
+   for(let i=-1;i<=1;i++){const bx=x+i*d*.25,ph=time*6+i;ctx.beginPath();for(let j=0;j<5;j++)ctx.lineTo(bx+Math.sin(ph+j)*3,y-d*.5-j*4);ctx.stroke()}}
+  return}
  if(o.part==='refl'){ctx.fillStyle='#ffd0e0';ctx.fillRect(x-3,y-3,6,6);return}
  if(['dog','cat','suika','ringo','sakana','onigiri','neko','gorira','kirin','iruka','ouchi'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:14)*k);return}
  k*=Z;
@@ -779,6 +789,7 @@ function areaScript(){
  return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm/diff**.15,f])}   // 時刻順に（書いた順に依らない）
 function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLock()}catch(e){}}
 function areaClear(){
+ setBgm('title');
  phase='clear';unlockMouse();bgmVolume(.12);
  overlay('AREA '+area+' クリア！',
   'SCORE <b>'+score+'</b>　残機 <b>'+lives+'</b>　BLASTER <b>'+power+'マス</b>',
@@ -800,6 +811,7 @@ function ui(){
 // ---- 流れ -------------------------------------------------------------------
 function reset(){if(ship)ship.opts=[];score=0;lives=LIVES;power=2;area=1;diff=1;startArea()}
 function startArea(){
+ setBgm('stage');
  ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:2,deadT:0,opts:ship&&ship.opts||[]};   // くっつけたパーツは次のエリアへ持ち越す
  items=[];missiles=[];boss=null;
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
@@ -813,6 +825,7 @@ function loseLife(){
  boom(ship.x,ship.y,4);burst(ship.x,ship.y,36,'#ffffff');play('bossdown',1.3);shake=18;flash=.4;
  ui()}
 function gameOver(){
+ setBgm('title');
  phase='over';unlockMouse();bgmVolume(.12);
  overlay('GAME OVER','AREA <b>'+area+'</b> まで　SCORE <b>'+score+'</b>','','もう一度',()=>{reset()})}
 function overlay(title,sub,lines,btn,fn){
@@ -1153,7 +1166,7 @@ $('cfgbtn').onclick=()=>{if($('cfg').classList.contains('hidden'))openCfg();else
 $('cfgclose').onclick=closeCfg;
 $('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 // ---- アセット（本編と共用） -------------------------------------------------
-const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
+const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
  'boss1','boss2','boss3','boss4','enemy4'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
@@ -1165,16 +1178,27 @@ const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'
  move:[1040,.02,'square'],start:[660,.3,'triangle'],warn:[740,.4,'square'],bossdown:[80,.5,'square'],
  pickup:[880,.1,'square'],launch:[1200,.3,'square'],charge:[1200,.05,'square']};
 let ac,sound=true,sfxLoaded=false;
-function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;for(const n of SFX_NAMES)
- fetch('../assets/sfx/'+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
-  .then(b=>{SFX[n]=b;if(n==='bgm'&&phase==='play')startBgm()}).catch(()=>{})}
+// 効果音は魔王魂（ファミコン風効果音）から選んだもの（assets/sfx_maou）。無い名前は前の合成音（assets/sfx）
+const MAOU_SFX=['shot','hit','boom_s','boom_l','swap','pickup','match','clear','chain','warn','bossdown','launch','deny','start','sq2','sq3'];
+// BGM も魔王魂（8bit・ループ版）。道中＝キャロットマンステージ、ボス＝bravery heart、タイトルなど＝子猫のもんたのクッキー屋さん
+const BGM_FILE={stage:'maou_loop_bgm_8bit27',boss:'maou_loop_bgm_8bit25',title:'maou_loop_bgm_8bit29'};
+let bgmName='stage';
+function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;
+ for(const n of SFX_NAMES){if(n==='bgm')continue;
+  fetch('../assets/'+(MAOU_SFX.includes(n)?'sfx_maou/':'sfx/')+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
+   .then(b=>{SFX[n]=b}).catch(()=>{})}
+ for(const [k,f] of Object.entries(BGM_FILE))
+  fetch('../assets/bgm/'+f+'.mp3').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
+   .then(b=>{SFX['bgm_'+k]=b;if(k===bgmName)startBgm()}).catch(()=>{})}
+function setBgm(name){if(name===bgmName&&bgmSrc)return;bgmName=name;stopBgm();startBgm()}
 // BGM。効果音と同じ仕組みでループ再生する
 let bgmSrc=null,bgmGain=null;
 let bgmOn=false;                                  // BGM はデフォルトで鳴らさない（BGMボタンで切り替え）
 function startBgm(){
- if(!bgmOn||!ac||!SFX.bgm||bgmSrc)return;
- bgmGain=ac.createGain();bgmGain.gain.value=sound?.3:0;
- bgmSrc=ac.createBufferSource();bgmSrc.buffer=SFX.bgm;bgmSrc.loop=true;
+ const buf=SFX['bgm_'+bgmName];
+ if(!bgmOn||!ac||!buf||bgmSrc)return;
+ bgmGain=ac.createGain();bgmGain.gain.value=sound&&!paused?.3:0;
+ bgmSrc=ac.createBufferSource();bgmSrc.buffer=buf;bgmSrc.loop=true;
  bgmSrc.connect(bgmGain);bgmGain.connect(ac.destination);bgmSrc.start()}
 function stopBgm(){if(bgmSrc){try{bgmSrc.stop()}catch(e){}bgmSrc=null;bgmGain=null}}
 function bgmVolume(v){if(bgmGain)bgmGain.gain.value=bgmOn?v:0}
