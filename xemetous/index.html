@@ -60,13 +60,13 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <h2>砂漠を飛び、地上をそろえて撃ち抜け。</h2>
 <p><b>空の敵は通常弾</b>。<b>地上は地上弾</b>。<br>敵の弾に当たるとやられる（残機3）。</p>
 <p>地上には<b>そろえる物</b>と<b>けす物</b>がある。<br><b>ことば</b>（うんこ・なすび・たまご）や<b>地上絵の欠片</b>は、地上弾で並びを回して正しくそろえる。<br>横や縦に並んだ<b>砲台・ピラミッド</b>は、照準の範囲で<b>まとめて壊す</b>と得。</p>
-<p><b>空中弾は自動</b>（画面に3発まで）。地上弾は<b>押して、離して発射</b>（マウスは左ボタン、タッチは動かさずに押して離す、キーは Z・M）。<br>照準の<b>横／縦は1秒ごとに勝手に切り替わる</b>。<b>押している間は止まる</b>。当てた範囲を順繰りに回す。</p>
+<p><b>空中弾は自動</b>（画面に3発まで）。地上弾は<b>押して、離して発射</b>（マウスは<b>左＝横・右＝縦</b>、キーは<b>N＝横・M＝縦</b>、タッチは<b>画面の左半分＝横・右半分＝縦</b>）。<br>ふだんの照準は<b>1マス</b>。地上弾のボタンは<b>横</b>と<b>縦</b>の2つで、押すと照準がその向きに伸び、<b>通常弾が止まる</b>。<br>離すと発射、着弾したら1マスに戻って通常弾が再開。当てた範囲を順繰りに回す。</p>
 <p>そろえると<b>宙に浮かんでパーツ</b>（デカうんこ・ナス・たまご）になる。<b>照準で捕まえる</b>とくっついて<b>バリア</b>。<br>地上弾を<b>2回すばやく押す</b>と発射。ゆっくり飛んで敵を貫く。<b>まとめて撃つほど倍</b>（2個で×2、3個で×3）。<br>エリアの終わりに<b>地を這う要塞</b>。通常弾も効くが、<b>パーツの威力は桁違い</b>。</p>
 <p><b>P の塔</b>を地上弾で壊すとカプセル。取ると照準が <b>3 → 4マス</b>に伸びる。<br>回る板は弾が効かない。避けるしかない。</p>
 <p><small>移動はゼビウスのように<b>動かした方向へ</b>進む（触った場所へ飛ばない）<br>
-タッチ：どこでもなぞって移動、動かさずに押して離すで地上弾（なぞっている時は2本目の指で）、2回すばやくでパーツ発射<br>
-マウス：動かして移動、<b>左ボタンを押して離す＝地上弾</b>、<b>2回すばやく＝パーツ発射</b>（クリックでカーソルを固定、Escで解除）<br>
-キー：矢印/WASD、Z・M・X・N＝地上弾、2回すばやく＝パーツ発射<br>通常弾はどの操作でも自動で出る</small></p>
+タッチ：どこでもなぞって移動、動かさずに押して離すで地上弾（左半分＝横・右半分＝縦。なぞっている時は2本目の指で）、2回すばやくでパーツ発射<br>
+マウス：動かして移動、<b>左ボタン＝横・右ボタン＝縦の地上弾</b>（押して離す）、<b>2回すばやく＝パーツ発射</b>（クリックでカーソルを固定、Escで解除）<br>
+キー：矢印/WASD、N（Z）＝横・M（X）＝縦の地上弾、2回すばやく＝パーツ発射<br>通常弾はどの操作でも自動で出る</small></p>
 <button id="start">あそぶ</button><p><small>Enter・Space・N・M でも始められる</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
@@ -89,7 +89,6 @@ const CFG_DEF=[
  {k:'sightAhead',name:'照準の距離',def:118,min:70,max:200,step:2,unit:'px',note:'自機から照準まで'},
  {k:'shotMax',name:'空中弾の数',def:3,min:1,max:8,step:1,unit:'発',note:'画面に出せる数'},
  {k:'bombT',name:'地上弾が落ちる時間',def:.55,min:.2,max:1.2,step:.05,unit:'秒',note:''},
- {k:'aimFlip',name:'照準の縦横が変わる間隔',def:1,min:.4,max:3,step:.1,unit:'秒',note:'地上弾を押している間は止まる'},
  {k:'eFire',name:'敵弾の量',def:1,min:0,max:2,step:.1,unit:'倍',note:'画面に出る敵弾の数と撃つ間隔。0で撃ってこない'},
  {k:'eSpeed',name:'敵弾の速さ',def:150,min:80,max:260,step:10,unit:'px/秒',note:''},
  {k:'scroll',name:'スクロールの速さ',def:42,min:20,max:90,step:2,unit:'px/秒',note:'地面が流れる速さ'}];
@@ -163,6 +162,11 @@ const ART={
   g.beginPath();g.arc(S*.4,S*.66,S*.03,0,Math.PI*2);g.arc(S*.6,S*.66,S*.03,0,Math.PI*2);g.stroke()})};
 // ---- 照準 -------------------------------------------------------------------
 function sightPoint(){return{x:ship.x,y:ship.y-SIGHT_AHEAD}}
+// 地上攻撃モード：ボタンを押している間と、撃った地上弾が着弾するまで。照準が 横／縦 の長さになる。
+// それ以外の時の照準は1マス。
+function groundMode(){return groundHeld||!!bomb||!!pendBomb}
+function sightDir(){return groundHeld?aim:pendBomb?pendBomb.dir:bomb?bomb.dir:null}
+function sightRect(){const p=sightPoint(),d=sightDir();return d?blastRect(p.x,p.y,d):{x:p.x-CELL/2,y:p.y-CELL/2,w:CELL,h:CELL}}
 function sightOn(px,py,dir){                   // その点に重なる地上パズルと、回す範囲
  for(const o of ground){
   if(o.kind!=='puz'||o.done||(o.emerge!==undefined&&o.emerge<1))continue;
@@ -340,7 +344,7 @@ const OPT_MAX=5,OPT_SLOTS=[[0,-38],[-34,-16],[34,-16],[-52,10],[52,10]];
 const partOf=o=>{const P=PART[o.part],k=o.big?1.5:1;return{pow:Math.round(P.pow*k),hp:P.hp+(o.big?3:0),r:Math.round(P.r*(o.big?1.25:1))}};
 function optPos(i){const s=OPT_SLOTS[i];return{x:ship.x+s[0],y:ship.y+s[1]}}
 function updateParts(dt){
- const sp=sightPoint(),sr=blastRect(sp.x,sp.y,aim);
+ const sr=sightRect();
  for(const it of items){it.t+=dt;
   it.y+=(it.t<.6?-40:-22)*dt;                       // ふわっと浮かんで、ゆっくり昇っていく
   if(ship.alive&&it.t>.4&&ship.opts.length<OPT_MAX&&inBlast(it,sr,partOf(it).r)){   // 照準で捕まえる
@@ -547,7 +551,7 @@ function startArea(){
  ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:2,deadT:0,opts:ship&&ship.opts||[]};   // くっつけたパーツは次のエリアへ持ち越す
  items=[];missiles=[];boss=null;
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
- t=0;timers=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';aimT=0;groundHeld=armed=false;groundSrc=null;
+ t=0;timers=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;
  phase='play';$('overlay').classList.add('hidden');
  bgmVolume(sound&&!paused?.3:0);play('start');
  message('AREA '+area+'　空の敵は通常弾、地上は地上弾',3);ui()}
@@ -583,14 +587,13 @@ function update(dt){
   ship.tx=clamp(ship.tx,18,W-18);ship.ty=clamp(ship.ty,SIGHT_AHEAD+40,H-24);
   const px=ship.x,py=ship.y;
   const f=Math.min(1,dt*CFG.follow);ship.x+=(ship.tx-ship.x)*f;ship.y+=(ship.ty-ship.y)*f;
-  updateAimFlip(dt);
   ship.inv=Math.max(0,ship.inv-dt)}
  else{ship.deadT+=dt;
   if(ship.deadT>1.4){if(lives<0){gameOver();return}
    ship.alive=true;ship.inv=2.2;ship.x=ship.tx=W/2;ship.y=ship.ty=H-120}}
 
  // 通常弾：タッチは自動、マウスは左、キーは N/Z を押している間
- const wantShoot=true;                          // 通常弾はいつでも自動で出る
+ const wantShoot=!groundMode();                  // 通常弾は自動。地上攻撃モード（押している間～着弾まで）は止まる
  ship.cd=(ship.cd||0)-dt;
  if(ship.alive&&wantShoot&&ship.cd<=0&&shots.length<SHOT_MAX){ship.cd=SHOT_RATE;
   shots.push({x:ship.x,y:ship.y-14});play('shot',1.3,.2)}   // 1発＝2本並びの弾
@@ -603,6 +606,7 @@ function update(dt){
  shots=shots.filter(s=>!s.dead);
 
  if(groundHeld&&!ship.alive){groundHeld=armed=false;groundSrc=null}
+ if(pendBomb&&t>=pendBomb.at){aim=pendBomb.dir;pendBomb=null;fireBomb()}
  if(bomb){bomb.t+=dt;
   if(bomb.f&&!bomb.f.dead&&!bomb.f.done){bomb.tx=bomb.f.x+bomb.ox;bomb.ty=bomb.f.y+bomb.oy}else bomb.ty+=SPD*dt;   // 狙った物に付いていく／無ければ地面と流れる
   if(bomb.t>=BOMB_T){landBomb(bomb);bomb=null}}
@@ -630,9 +634,9 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
- if(mouseMode)return'マウス：移動（通常弾は自動）　左ボタンを押して離す＝地上弾（押している間は縦横固定）　2回すばやく＝パーツ発射';
- if(usedTouch)return'なぞる＝移動（通常弾は自動）　押して離す＝地上弾（押している間は縦横固定）　2回すばやく＝パーツ発射';
- return'矢印/WASD＝移動（通常弾は自動）　Z・Mを押して離す＝地上弾　2回すばやく＝パーツ発射'}
+ if(mouseMode)return'マウス：移動（通常弾は自動）　左＝横／右＝縦 の地上弾（押して狙い、離して発射）　2回すばやく＝パーツ発射';
+ if(usedTouch)return'なぞる＝移動（通常弾は自動）　左半分＝横／右半分＝縦 の地上弾（押して離す）　2回すばやく＝パーツ発射';
+ return'矢印/WASD＝移動（通常弾は自動）　N＝横／M＝縦 の地上弾（押して離す）　2回すばやく＝パーツ発射'}
 // ---- 描画 -------------------------------------------------------------------
 function glyph(k,x,y,size){
  if(has('glyphs'))ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size)}
@@ -649,7 +653,7 @@ function drawTerrain(){
  for(let i=-1;i<4;i++){const y=((scroll*1)%260)+i*260;
   ctx.beginPath();ctx.moveTo(-10,y);ctx.lineTo(W*.4,y+90);ctx.lineTo(W+10,y+40);ctx.stroke()}}
 function drawGroundObjs(){
- const sp=sightPoint(),sh=ship.alive?sightOn(sp.x,sp.y,aim):null,br=blastRect(sp.x,sp.y,aim);
+ const sp=sightPoint(),sd=sightDir(),sh=ship.alive&&groundHeld?sightOn(sp.x,sp.y,aim):null,br=sightRect();
  for(const o of ground){
   if(o.kind==='puz'){
    const m=puzMatched(o),a=(o.done?Math.max(0,1-o.dieT/.5):1)*(o.emerge!==undefined?o.emerge:1);
@@ -668,7 +672,7 @@ function drawGroundObjs(){
     ctx.fillStyle='#c8a0ff';ctx.fillRect(o.x,o.y+o.h*CELL+4,o.w*CELL*Math.min(1,o.hold/9),3)}
    ctx.globalAlpha=1;continue}
   const x=Math.round(o.x),y=Math.round(o.y);
-  if(ship.alive&&inBlast(o,br)){                 // 照準の範囲に入っている地上の敵：狙っている印
+  if(ship.alive&&sd&&inBlast(o,br)){                 // 照準の範囲に入っている地上の敵：狙っている印
    const k=Math.floor(time*10)%2?'#e2624a':'#ffffff',d=24;ctx.fillStyle=k;
    for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
     ctx.fillRect(x+sx*d-(sx>0?8:0),y+sy*d-(sy>0?2:0),8,2);ctx.fillRect(x+sx*d-(sx>0?2:0),y+sy*d-(sy>0?8:0),2,8)}}
@@ -706,11 +710,9 @@ function drawGroundObjs(){
    if(aim==='h'){ctx.moveTo(ax+4,ay);ctx.lineTo(ax-3,ay-5);ctx.lineTo(ax-3,ay+5)}
    else{ctx.moveTo(ax,ay+4);ctx.lineTo(ax-5,ay-3);ctx.lineTo(ax+5,ay-3)}
    ctx.closePath();ctx.fill()}}
- const w=aim==='h'?power*CELL:CELL,h=aim==='h'?CELL:power*CELL;   // 照準そのもの（固定）
- sightFrame(sp.x-w/2,sp.y-h/2,w,h,col,2);
- {const k=groundHeld?1:aimT/CFG.aimFlip,bx=sp.x-w/2,by=sp.y+h/2+6;   // 次に縦横が変わるまで（押している間は止まる）
-  ctx.fillStyle='#1a140e';ctx.fillRect(bx,by,w,4);ctx.fillStyle=groundHeld?'#f6e27a':'#ffffffaa';ctx.fillRect(bx,by,w*(groundHeld?1:1-k),4);
-  if(groundHeld){ctx.font='bold 9px monospace';ctx.fillStyle='#f6e27a';ctx.fillText('固定',bx+w+4,by+5)}}
+ const sr=sightRect(),w=sr.w,h=sr.h;                 // 照準そのもの：ふだんは1マス、地上攻撃モードは 横／縦
+ sightFrame(sr.x,sr.y,w,h,sd?col:'#ffffffaa',sd?2:1.5);
+ if(sd){ctx.font='bold 10px monospace';ctx.fillStyle=col;ctx.fillText(sd==='h'?'横':'縦',sr.x+w+5,sr.y+10)}
  ctx.fillStyle=col;ctx.fillRect(sp.x-1,sp.y-5,2,10);ctx.fillRect(sp.x-5,sp.y-1,10,2);   // 中心の十字
  ctx.strokeStyle='#ffffff33';ctx.lineWidth=1;ctx.setLineDash([3,5]);
  ctx.beginPath();ctx.moveTo(ship.x,ship.y-16);ctx.lineTo(sp.x,sp.y+h/2);ctx.stroke();ctx.setLineDash([])}
@@ -780,31 +782,31 @@ function draw(){
 // ---- 入力 -------------------------------------------------------------------
 function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
 // 地上弾ボタン：タップ＝照準の縦横を切り替え／長押しして離す＝発射
-// 地上弾：押して、離して発射。押している間は照準の形（横／縦）が変わらない
+// 地上弾のボタンは2つ：横（左クリック／N・Z／タッチは画面の左半分）と 縦（右クリック／M・X／右半分）。
+// 押すと照準がその向きの長さになり（地上攻撃モード。通常弾は止まる）、離すと発射。着弾したら1マスに戻る。
 let groundSrc=null;
 // 2回すばやく押す（前に離してから0.3秒以内にもう一度押す）と、くっついたパーツを発射
-let lastUpT=-9,launchPress=false;
-function groundDown(src){if(groundHeld||!ship.alive)return;groundHeld=armed=true;groundSrc=src;
- if(t-lastUpT<.3&&ship.opts.length){launchParts();launchPress=true;return}
- launchPress=false;play('charge',1.3,.35)}
+// パーツを持っている時だけ、離してから DBL_T 秒は地上弾を待たせる。その間にもう一度押したら
+// 地上弾は出さずにパーツだけを発射する（持っていない時は離した瞬間に撃つ）。
+const DBL_T=.25;
+let lastUpT=-9,launchPress=false,pendBomb=null;
+function groundDown(src,dir){if(groundHeld||!ship.alive)return;groundHeld=armed=true;groundSrc=src;aim=dir;
+ if(ship.opts.length&&(pendBomb||t-lastUpT<DBL_T)){pendBomb=null;launchParts();launchPress=true;return}
+ launchPress=false;play('charge',dir==='h'?1.3:1.1,.35)}
 function groundUp(src,fire=true){if(!groundHeld||src!==groundSrc)return;groundHeld=armed=false;groundSrc=null;
  if(launchPress){launchPress=false;lastUpT=-9;return}
- if(fire){fireBomb();lastUpT=t}}
-// 照準の向き：一定時間ごとに 横 ↔ 縦 が勝手に切り替わる。地上弾を押している間は止まる
-let aimT=0;
-function updateAimFlip(dt){
- if(groundHeld||!ship.alive)return;
- aimT+=dt;if(aimT>=CFG.aimFlip){aimT=0;aim=aim==='h'?'v':'h';play('move',1.6,.2)}}
-function toggleAim(){aim=aim==='h'?'v':'h';play('move',1.4,.5);pop(ship.x,ship.y-SIGHT_AHEAD-26,aim==='h'?'横':'縦','#ffffff',14)}
+ if(!fire)return;
+ if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir:aim};else fireBomb();lastUpT=t}
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
  try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
  const p=point(e);
- if(touchMover){touchBtn=e.pointerId;groundDown('t'+e.pointerId);return}   // 動かしている間に別の指：押して離して地上弾
+ const dir=p.x<W/2?'h':'v';                         // 画面の左半分＝横、右半分＝縦
+ if(touchMover){touchBtn=e.pointerId;groundDown('t'+e.pointerId,dir);return}   // 動かしている間に別の指：押して離して地上弾
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,moved:false};
- groundDown('t'+e.pointerId)});                      // 動かさずに離せば地上弾。動かしたら取り消し
+ groundDown('t'+e.pointerId,dir)});                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
 function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,18,W-18);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-24)}
 canvas.addEventListener('pointermove',e=>{
@@ -827,8 +829,9 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
 canvas.addEventListener('mousedown',e=>{
  if(phase!=='play'||paused)return;e.preventDefault();audio();mouseMode=true;
  if(document.pointerLockElement!==canvas&&canvas.requestPointerLock)try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(err){}
- if(e.button===0)groundDown('m')});
-window.addEventListener('mouseup',e=>{if(e.button===0)groundUp('m',phase==='play'&&!paused)});
+ if(e.button===0)groundDown('m0','h');               // 左＝横
+ if(e.button===2)groundDown('m2','v')});              // 右＝縦
+window.addEventListener('mouseup',e=>{groundUp('m'+e.button,phase==='play'&&!paused)});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // キーボード：通常弾は自動。矢印/WASD＝移動、Z・M・X・N を押して離す＝地上弾
 window.addEventListener('keydown',e=>{
@@ -842,14 +845,15 @@ window.addEventListener('keydown',e=>{
  keys.add(k);
  if(phase!=='play'||paused)return;
  if(e.repeat)return;
- if(k==='z'||k==='m'||k==='x'||k==='n'){audio();groundDown('k'+k)}
+ if(k==='n'||k==='z'){audio();groundDown('k'+k,'h')}
+ if(k==='m'||k==='x'){audio();groundDown('k'+k,'v')}
  });
 window.addEventListener('keyup',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;keys.delete(k);
  groundUp('k'+k,phase==='play'&&!paused)});
 function togglePause(){if(phase!=='play')return;paused=!paused;
  $('pause').textContent=paused?'再開':'停止';bgmVolume(paused||!sound?0:.3);
- if(paused){mouseShoot=keyShoot=false;groundHeld=armed=false;groundSrc=null;touchMover=touchBtn=null;unlockMouse()}}
+ if(paused){mouseShoot=keyShoot=false;groundHeld=armed=false;groundSrc=null;pendBomb=null;touchMover=touchBtn=null;unlockMouse()}}
 window.addEventListener('blur',()=>{if(phase==='play'&&!paused)togglePause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play'&&!paused)togglePause()});
 $('pause').onclick=togglePause;
