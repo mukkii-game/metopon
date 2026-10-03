@@ -54,6 +54,8 @@ canvas{width:100%;height:100%;display:block;touch-action:none;image-rendering:pi
 マウス：動かして移動、<b>左クリック＝地上弾</b>、<b>右クリック＝縦横</b>（クリックでカーソルを固定、Escで解除）<br>
 キー：矢印/WASD、Z・M＝地上弾、X・N＝縦横<br>通常弾はどの操作でも自動で出る</small></p>
 <button id="start">あそぶ</button><p><small>Enter・Space・N・M でも始められる</small></p>
+<p><button id="aimmode" style="background:#3a2a17;color:#f2d9a4;font-weight:normal;padding:8px 14px;font-size:12px">照準の向き：移動の向き</button><br>
+<small>移動の向き＝横に動くと横、縦に動くと縦（斜めは変わらない）<br>移動と直交＝横に動くと縦、縦に動くと横<br>手動＝右下ボタン／右クリック／X だけ（プレイ中は V キーで切替）</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div></div></div></div></div>
 <div id="ios" class="hidden"></div>
 <div id="hint">空の敵は通常弾、地上は地上弾</div>
@@ -327,7 +329,9 @@ function update(dt){
         ky=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
   if(kx||ky){const n=kx&&ky?Math.SQRT1_2:1;ship.tx+=kx*300*n*dt;ship.ty+=ky*300*n*dt}
   ship.tx=clamp(ship.tx,18,W-18);ship.ty=clamp(ship.ty,SIGHT_AHEAD+40,H-24);
+  const px=ship.x,py=ship.y;
   ship.x+=(ship.tx-ship.x)*Math.min(1,dt*16);ship.y+=(ship.ty-ship.y)*Math.min(1,dt*16);
+  if(dt>0)autoAim((ship.x-px)/dt,(ship.y-py)/dt,dt);
   ship.inv=Math.max(0,ship.inv-dt)}
  else{ship.deadT+=dt;
   if(ship.deadT>1.4){if(lives<0){gameOver();return}
@@ -480,7 +484,8 @@ function drawPad(){                               // 右下に固定：照準の
  const fw=aim==='h'?36:14,fh=aim==='h'?14:36;               // いまの向きを枠の形で
  ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.strokeRect(b.x-fw/2,b.y-fh/2-6,fw,fh);
  ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillStyle=on?'#f6e27a':'#ffffffdd';
- ctx.fillText((aim==='h'?'横':'縦')+'　切替',b.x,b.y+27);ctx.textAlign='left'}
+ ctx.fillText((aim==='h'?'横':'縦')+'　切替',b.x,b.y+27);
+ ctx.font='9px monospace';ctx.fillStyle='#b79b6c';ctx.fillText(aimMode==='manual'?'手動':aimMode==='move'?'自動：移動の向き':'自動：直交',b.x,b.y-b.r-6);ctx.textAlign='left'}
 function padRect(){return{x:W-52,y:H-58,r:40}}
 function draw(){
  ctx.save();
@@ -515,6 +520,22 @@ function draw(){
 function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.left)/b.width*W,y:(e.clientY-b.top)/b.height*H}}
 // 地上弾ボタン：タップ＝照準の縦横を切り替え／長押しして離す＝発射
 function groundDown(){if(groundHeld)return;groundHeld=true;holdT=0;armed=false}
+// 照準の向きの決め方（試し）。'move'＝動いている向き、'cross'＝動いている向きと直交、'manual'＝手動のみ
+const AIM_MODES=['move','cross','manual'],AIM_MODE_NAME={move:'移動の向き',cross:'移動と直交',manual:'手動'};
+let aimMode=(()=>{try{const m=localStorage.getItem('xemetous_aimmode');return AIM_MODES.includes(m)?m:'move'}catch(e){return 'move'}})();
+let dirHold=0,dirWant=null;
+function cycleAimMode(){aimMode=AIM_MODES[(AIM_MODES.indexOf(aimMode)+1)%AIM_MODES.length];
+ try{localStorage.setItem('xemetous_aimmode',aimMode)}catch(e){}
+ const b=$('aimmode');if(b)b.textContent='照準の向き：'+AIM_MODE_NAME[aimMode];
+ if(phase==='play')message('照準の向き：'+AIM_MODE_NAME[aimMode],2)}
+function autoAim(vx,vy,dt){                        // 横か縦にはっきり動いている時だけ変える。斜めは今のまま
+ if(aimMode==='manual')return;
+ const sp=Math.hypot(vx,vy);let want=null;
+ if(sp>45){if(Math.abs(vx)>Math.abs(vy)*2.2)want='h';else if(Math.abs(vy)>Math.abs(vx)*2.2)want='v'}
+ if(want&&aimMode==='cross')want=want==='h'?'v':'h';
+ if(want&&want!==aim){if(want===dirWant)dirHold+=dt;else{dirWant=want;dirHold=dt}
+  if(dirHold>=.08){aim=want;dirHold=0;play('move',1.6,.25)}}       // ちらつかないよう少しだけ続いたら
+ else{dirWant=null;dirHold=0}}
 function toggleAim(){aim=aim==='h'?'v':'h';play('move',1.4,.5);pop(ship.x,ship.y-SIGHT_AHEAD-26,aim==='h'?'横':'縦','#ffffff',14)}
 function groundUp(){if(!groundHeld)return;groundHeld=false;
  if(armed)fireBomb();
@@ -563,7 +584,8 @@ window.addEventListener('keydown',e=>{
  if(phase!=='play'||paused)return;
  if(e.repeat)return;
  if(k==='z'||k==='m'){audio();fireBomb()}
- if(k==='x'||k==='n'){audio();toggleAim()}});
+ if(k==='x'||k==='n'){audio();toggleAim()}
+ if(k==='v')cycleAimMode()});
 window.addEventListener('keyup',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;keys.delete(k);
 });
@@ -577,6 +599,7 @@ $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
 $('start').onclick=()=>{audio();goFullscreen();keepAwake();reset()};
+if($('aimmode')){$('aimmode').textContent='照準の向き：'+AIM_MODE_NAME[aimMode];$('aimmode').onclick=cycleAimMode}
 // ---- アセット（本編と共用） -------------------------------------------------
 const IMG={},IMG_NAMES=['ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
  'boss1','boss2','boss3','boss4','enemy4'];
