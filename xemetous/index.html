@@ -422,18 +422,30 @@ function drawGroundObjs(){
   if(o.kind==='tower'){ctx.fillStyle='#3a6ac0';ctx.fillRect(x-10,y-16,20,32);
    ctx.fillStyle='#f6e27a';ctx.fillRect(x-6,y-12,12,6);ctx.strokeStyle='#1a140e';ctx.lineWidth=2;ctx.strokeRect(x-10,y-16,20,32);
    ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('P',x,y+8);ctx.textAlign='left'}}
- // 照準（地上パズルの上ならマスに吸着）
+ // 照準は自機の前に固定（いまどこを狙っているか）。地上パズルに重なっている時は、
+ // それとは別に「回るマス」を板の上に二重に出す（照準そのものは動かさない）。
  if(!ship.alive)return;
- const blink=.5+Math.sin(time*14)*.5,col=armed?(blink>.5?'#ffffff':'#f6e27a'):'#ffffffcc';   // 長押し中はピカピカ
- if(sh&&sh.cs){const o=sh.o;
+ const blink=.5+Math.sin(time*14)*.5,col=armed?(blink>.5?'#ffffff':'#f6e27a'):'#ffffffcc';
+ if(sh&&sh.cs){const o=sh.o;                    // 選ばれているマス：金色の点線と、薄い塗り
   const xs=sh.cs.map(([r,c])=>o.x+c*CELL),ys=sh.cs.map(([r,c])=>o.y+r*CELL);
   const x0=Math.min(...xs),y0=Math.min(...ys),x1=Math.max(...xs)+CELL,y1=Math.max(...ys)+CELL;
-  ctx.globalAlpha=.18;ctx.fillStyle='#fff';ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.globalAlpha=1;
-  sightFrame(x0,y0,x1-x0,y1-y0,col,3)}
- else{const w=aim==='h'?power*CELL:CELL,h=aim==='h'?CELL:power*CELL;
-  sightFrame(sp.x-w/2,sp.y-h/2,w,h,col,2)}
+  const b2=.5+Math.sin(time*8)*.5;
+  ctx.globalAlpha=.16+b2*.14;ctx.fillStyle='#f6e27a';ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.globalAlpha=1;
+  ctx.setLineDash([5,4]);ctx.lineDashOffset=-time*20;
+  ctx.strokeStyle='#1a140e';ctx.lineWidth=5;ctx.strokeRect(x0+1,y0+1,x1-x0-2,y1-y0-2);
+  ctx.strokeStyle='#f6e27a';ctx.lineWidth=3;ctx.strokeRect(x0+1,y0+1,x1-x0-2,y1-y0-2);
+  ctx.setLineDash([]);ctx.lineDashOffset=0;
+  for(let i=1;i<sh.cs.length;i++){              // 回る向きの小さな矢印（右／下へ順繰り）
+   const [r,c]=sh.cs[i],ax=o.x+c*CELL+(aim==='h'?0:CELL/2),ay=o.y+r*CELL+(aim==='h'?CELL/2:0);
+   ctx.fillStyle='#f6e27a';ctx.beginPath();
+   if(aim==='h'){ctx.moveTo(ax+4,ay);ctx.lineTo(ax-3,ay-5);ctx.lineTo(ax-3,ay+5)}
+   else{ctx.moveTo(ax,ay+4);ctx.lineTo(ax-5,ay-3);ctx.lineTo(ax+5,ay-3)}
+   ctx.closePath();ctx.fill()}}
+ const w=aim==='h'?power*CELL:CELL,h=aim==='h'?CELL:power*CELL;   // 照準そのもの（固定）
+ sightFrame(sp.x-w/2,sp.y-h/2,w,h,col,2);
+ ctx.fillStyle=col;ctx.fillRect(sp.x-1,sp.y-5,2,10);ctx.fillRect(sp.x-5,sp.y-1,10,2);   // 中心の十字
  ctx.strokeStyle='#ffffff33';ctx.lineWidth=1;ctx.setLineDash([3,5]);
- ctx.beginPath();ctx.moveTo(ship.x,ship.y-16);ctx.lineTo(sp.x,sp.y+14);ctx.stroke();ctx.setLineDash([])}
+ ctx.beginPath();ctx.moveTo(ship.x,ship.y-16);ctx.lineTo(sp.x,sp.y+h/2);ctx.stroke();ctx.setLineDash([])}
 function sightFrame(x,y,w,h,col,lw){
  ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+3;ctx.strokeRect(x,y,w,h);
  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
