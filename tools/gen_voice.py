@@ -7,7 +7,7 @@
 エンジンが付ける高さはアクセントが崩れることがあるので、1語を1つのアクセント句にまとめ、
 東京式アクセントの決まり（1拍目と2拍目は高さが違う、アクセント核の後で下がる）で高さを付け直している。
 LIST の数字はアクセントの位置（0＝平板、1＝頭高、n＝n拍目の後で下がる）。
-クレジット表記：VOICEVOX:春日部つむぎ
+クレジット表記：VOICEVOX:春日部つむぎ、VOICEVOX:青山龍星（ボス）
 """
 import json,urllib.request,urllib.parse,sys
 SP=8  # 春日部つむぎ ノーマル
@@ -53,6 +53,16 @@ def excite(out):
     q1['speedScale']=1.18;q1['pitchScale']=0.06;q1['intonationScale']=1.5;q1['volumeScale']=1.3
     q1['prePhonemeLength']=0.05;q1['postPhonemeLength']=0.15;q1['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%SP,q1))
+def boss_line(out):
+    """ボスの名乗り（男の声：VOICEVOX 青山龍星）。文はエンジンのアクセントを使い、借りねば だけ カリネ＼バ に直す"""
+    BOSS=13
+    q=json.loads(post('/audio_query?speaker=%d&text=%s'%(BOSS,urllib.parse.quote('わしの名は、インドアジェネシス。地上絵の力を借りねば、わしは倒せんぞ。'))))
+    for ap in q['accent_phrases']:
+        if ''.join(m['text'] for m in ap['moras'])=='カリネバ':ap['accent']=3
+    q['accent_phrases']=json.loads(post('/mora_pitch?speaker=%d'%BOSS,q['accent_phrases']))
+    q['speedScale']=0.88;q['pitchScale']=-0.06;q['intonationScale']=1.25;q['volumeScale']=1.2
+    q['prePhonemeLength']=0.1;q['postPhonemeLength']=0.2;q['outputSamplingRate']=24000
+    open(out,'wb').write(post('/synthesis?speaker=%d'%BOSS,q))
 LIST="""
 こいぬ 0 koinu.wav
 こねこ 0 koneko.wav
@@ -86,3 +96,4 @@ if __name__=='__main__':
         t,a,f=line.split()
         print(f,*make(t,a,os.path.join(out,f)))
     excite(os.path.join(out,'legend.wav'));print('legend.wav ナスの地上絵よォォッ！')
+    boss_line(os.path.join(out,'boss_intro.wav'));print('boss_intro.wav わしの名は…（青山龍星）')

@@ -65,7 +65,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -543,10 +543,13 @@ function drawLegend(m){
  if(has('items')){ctx.imageSmoothingEnabled=true;ctx.drawImage(IMG.items,11*96,0,96,96,m.x-s/2,m.y-s/2,s,s);ctx.imageSmoothingEnabled=false}}
 function startBoss(){
  setBgm('boss');
+ later(1.6,()=>{                                      // 名乗り（男の声：VOICEVOX 青山龍星）
+  cutin={boss:true,lines:['わしの名は インドアジェネシス','地上絵の力を借りねば わしは倒せんぞ'],text:'',combo:1,t:0,life:7.2};
+  if(CFG.voice&&sound&&!playVoice(['bossIntro']))speakTTS('わしの名は、インドアジェネシス。地上絵の力を借りねば、わしは倒せんぞ。')});
  const hp=Math.round(700*(1+(area-1)*.35));
  boss={x:W/2,y:-90,ty:150,w:240,h:126,hp,max:hp,t:0,flash:0,dead:false,deadT:0,
   turrets:[[-88,-34],[88,-34],[-88,34],[88,34]].map(([dx,dy])=>({dx,dy,hp:1,cd:2+Math.random()*2,warn:0}))};
- message('WARNING　地を這う要塞。出てきた物を撃ち込め',3.5);play('warn');
+ message('WARNING　地を這う要塞 インドアジェネシス',3.5);play('warn');
  }
 function bossHit(x,y,r){const b=boss;return Math.abs(x-b.x)<b.w/2+r-10&&Math.abs(y-b.y)<b.h/2+r-10}
 function bossDamage(d,x,y,big){
@@ -710,7 +713,7 @@ let cutin=null,jaVoices=[];
 const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','りんご':'ringo','さかな':'sakana','おさかな':'osakana','おにぎり':'onigiri',
  'ごりら':'gorira','きりん':'kirin','いるか':'iruka',
  'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko','おちんこ':'ochinko','おうち':'ouchi',
- 'なす':'nasu',legend:'legend',
+ 'なす':'nasu',legend:'legend',bossIntro:'boss_intro',
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
 function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;
@@ -761,6 +764,14 @@ function drawGirl(x,y,s,talk){                       // 女の子（ちびキャ
 function drawCutin(){
  if(!cutin)return;const c=cutin,k=Math.min(1,c.t/.15),out=Math.max(0,(c.t-(c.life-.3))/.3);
  const PH=104,y=H-PH-14+(1-k)*40,a=1-out;            // 画面の下（敵も地上物もいない所）に出す
+ if(c.boss){                                         // ボスのせりふ：赤い帯に白い字
+  ctx.globalAlpha=a*.88;ctx.fillStyle='#3a0a0a';ctx.fillRect(8,y,W-16,PH);ctx.globalAlpha=a;
+  ctx.strokeStyle='#e2624a';ctx.lineWidth=3;ctx.strokeRect(8,y,W-16,PH);
+  ctx.font='bold 12px monospace';ctx.fillStyle='#e2624a';ctx.fillText('INDOOR GENESIS',20,y+20);
+  ctx.textAlign='center';ctx.font='bold 21px sans-serif';
+  c.lines.forEach((l,i)=>{const shown=Math.min(l.length,Math.floor((c.t-i*2.6)*9));if(shown<=0)return;   // 声に合わせて1文字ずつ
+   ctx.fillStyle='#1a0505';ctx.fillText(l.slice(0,shown),W/2+2,y+52+i*32+2);ctx.fillStyle='#fff3e0';ctx.fillText(l.slice(0,shown),W/2,y+52+i*32)});
+  ctx.textAlign='left';ctx.globalAlpha=1;return}
  ctx.globalAlpha=a*.85;ctx.fillStyle='#1a140e';ctx.fillRect(8,y,W-16,PH);
  ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=2;ctx.strokeRect(8,y,W-16,PH);
  const talk=Math.floor(c.t*8)%2===0&&c.t<1.8,bounce=c.t<1.8?Math.abs(Math.sin(c.t*12))*3:0;
@@ -877,7 +888,7 @@ function continueGame(){
  setBgm(boss&&!boss.dead?'boss':'stage');message('コンティニュー！',2);ui()}
 // タイトルに戻る
 let TITLE_HTML='';
-const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div>';
+const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div>';
 function showTitle(){
  phase='ready';paused=false;cutin=null;air=[];ground=[];items=[];missiles=[];ebul=[];boss=null;if(ship)ship.opts=[];
  $('overlay').firstElementChild.innerHTML=TITLE_HTML;$('overlay').classList.remove('hidden');bindTitle();setBgm('title')}
@@ -1098,7 +1109,7 @@ function draw(){
   if(boss&&!boss.dead){const k=boss.hp/boss.max;                       // ボスの体力：上に大きく
    ctx.fillStyle='#1a140e';ctx.fillRect(8,24,W-16,18);ctx.fillStyle='#4a3620';ctx.fillRect(11,27,W-22,12);
    ctx.fillStyle=boss.flash>0?'#ffffff':k<.5?'#e2624a':'#f6e27a';ctx.fillRect(11,27,(W-22)*k,12);
-   ctx.font='bold 10px monospace';ctx.fillStyle='#1a140e';ctx.fillText('要塞 ANDOR  '+Math.ceil(boss.hp)+' / '+boss.max,16,37)}
+   ctx.font='bold 10px monospace';ctx.fillStyle='#1a140e';ctx.fillText('インドアジェネシス  '+Math.ceil(boss.hp)+' / '+boss.max,16,37)}
   else if(!boss){const left=Math.max(0,AREA_LEN/diff**.15-t);ctx.textAlign='right';ctx.fillText('要塞まで '+Math.ceil(left)+'秒',W-10,18)}
   ctx.textAlign='left'}
  ctx.restore();
