@@ -63,11 +63,14 @@ def boss_line(out):
     q['speedScale']=0.88;q['pitchScale']=-0.06;q['intonationScale']=1.25;q['volumeScale']=1.2
     q['prePhonemeLength']=0.1;q['postPhonemeLength']=0.2;q['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%BOSS,q))
-def sentence(text,out,sp=SP,speed=1.0,pitch=0.0,inton=1.2,vol=1.0,acc0=None):
+def sentence(text,out,sp=SP,speed=1.0,pitch=0.0,inton=1.2,vol=1.0,acc0=None,accs=None):
     """文をそのまま読む（アクセントはエンジン任せ。acc0＝最初の句のアクセントだけ直す。おかしい所はユーザーが耳で確かめて直す）"""
     q=json.loads(post('/audio_query?speaker=%d&text=%s'%(sp,urllib.parse.quote(text))))
-    if acc0 is not None:
-        q['accent_phrases'][0]['accent']=acc0
+    accs=dict(accs or {})              # 句の番号 → アクセント（0＝平板は句の長さにする）
+    if acc0 is not None: accs[0]=acc0
+    for k,a in accs.items():
+        ap=q['accent_phrases'][k];ap['accent']=a if a>0 else len(ap['moras'])
+    if accs:
         q['accent_phrases']=json.loads(post('/mora_pitch?speaker=%d'%sp,q['accent_phrases']))
     q['speedScale']=speed;q['pitchScale']=pitch;q['intonationScale']=inton;q['volumeScale']=vol
     q['prePhonemeLength']=0.05;q['postPhonemeLength']=0.15;q['outputSamplingRate']=24000
@@ -128,4 +131,4 @@ if __name__=='__main__':
         k,t,*a=line.split(' ');sentence(t,os.path.join(out,'tip_%s.wav'%k),speed=1.1,inton=1.3,acc0=int(a[0]) if a else None);print('tip_%s.wav'%k,t)
     # ボスの泣き言：少し高く、抑揚を大きく（涙目）
     sentence('きちゃないの、いや〜！！',os.path.join(out,'boss_yuck.wav'),BOSS_SP,speed=1.05,pitch=0.06,inton=1.7,vol=1.2);print('boss_yuck.wav')
-    sentence('インドア派なんで、おうちに帰る〜！',os.path.join(out,'boss_cry.wav'),BOSS_SP,speed=1.0,pitch=0.05,inton=1.6,vol=1.2);print('boss_cry.wav')
+    sentence('インドア派なんで、おうちに帰る〜！',os.path.join(out,'boss_cry.wav'),BOSS_SP,speed=1.0,pitch=0.05,inton=1.6,vol=1.2,accs={1:0,2:1});print('boss_cry.wav')   # おうちに＝平板、かえる＝頭高
