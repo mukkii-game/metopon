@@ -63,6 +63,33 @@ def boss_line(out):
     q['speedScale']=0.88;q['pitchScale']=-0.06;q['intonationScale']=1.25;q['volumeScale']=1.2
     q['prePhonemeLength']=0.1;q['postPhonemeLength']=0.2;q['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%BOSS,q))
+def sentence(text,out,sp=SP,speed=1.0,pitch=0.0,inton=1.2,vol=1.0,acc0=None):
+    """文をそのまま読む（アクセントはエンジン任せ。acc0＝最初の句のアクセントだけ直す。おかしい所はユーザーが耳で確かめて直す）"""
+    q=json.loads(post('/audio_query?speaker=%d&text=%s'%(sp,urllib.parse.quote(text))))
+    if acc0 is not None:
+        q['accent_phrases'][0]['accent']=acc0
+        q['accent_phrases']=json.loads(post('/mora_pitch?speaker=%d'%sp,q['accent_phrases']))
+    q['speedScale']=speed;q['pitchScale']=pitch;q['intonationScale']=inton;q['volumeScale']=vol
+    q['prePhonemeLength']=0.05;q['postPhonemeLength']=0.15;q['outputSamplingRate']=24000
+    open(out,'wb').write(post('/synthesis?speaker=%d'%sp,q))
+# 役割の説明（女の子：春日部つむぎ）。xemetous/index.html の ROLE と同じ中身。後ろの数字＝最初の言葉のアクセント直し（うんち＝頭高）
+TIPS="""
+gorira ごりらは、がんじょうなんだよ！
+dog こいぬは、ちょこまか動くんだよ！
+iruka いるかは、ホーミングするよ！
+onigiri おにぎりは、みんなを元気にするよ！
+suika すいかは、割れて、まわりも壊すよ！
+ringo りんごは、びゅーんと速いよ！
+sakana さかなは、弾を広く消すよ！
+cat こねこは、地面の敵を壊すよ！
+kirin きりんは、首で上の弾も消すよ！
+unko うんこは、ボスにすっごく効くよ！
+unchi うんちも、ボスによく効くよ！ 1
+chin ちんちんは、弾を広く消すよ！
+chinL おちんちんは、弾を広く消すよ！
+ouchi おうちは、いちどだけ守ってくれるよ！
+"""
+BOSS_SP=13  # 青山龍星
 LIST="""
 こいぬ 0 koinu.wav
 こねこ 0 koneko.wav
@@ -97,3 +124,8 @@ if __name__=='__main__':
         print(f,*make(t,a,os.path.join(out,f)))
     excite(os.path.join(out,'legend.wav'));print('legend.wav ナスの地上絵よォォッ！')
     boss_line(os.path.join(out,'boss_intro.wav'));print('boss_intro.wav わしの名は…（青山龍星）')
+    for line in TIPS.strip().splitlines():
+        k,t,*a=line.split(' ');sentence(t,os.path.join(out,'tip_%s.wav'%k),speed=1.1,inton=1.3,acc0=int(a[0]) if a else None);print('tip_%s.wav'%k,t)
+    # ボスの泣き言：少し高く、抑揚を大きく（涙目）
+    sentence('きちゃないの、いや〜！！',os.path.join(out,'boss_yuck.wav'),BOSS_SP,speed=1.05,pitch=0.06,inton=1.7,vol=1.2);print('boss_yuck.wav')
+    sentence('インドア派なんで、おうちに帰る〜！',os.path.join(out,'boss_cry.wav'),BOSS_SP,speed=1.0,pitch=0.05,inton=1.6,vol=1.2);print('boss_cry.wav')

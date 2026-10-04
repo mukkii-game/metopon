@@ -499,7 +499,7 @@ const ROLE={gorira:'ごりらは|がんじょうなんだよ！',dog:'こいぬ�
  chinL:'おちんちんは|たまを ひろく けすよ！',ouchi:'おうちは|いちどだけ まもってくれるよ！'};
 const WIDE={sakana:1,chin:1,chinL:1};                 // 弾を消す範囲が広い
 let tipShown={},tipQueue=[];
-function roleTip(part){if(tipShown[part]||!ROLE[part])return;tipShown[part]=1;tipQueue.push(ROLE[part])}
+function roleTip(part){if(tipShown[part]||!ROLE[part])return;tipShown[part]=1;tipQueue.push(part)}
 const partOf=o=>o.big?PART[o.part==='unko'?'unkoBig':o.part]:PART[o.part];
 const charR=o=>o.big?42*Z:(12+4*(o.n||1))*Z;          // 大きさ：集まった文字の数ほど大きい
 const itemR=it=>it.big?42*Z:14*Z;
@@ -531,7 +531,7 @@ function updateParts(dt){
    if(o.healT>=3){o.healT=0;const q=ship.opts.filter(q=>q!==o&&q.hp<q.max).sort((a,b)=>a.hp/a.max-b.hp/b.max)[0]||(o.hp<o.max?o:null);
     if(q){q.hp++;const qp=optPos(ship.opts.indexOf(q));pop(qp.x,qp.y-18,'+1','#a0f0a0',12)}}}
   if((o.part==='unko'||o.part==='unchi')&&boss&&!boss.dead&&boss.y>=boss.ty-1&&bossHit(p.x,p.y,r*.6)){   // ボスは うんちが苦手：触れるだけで効く
-   o.yuckT=(o.yuckT||0)-dt;if(o.yuckT<=0){o.yuckT=.6;o.hp--;o.hitT=.15;bossDamage(o.big?36:12,p.x,p.y-10,false);boss.yuck=1.8;play('hit',.7,.6)}}
+   o.yuckT=(o.yuckT||0)-dt;if(o.yuckT<=0){o.yuckT=.6;o.hp--;o.hitT=.15;bossDamage(o.big?36:12,p.x,p.y-10,false);if(boss.yuck<=0&&time-(boss.yuckSaid||-9)>3&&CFG.voice&&sound){boss.yuckSaid=time;playVoice(['bossYuck'])}boss.yuck=1.8;play('hit',.7,.6)}}
   if(o.part==='cat')for(const g of ground)if(g.kind!=='puz'&&!g.dead&&Math.hypot(g.x-p.x,g.y-p.y)<r+18){destroyFixed(g);o.hp--;o.hitT=.15}   // こねこ：地上の敵を壊す
   const wr=r+4+(WIDE[o.part]?16:0);
   for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.wall){o.hp--;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
@@ -670,7 +670,7 @@ function bossDamage(d,x,y,big){
  else if(d>1){boom(x,y,1.8);play('hit',.8,.7);pop(x,y-14,'-'+d,'#ffffff',14)}
  else{burst(x,y,3,'#ffffff');play('hit',1.6,.15)}
  if(boss.hp<=0){boss.hp=0;boss.dead=true;boss.deadT=0;ebul=[];score+=10000*area;
-  message('要塞撃破！',3);play('bossdown');flash=.5;
+  message('要塞撃破！',3);play('bossdown');flash=.5;if(CFG.voice&&sound)playVoice(['bossCry']);
   for(let i=0;i<5;i++)later(i*.15,()=>{if(boss){boom(boss.x+(Math.random()-.5)*boss.w,boss.y+(Math.random()-.5)*boss.h,3.5);shake=14;play('boom_l',.7+Math.random()*.4)}});
   later(4.6,areaClear)}}
 function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=dt;
@@ -833,7 +833,8 @@ let cutin=null,jaVoices=[];
 const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','りんご':'ringo','さかな':'sakana','おさかな':'osakana','おにぎり':'onigiri',
  'ごりら':'gorira','きりん':'kirin','いるか':'iruka',
  'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko','おちんこ':'ochinko','おうち':'ouchi',
- 'なす':'nasu',legend:'legend',bossIntro:'boss_intro',
+ 'なす':'nasu',legend:'legend',bossIntro:'boss_intro',bossYuck:'boss_yuck',bossCry:'boss_cry',
+ ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi'].map(k=>['tip_'+k,'tip_'+k])),
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
 function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;
@@ -1087,7 +1088,8 @@ function update(dt){
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
  for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
  if(cutin){cutin.t+=dt;if(cutin.t>cutin.life)cutin=null}
- if(!cutin&&tipQueue.length){const [a,b]=tipQueue.shift().split('|');cutin={tip:[a,b],text:'',combo:1,t:0,life:2.8}}
+ if(!cutin&&tipQueue.length){const part=tipQueue.shift(),[a,b]=ROLE[part].split('|');cutin={tip:[a,b],text:'',combo:1,t:0,life:2.8};
+  if(CFG.voice&&sound)playVoice(['tip_'+part],true)}   // 女の子の声（音声ファイルが無ければ黙って字だけ）
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
