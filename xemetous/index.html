@@ -176,16 +176,18 @@ function makePuzzle(x,y,type='word',arg){
    const q={w:dir==='h'?L.length:1,h:dir==='h'?1:L.length,cells:dir==='h'?[L.slice()]:L.map(c=>[c])};
    if(!wordsFound(q).length)break}
   w=dir==='h'?L.length:1;h=dir==='h'?1:L.length;cells=dir==='h'?[L.slice()]:L.map(c=>[c]);o={type:'word',word}}
- else if(type==='grid'&&easy){                 // 前半：5×3。言葉を1つ埋めて、1か所だけとなりと入れ替えておく
-  w=5;h=3;let word;
-  for(let k=0;k<400;k++){word=pickWord();cells=Array.from({length:h},()=>Array.from({length:w},randLetter));
-   const vert=word.length<=h&&Math.random()<.4,cs=[];
-   if(vert){const c=rnd(w),r0=rnd(h-word.length+1);for(let i=0;i<word.length;i++)cs.push([r0+i,c])}
-   else{if(word.length>w)continue;const r=rnd(h),c0=rnd(w-word.length+1);for(let i=0;i<word.length;i++)cs.push([r,c0+i])}
-   cs.forEach(([r,c],i)=>cells[r][c]=word[i]);
-   const [r,c]=cs[rnd(cs.length)],nb=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([a,b])=>a>=0&&a<h&&b>=0&&b<w&&cells[a][b]!==cells[r][c]);
-   if(!nb.length)continue;swapCells(cells,[r,c],nb[rnd(nb.length)]);
-   if(!wordsFound({w,h,cells}).length)break}
+ else if(type==='grid'){                      // 5×3：1枚を縦にすべらせる（つかんで2マス動かす）だけで、2〜3語が同時にそろう並び
+  w=5;h=3;let ok=false;
+  for(let k=0;k<600&&!ok;k++){cells=Array.from({length:h},()=>Array.from({length:w},randLetter));
+   const c=rnd(w),n=Math.random()<.6?3:2,r0=n===3?0:rnd(2),rows=[];
+   for(let r=r0;r<r0+n;r++){const wd=pickWord();if(wd.length>w){rows.length=0;break}
+    const lo=Math.max(0,c-wd.length+1),hi=Math.min(c,w-wd.length),s0=lo+rnd(hi-lo+1);
+    for(let i=0;i<wd.length;i++)cells[r][s0+i]=wd[i];rows.push(r)}
+   if(rows.length!==n)continue;
+   const col=rows.map(r=>cells[r][c]);if(new Set(col).size<n)continue;     // 動かす列の字がちがうこと
+   const want=wordsFound({w,h,cells}).length;if(want<n)continue;
+   const rot=col.slice(1).concat(col[0]);rows.forEach((r,i)=>cells[r][c]=rot[i]);   // 1枚を端から端へすべらせると元に戻る並び
+   if(!wordsFound({w,h,cells}).length)ok=true}
   o={type:'word',grid:true}}
  else if(type==='word'){                           // 1列：言葉1つ（短い言葉には余分な1文字）をばらばらに
   const word=typeof arg==='string'?arg:pickWord(),dir=Math.random()<.5?'h':'v';
@@ -194,11 +196,6 @@ function makePuzzle(x,y,type='word',arg){
    const q={w:dir==='h'?L.length:1,h:dir==='h'?1:L.length,cells:dir==='h'?[L.slice()]:L.map(c=>[c])};
    if(!wordsFound(q).length)break}
   w=dir==='h'?L.length:1;h=dir==='h'?1:L.length;cells=dir==='h'?[L.slice()]:L.map(c=>[c]);o={type:'word',word}}
- else if(type==='grid'){                      // 5×3：いろいろ作れる大きな板。そろったら上から落ちて連鎖
-  w=5;h=3;cells=Array.from({length:h},()=>Array.from({length:w},randLetter));
-  for(const wd of [pickWord(),pickWord()])for(const ch of wd)cells[rnd(h)][rnd(w)]=ch;   // 作れる言葉の文字を混ぜておく
-  for(let k=0;k<500;k++){const f=wordsFound({w,h,cells});if(!f.length)break;const [r,c]=f[0].cs[rnd(f[0].cs.length)];cells[r][c]=randLetter()}
-  o={type:'word',grid:true}}
  else{const P=MODES[mode].pics,pic=type==='legend'?'legend':typeof arg==='number'?P[arg]:(typeof arg==='string'?arg:null)||(mode==='all'?P[unchiTime()?1:0]:P[rnd(2)]);
   w=type==='legend'?8:3;h=type==='legend'?5:3;o={type:'pic',pic,legend:type==='legend'};
   cells=[];for(let r=0;r<h;r++){cells.push([]);for(let c=0;c<w;c++)cells[r].push(r*w+c)}
