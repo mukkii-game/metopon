@@ -360,9 +360,25 @@ function materialize(o){
  if(!o.grid){o.done=true;o.dieT=0}
  else{for(const m of made)for(const [r,c] of m.cs)o.cells[r][c]=null;
   for(let c=0;c<o.w;c++){const col=[];for(let r=o.h-1;r>=0;r--)if(o.cells[r][c])col.push(o.cells[r][c]);   // 上から落ちてくる
-   for(let r=o.h-1,i=0;r>=0;r--,i++)o.cells[r][c]=col[i]||randLetter()}
-  checkNewWords(o)}                                    // 落ちてきてできた言葉は、また光って待つ（連鎖）
+   for(let r=o.h-1,i=0;r>=0;r--,i++)o.cells[r][c]=col[i]||null}
+  refillBoard(o);checkNewWords(o)}                                    // 落ちてきてできた言葉は、また光って待つ（連鎖）
  if(!ship.opts.length&&items.length<=combo)message('出てきた物を照準で捕まえよう。地上弾を2回すばやく押すと撃ち出す',3.5)}
+// 補充：空いた所に入れる文字は、1枚すべらせれば言葉ができる（できれば2語以上）ように選ぶ
+function bestDrag(o,cells){                            // 1枚をまっすぐすべらせて できる言葉の数の最大
+ const {w,h}=o;let best=wordsFound({w,h,cells}).length;
+ for(let r=0;r<h;r++)for(let c=0;c<w;c++){
+  for(let c2=0;c2<w;c2++)if(c2!==c){const cl=cells.map(x=>x.slice()),st=Math.sign(c2-c);for(let x=c;x!==c2;x+=st){const t=cl[r][x];cl[r][x]=cl[r][x+st];cl[r][x+st]=t}best=Math.max(best,wordsFound({w,h,cells:cl}).length)}
+  for(let r2=0;r2<h;r2++)if(r2!==r){const cl=cells.map(x=>x.slice()),st=Math.sign(r2-r);for(let y=r;y!==r2;y+=st){const t=cl[y][c];cl[y][c]=cl[y+st][c];cl[y+st][c]=t}best=Math.max(best,wordsFound({w,h,cells:cl}).length)}}
+ return best}
+function refillBoard(o){
+ const empty=[];for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++)if(o.cells[r][c]==null)empty.push([r,c]);
+ if(!empty.length)return;
+ let best=null,bs=-1;
+ for(let k=0;k<160;k++){const cl=o.cells.map(x=>x.slice());
+  const pool=[...pickWord(),...pickWord()];                  // 言葉の文字を多めに混ぜる
+  for(const [r,c] of empty)cl[r][c]=Math.random()<.75?pool[rnd(pool.length)]:randLetter();
+  const sc=bestDrag(o,cl);if(sc>bs){bs=sc;best=cl}if(bs>=2)break}
+ o.cells=best}
 function clearFx(o,cx,cy){
  play('clear');play('boom_l',1.1,.6);shake=Math.max(shake,8);flash=.12;
  for(let i=0;i<3;i++)boom(o.x+Math.random()*o.w*CELL,o.y+Math.random()*o.h*CELL,2.4);burst(cx,cy,24,'#f6e27a')}
@@ -1101,7 +1117,7 @@ function drawEnding(){const e=ending,tt=e.t;
  const gy=H-100+Math.max(0,3-tt)*40;drawGirl(70,gy-Math.abs(Math.sin(tt*3))*4,70,Math.floor(tt*6)%2===0&&e.said&&tt<ENDING_LEN-3);
  ctx.fillStyle='#ffe0cc';ctx.beginPath();ctx.arc(118+Math.sin(tt*6)*6,gy-30,9,0,Math.PI*2);ctx.fill();   // ふっている手
  ctx.font='bold 13px monospace';ctx.fillStyle='#f2d9a4';ctx.textAlign='right';ctx.fillText('SCORE '+score,W-14,H-16);
- ctx.fillStyle='#d4bd8e';ctx.fillText(Math.floor(tt*2)%2?'押すと とばす':'',W-14,H-36);ctx.textAlign='left'}
+ ctx.textAlign='left'}
 
 // ---- 効果 -------------------------------------------------------------------
 function pop(x,y,text,col='#f6e27a',size=15){pops.push({x,y,text,col,size,t:0,life:1.1,rise:26})}
@@ -1429,7 +1445,7 @@ function groundUp(src,fire=true){if(!groundHeld||src!==groundSrc)return;groundHe
  if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir:aim};else fireBomb();lastUpT=t}
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
- if(phase==='ending'){finishEnding();return}
+ if(phase==='ending')return;
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')){togglePause();resumeT=performance.now();return}   // 止まっている時は画面を押すと再開
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
@@ -1470,7 +1486,7 @@ window.addEventListener('keydown',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;
  if(!$('cfg').classList.contains('hidden')){                 // 設定を開いている間はゲームに渡さない
   if(k==='c'||k==='Escape'){e.preventDefault();closeCfg()}return}
- if(phase==='ending'&&!e.repeat){e.preventDefault();finishEnding();return}   // エンディングは押すと とばせる
+ if(phase==='ending'){e.preventDefault();return}   // エンディング（スタッフロール）は最後まで見せる。押しても とばさない
  if(k==='c'&&!e.repeat){e.preventDefault();openCfg();return}
  if(k==='Escape'&&!e.repeat&&phase==='play'){e.preventDefault();togglePause('Esc キー');return}   // Esc で一時停止・再開
  if(!$('overlay').classList.contains('hidden')&&['Enter',' ','n','m','z','x'].includes(k)){
