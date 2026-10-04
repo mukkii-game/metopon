@@ -65,7 +65,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体：Kenney（CC0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -593,20 +593,25 @@ function drawBoss(){const b=boss;if(!b)return;
  const oct=(w,h,k)=>{ctx.beginPath();ctx.moveTo(-w/2+k,-h/2);ctx.lineTo(w/2-k,-h/2);ctx.lineTo(w/2,-h/2+k);ctx.lineTo(w/2,h/2-k);
   ctx.lineTo(w/2-k,h/2);ctx.lineTo(-w/2+k,h/2);ctx.lineTo(-w/2,h/2-k);ctx.lineTo(-w/2,-h/2+k);ctx.closePath()};
  ctx.fillStyle='#00000055';oct(b.w+8,b.h+8,34);ctx.fill();               // 影
+ const kb=has('kenney_boss');                       // Kenney の灰色で組んだ船体（tools/gen_kenney.py）
+ if(kb){ctx.save();ctx.translate(4,6);ctx.globalAlpha*=.35;ctx.fillStyle='#1a140e';oct(b.w,b.h,34);ctx.fill();ctx.restore();
+  ctx.drawImage(IMG.kenney_boss,-b.w/2,-b.h/2,b.w,b.h);
+  if(b.flash>0){ctx.globalAlpha*=.55;ctx.fillStyle='#ffffff';oct(b.w-4,b.h-4,32);ctx.fill();ctx.globalAlpha/=.55}}
+ else{
  ctx.fillStyle='#1a140e';oct(b.w+6,b.h+6,34);ctx.fill();
  ctx.fillStyle=b.flash>0?'#d8e4ea':'#6f7c84';oct(b.w,b.h,32);ctx.fill();
  ctx.fillStyle='#4c565c';oct(b.w-40,b.h-30,24);ctx.fill();
  ctx.fillStyle='#8c9aa2';oct(b.w-70,b.h-54,16);ctx.fill();
  ctx.strokeStyle='#2a3034';ctx.lineWidth=2;
- for(const x of [-b.w/2+20,b.w/2-20]){ctx.beginPath();ctx.moveTo(x,-b.h/2+28);ctx.lineTo(x,b.h/2-28);ctx.stroke()}
+ for(const x of [-b.w/2+20,b.w/2-20]){ctx.beginPath();ctx.moveTo(x,-b.h/2+28);ctx.lineTo(x,b.h/2-28);ctx.stroke()}}
  // コア（地上弾の的）
  const blink=Math.floor(b.t*6)%2;
  ctx.fillStyle='#1a140e';ctx.beginPath();ctx.arc(0,0,19,0,Math.PI*2);ctx.fill();
  ctx.fillStyle=blink?'#e2624a':'#ffb04a';ctx.beginPath();ctx.arc(0,0,15,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#fff6';ctx.fillRect(-6,-9,5,5);
  for(const tr of b.turrets){
-  if(tr.hp<=0){ctx.fillStyle='#2a2018';ctx.fillRect(tr.dx-10,tr.dy-10,20,20);continue}
-  ctx.fillStyle='#1a140e';ctx.fillRect(tr.dx-12,tr.dy-12,24,24);ctx.fillStyle='#9aa8b0';ctx.fillRect(tr.dx-9,tr.dy-9,18,18);
+  if(tr.hp<=0){if(!drawKTile('wreck',tr.dx,tr.dy,32)){ctx.fillStyle='#2a2018';ctx.fillRect(tr.dx-10,tr.dy-10,20,20)}continue}
+  if(!drawKTile('bossTurret',tr.dx,tr.dy,32)){ctx.fillStyle='#1a140e';ctx.fillRect(tr.dx-12,tr.dy-12,24,24);ctx.fillStyle='#9aa8b0';ctx.fillRect(tr.dx-9,tr.dy-9,18,18)}
   ctx.fillStyle=tr.warn>0&&Math.floor(time*20)%2?'#fff':'#e2624a';ctx.fillRect(tr.dx-3,tr.dy-3,6,6)}
  ctx.restore();ctx.globalAlpha=1;
  for(const tr of b.turrets)if(tr.hp>0&&tr.warn>0)warnRing(b.x+tr.dx,b.y+tr.dy,12,tr.warn)}
@@ -888,7 +893,7 @@ function continueGame(){
  setBgm(boss&&!boss.dead?'boss':'stage');message('コンティニュー！',2);ui()}
 // タイトルに戻る
 let TITLE_HTML='';
-const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div>';
+const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体：Kenney（CC0）</div>';
 function showTitle(){
  phase='ready';paused=false;cutin=null;air=[];ground=[];items=[];missiles=[];ebul=[];boss=null;if(ship)ship.opts=[];
  $('overlay').firstElementChild.innerHTML=TITLE_HTML;$('overlay').classList.remove('hidden');bindTitle();setBgm('title')}
@@ -1011,11 +1016,13 @@ function drawGroundObjs(){
    for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
     ctx.fillRect(x+sx*d-(sx>0?8:0),y+sy*d-(sy>0?2:0),8,2);ctx.fillRect(x+sx*d-(sx>0?2:0),y+sy*d-(sy>0?8:0),2,8)}}
   ctx.save();ctx.translate(x,y);ctx.scale(Z,Z);ctx.translate(-x,-y);   // 地上の敵も大きく
-  if(o.kind==='turret'){ctx.fillStyle='#3a2a1a';ctx.fillRect(x-14,y-14,28,28);
+  if(o.kind==='turret'){if(drawKTile('turret',x,y,30)){   // Kenney の砲台（砲身は絵に描いてある。光る時だけ白く）
+    if(o.warn>0&&Math.floor(time*20)%2){ctx.fillStyle='#ffffff';ctx.fillRect(x-3,y-3,6,6)}}
+   else{ctx.fillStyle='#3a2a1a';ctx.fillRect(x-14,y-14,28,28);
    ctx.fillStyle='#6d5a44';ctx.fillRect(x-10,y-10,20,20);
    const a=Math.atan2(ship.y-o.y,ship.x-o.x);ctx.strokeStyle='#1a140e';ctx.lineWidth=5;
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*16,y+Math.sin(a)*16);ctx.stroke();
-   ctx.fillStyle=o.warn>0&&Math.floor(time*20)%2?'#ffffff':'#e2624a';ctx.fillRect(x-3,y-3,6,6);
+   ctx.fillStyle=o.warn>0&&Math.floor(time*20)%2?'#ffffff':'#e2624a';ctx.fillRect(x-3,y-3,6,6)}
    if(o.warn>0)warnRing(x,y,14,o.warn)}
   if(o.kind==='pyramid'){                      // ピラミッド：左右で明暗、太い輪郭
    const P=[[x,y-14],[x+15,y+11],[x-15,y+11]];
@@ -1023,7 +1030,8 @@ function drawGroundObjs(){
    ctx.fillStyle='#8f6d38';ctx.beginPath();ctx.moveTo(...P[0]);ctx.lineTo(x,y+14);ctx.lineTo(...P[2]);ctx.closePath();ctx.fill();
    ctx.fillStyle='#ecd196';ctx.beginPath();ctx.moveTo(...P[0]);ctx.lineTo(...P[1]);ctx.lineTo(x,y+14);ctx.closePath();ctx.fill();
    ctx.fillStyle='#f6e27a';ctx.fillRect(x-2,y-14,4,4)}
-  if(o.kind==='tower'){ctx.fillStyle='#3a6ac0';ctx.fillRect(x-10,y-16,20,32);
+  if(o.kind==='tower'&&drawKTile('tower',x,y,28)){}
+  else if(o.kind==='tower'){ctx.fillStyle='#3a6ac0';ctx.fillRect(x-10,y-16,20,32);
    ctx.fillStyle='#f6e27a';ctx.fillRect(x-6,y-12,12,6);ctx.strokeStyle='#1a140e';ctx.lineWidth=2;ctx.strokeRect(x-10,y-16,20,32);
    ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('P',x,y+8);ctx.textAlign='left'}
   ctx.restore()}
@@ -1061,6 +1069,7 @@ function drawAir(){
   if(e.kind==='plate'){const s=Math.abs(Math.sin(e.t*3.2));   // 回る板
    ctx.fillStyle='#1a140e';ctx.fillRect(e.x-e.size/2-2,e.y-e.size*s/2-2,e.size+4,e.size*s+4);
    ctx.fillStyle=s>.5?'#b8c4cc':'#7c8a94';ctx.fillRect(e.x-e.size/2,e.y-e.size*s/2,e.size,Math.max(2,e.size*s))}
+  else if(e.sprite&&drawKShip(e.sprite,e.x+(e.panic?Math.sin(e.spinP||0)*3:0),e.y,e.size*1.15)){}   // Kenney の機体（32px の絵は余白があるので少し大きめに）
   else if(has(e.sprite)){const im=IMG[e.sprite],w=e.size,h=e.size*im.height/im.width,jx=e.panic?Math.sin(e.spinP||0)*3:0;
    ctx.drawImage(im,Math.round(e.x-w/2+jx),Math.round(e.y-h/2),w,h)}
   if(e.panic&&Math.floor(time*10)%2){ctx.fillStyle='#8fe0ff';ctx.fillRect(e.x+e.size*.4,e.y-e.size*.5,3,7);ctx.fillRect(e.x-e.size*.4-3,e.y-e.size*.4,3,6)}   // 汗
@@ -1073,7 +1082,7 @@ function drawShip(){
  if(!ship.alive)return;
  if(ship.inv>0&&Math.floor(time*16)%2)return;
  const SS=Math.round(36*Z);ctx.globalAlpha=.25;ctx.fillStyle='#1a140e';ctx.fillRect(ship.x-SS/3,ship.y+SS*.4,SS*.66,6*Z);ctx.globalAlpha=1;
- if(has('ship'))ctx.drawImage(IMG.ship,Math.round(ship.x-SS/2),Math.round(ship.y-SS/2),SS,SS);
+ if(!drawKShip('ship',ship.x,ship.y,SS*1.1)&&has('ship'))ctx.drawImage(IMG.ship,Math.round(ship.x-SS/2),Math.round(ship.y-SS/2),SS,SS);
  ctx.fillStyle='#ffffff';ctx.fillRect(ship.x-2,ship.y-2,4,4)}      // 当たりの芯
 function drawBomb(){
  if(!bomb)return;const k=Math.min(1,bomb.t/BOMB_T);
@@ -1235,9 +1244,16 @@ $('cfgclose').onclick=closeCfg;
 $('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 // ---- アセット（本編と共用） -------------------------------------------------
 const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
- 'boss1','boss2','boss3','boss4','enemy4'];
+ 'boss1','boss2','boss3','boss4','enemy4','kenney_ships','kenney_tiles','kenney_boss'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
+// Kenney「Pixel Shmup」(CC0) から切り出した絵（tools/gen_kenney.py）。読めない時は前の自作の絵で描く
+const KSHIP={ship:0,enemy1:1,enemy4:2,zako22:3,enemy2:4};   // kenney_ships.png のコマ（32×32）
+const KTILE={bossTurret:0,wreck:1,tower:2,turret:3};       // kenney_tiles.png のコマ（16×16）
+function drawKShip(k,x,y,s){if(!has('kenney_ships'))return false;
+ ctx.drawImage(IMG.kenney_ships,KSHIP[k]*32,0,32,32,Math.round(x-s/2),Math.round(y-s/2),Math.round(s),Math.round(s));return true}
+function drawKTile(k,x,y,s){if(!has('kenney_tiles'))return false;
+ ctx.drawImage(IMG.kenney_tiles,KTILE[k]*16,0,16,16,Math.round(x-s/2),Math.round(y-s/2),Math.round(s),Math.round(s));return true}
 const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3',
  'chain','deny','move','start','warn','bossdown','pickup','launch','charge','fanfare','bgm'];
 const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
