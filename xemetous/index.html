@@ -146,7 +146,8 @@ const UNCHI_WORDS={'うんこ':'unko','うんち':'unchi','ちんちん':'chin',
 MODES.all.words={...MODES.normal.words,...UNCHI_WORDS};
 MODES.normal.name='うんちなしモード';
 // うんちありモードは、前半はうんちなしと同じ言葉だけ。後半（UNCHI_T 秒から）とボス戦で うんち系がまざる。最後は巨大ナスの地上絵
-const UNCHI_T=52;
+const STRETCH=1.15;                                  // 台本の時刻をのばす倍率（板が長く残るぶん、道中も長く）
+const UNCHI_T=52*STRETCH;
 const EASY_T=UNCHI_T;                                 // ここまでの文字そろえは「1つ動かせばそろう」やさしい板
 const unchiTime=()=>mode==='all'&&(t>=UNCHI_T||!!boss);
 let mode='all';   // パイロット版は うんちありモードだけ（うんちなしモードは MODES.normal に残してある）
@@ -483,7 +484,7 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   const pw=o.w*CELL,blocked=X=>ground.some(g=>g.kind!=='puz'&&!g.dead&&g.stopY!=null&&(g.hold>0||g.y<g.stopY)&&g.x>X-30&&g.x<X+pw+30);   // 降りてくる道に止まっている地上物が無い所へ
   if(blocked(o.x)){const xs=[];for(let X=14;X<=W-14-pw;X+=20)xs.push(X);xs.sort((a,b)=>Math.abs(a-o.x)-Math.abs(b-o.x));
    const nx=xs.find(X=>!blocked(X));if(nx!==undefined)o.x=nx}
-  o.stopY=stopY;o.hold=o.hold0=hold;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}
+  o.stopY=stopY;o.hold=o.hold0=hold*1.5;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}   // 板が帰るまで長めに（1.5倍）
  const o={kind,x,y:-30,cd:2+Math.random()*2,stopY,hold};ground.push(o);return o}
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
@@ -772,7 +773,7 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
   const type=b.n%3===0?'pic':b.n%3===2?'grid':'word';
   let o=null;for(let k=0;k<10;k++){const q=makePuzzle(60+Math.random()*(W-120),H*.4,type);    // 他の板と重ならない所に
    if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length<2&&!ground.some(g=>g.kind==='puz'&&!g.done&&q.x<g.x+g.w*CELL+10&&g.x<q.x+q.w*CELL+10&&q.y<g.y+g.h*CELL+10&&g.y<q.y+q.h*CELL+10)){o=q;break}}
-  if(o){o.emerge=0;o.stopY=o.lane=o.y;o.arrived=true;o.hold=o.hold0=11;o.vx=(Math.random()<.5?-1:1)*16;o.wt=0;ground.push(o)}else b.spawnT=1}
+  if(o){o.emerge=0;o.stopY=o.lane=o.y;o.arrived=true;o.hold=o.hold0=16;o.vx=(Math.random()<.5?-1:1)*16;o.wt=0;ground.push(o)}else b.spawnT=1}
  b.waveT=(b.waveT||7)-dt;
  if(b.waveT<=0){b.waveT=rage?8:11;ringWave(Math.random()<.5?-1:1,5,{shooters:[4]})}}
 function drawBoss(){const b=boss;if(!b)return;
@@ -982,7 +983,7 @@ function drawCutin(){
 // ゼビウスの1面のように「空の山場」と「地上をじっくり狙う間」を交互に置いてメリハリを付ける。
 // 地上は「そろえる（ことば・ピース）」と「けす（横・縦に並んだ敵）」を混ぜる。
 //  導入 → 地上の間 → 空の山 → 休み（パズル） → バキュラの壁 → 締めの山 → 静かに終わる
-const AREA_LEN=100;               // ここでボスが出る
+const AREA_LEN=100;               // ここでボスが出る（台本の時刻。実際は ×STRETCH）
 let gid=0;
 function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
  if(Math.random()<.5){side=-side;if(x0!==undefined)x0=W-x0}   // 毎プレイ違う：左右はランダム
@@ -1016,7 +1017,7 @@ function areaScript(){
  G(28.0,()=>spawnAir('barrage',W/2));
  G(30.0,()=>ringWave(-1,6));
  G(32.5,()=>ringWave(1,6));
- G(UNCHI_T,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
+ G(UNCHI_T/STRETCH,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
  // バキュラの林：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
  G(40.0,()=>{message('バキュラの林！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
  G(41.0,()=>bakuraRows(5,1.8));
@@ -1070,7 +1071,7 @@ function areaScript(){
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
  for(const g of grp)if(g[0]<AREA_LEN-1&&g[0]>2)g[0]+=(Math.random()-.5)*1.2;   // 毎プレイ違う：時刻を少しゆらす
- return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm/diff**.15,f])}   // 時刻順に（書いた順に依らない）
+ return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm*STRETCH/diff**.15,f])}   // 時刻順に（書いた順に依らない）
 function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLock()}catch(e){}}
 function areaClear(){
  stopBgm();bgmName='';                               // BGM を止めて、クリアのファンファーレ（魔王魂 ジングル09）を1回
@@ -1416,7 +1417,7 @@ function draw(){
    ctx.fillStyle='#1a140e';ctx.fillRect(8,24,W-16,18);ctx.fillStyle='#4a3620';ctx.fillRect(11,27,W-22,12);
    ctx.fillStyle=boss.flash>0?'#ffffff':k<.5?'#e2624a':'#f6e27a';ctx.fillRect(11,27,(W-22)*k,12);
    ctx.font='bold 10px monospace';ctx.fillStyle='#1a140e';ctx.fillText('インドアジェネシス  '+Math.ceil(boss.hp)+' / '+boss.max,16,37)}
-  else if(!boss){const left=Math.max(0,AREA_LEN/diff**.15-t);ctx.textAlign='right';ctx.fillText('要塞まで '+Math.ceil(left)+'秒',W-10,18)}
+  else if(!boss){const left=Math.max(0,AREA_LEN*STRETCH/diff**.15-t);ctx.textAlign='right';ctx.fillText('要塞まで '+Math.ceil(left)+'秒',W-10,18)}
   ctx.textAlign='left'}
  ctx.restore();
  if(flash>0){ctx.globalAlpha=Math.min(.8,flash);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
