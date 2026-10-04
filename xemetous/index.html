@@ -37,6 +37,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #overlay p{font-size:12.5px;line-height:1.6;color:#d9c49a;margin:6px 0}
 #overlay b{color:#f2d9a4}#overlay small{display:inline}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
+#overlay button.sub{background:#3a2a17;color:#f2d9a4}
 #overlay button[data-mode]{padding:12px 14px;margin:8px 2px 0}
 #overlay button[data-mode=unchi]{background:#a8743a}
 .hidden{display:none!important}
@@ -56,16 +57,14 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #hint{font-size:11.5px;min-height:32px;color:#d4bd8e;text-align:center;line-height:1.45}
 </style></head><body><main>
 <header><div><h1>ナスの地上絵</h1><small>パイロット版</small></div>
-<div id="top"><button id="sound">音 ON</button><button id="bgm">BGM OFF</button><button id="full">全画面</button><button id="pause">停止</button><button id="cfgbtn">設定</button></div></header>
+<div id="top"><button id="sound">音 ON</button><button id="bgm">BGM ON</button><button id="full">全画面</button><button id="pause">停止</button><button id="cfgbtn">設定</button></div></header>
 <div id="status"><span id="score">SCORE 0</span><span id="power"></span><span id="lives">残機 ▲▲▲</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo_nasu.png" alt="ナスの地上絵">
-<h2>文字をつかんで、そろえて、撃ち込め。</h2>
-<p>地上の文字は<b>つかんで動かす</b>と入れ替わる。<br>言葉が読めたら何か出てくる。</p>
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
-<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>ノーマル：こいぬ・こねこ・すいか・ごりら・きりん…<br>うんち：うんこ・うんち・ちんこ・おちんちん…<br>Enter・Space で前に選んだモード</small></p>
+<p><button id="start" data-mode="normal">ノーマルモード</button> <button id="start2" data-mode="unchi">うんちモード</button></p><p><small>Enter・Space で前に選んだモード</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
@@ -173,8 +172,11 @@ function makePuzzle(x,y,type='word',arg){
  else{const P=MODES[mode].pics,pic=type==='legend'?'legend':typeof arg==='number'?P[arg]:arg||P[rnd(2)];
   w=type==='legend'?8:3;h=type==='legend'?5:3;o={type:'pic',pic,legend:type==='legend'};
   cells=[];for(let r=0;r<h;r++){cells.push([]);for(let c=0;c<w;c++)cells[r].push(r*w+c)}
-  const n=type==='legend'?12:3;                         // 伝説の板は大きいので、入れ替わりは多め
-  do{for(let k=0;k<n;k++){if(Math.random()<.5){const r=rnd(h),c=rnd(w-1);swapCells(cells,[r,c],[r,c+1])}else{const r=rnd(h-1),c=rnd(w);swapCells(cells,[r,c],[r+1,c])}}}
+  if(type==='legend'){                                 // 伝説の板：隣どうしの入れ替えを4か所だけ（重ならない）。1回ずつ直せば完成
+   const used=new Set();let k=0;
+   while(k<4){const v=Math.random()<.5,r=rnd(v?h-1:h),c=rnd(v?w:w-1),a=[r,c],b=v?[r+1,c]:[r,c+1];
+    if(used.has(a+'')||used.has(b+''))continue;used.add(a+'');used.add(b+'');swapCells(cells,a,b);k++}}
+  else do{for(let k=0;k<3;k++){if(Math.random()<.5){const r=rnd(h),c=rnd(w-1);swapCells(cells,[r,c],[r,c+1])}else{const r=rnd(h-1),c=rnd(w);swapCells(cells,[r,c],[r+1,c])}}}
   while(picSolved({w,h,cells}))}
  return{kind:'puz',...o,x:clamp(x-w*CELL/2,14,W-14-w*CELL),y,w,h,cells,done:false,hitT:0}}
 function picSolved(o){return o.cells.every((row,r)=>row.every((v,c)=>v===r*o.w+c))}
@@ -446,7 +448,7 @@ function updateWander(o,dt){
   if(o.lane===undefined||o.lane===null){o.lane=pickLane(o);if(o.lane===null){o.y=Math.min(o.y,-o.h*CELL-10);return}}   // ほかの板と上下に重ならない高さを選ぶ
   o.stopY=o.lane;o.y+=Math.max(SPD,70)*dt;if(o.y>=o.stopY){o.y=o.stopY;o.arrived=true}return}
  if(grab&&grab.o===o)return;                          // つかんでいる間は板は止まる
- if(o.fixed){if(o.hold>0){o.hold-=dt;return}if(!o.left){o.left=true;message('ナスの地上絵は消えてしまった…',2.5)}o.y-=120*dt;return}
+ if(o.fixed){if(o.hold>0){o.hold-=dt;return}if(!o.left){o.left=true;message('ナスの地上絵は消えてしまった…',2.5)}o.y-=360*dt;return}
  if(o.hold>0){o.hold-=dt;o.wt+=dt;                    // ウロウロ：ゆっくり左右に、少し上下に
   o.x+=o.vx*dt;const pw=o.w*CELL;
   if(o.x<12){o.x=12;o.vx=Math.abs(o.vx)}if(o.x>W-12-pw){o.x=W-12-pw;o.vx=-Math.abs(o.vx)}
@@ -456,7 +458,7 @@ function updateWander(o,dt){
    o.vx=(o.x<g.x?-1:1)*Math.abs(o.vx);
   o.y=o.stopY+Math.sin(o.wt*.7)*8;return}
  if(o.pend)materialize(o);                           // 消える前に、光っている言葉は出してしまう
- o.left=true;o.y-=120*dt}                             // 時間切れ：画面の上へ消えていく
+ o.left=true;o.y-=360*dt}                             // 時間切れ：画面の上へ消えていく
 
 // ---- 生まれたキャラ（言葉や絵がそろうと生まれる） -----------------------------
 // ・言葉なら文字の数だけ小さく生まれて、ゆっくり昇っていく。**どれか1つを照準で捕まえると、同じ言葉から生まれた
@@ -529,8 +531,8 @@ function launchParts(){
 function legendAttack(o,cx,cy){
  score+=5000;flash=.5;shake=16;play('clear');play('chain',.8,1);
  for(let i=0;i<10;i++)boom(o.x+Math.random()*o.w*CELL,o.y+Math.random()*o.h*CELL,3);burst(cx,cy,60,'#c8a0ff');
- cutin={text:'ナスの地上絵！',combo:1,t:0,life:3,legend:true};
- if(CFG.voice&&sound&&!playVoice(['legend']))speakTTS('なすのちじょうえ！');
+ cutin={text:'ナスの地上絵よォォッ！',combo:1,t:0,life:3.2,legend:true};   // 興奮した奇声で
+ if(CFG.voice&&sound&&!playVoice(['legend']))speakTTS('なすのちじょうえよおおっ！');
  missiles.push({x:cx,y:cy,vy:-70,t:0,r:80,legend:true,mult:1,pow:0})}
 function legendHit(m){
  const d=Math.max(400,Math.round(boss.max*.55));bossDamage(d,m.x,m.y,true);
@@ -568,7 +570,7 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  // 体力が7割を切ったら、画面いっぱいのナスの地上絵（伝説の板）。その間はほかの板は出ない
  if(!b.legend&&b.hp<b.max*.7){b.legend=true;
   for(const g of ground)if(g.kind==='puz'&&!g.done){if(g.pend)materialize(g);g.hold=0;if(!g.arrived)g.left=true}   // ほかの板は帰らせる
-  const o=makePuzzle(W/2,228,'legend');o.x=(W-8*CELL)/2;o.y=228;o.emerge=0;o.stopY=o.lane=228;o.arrived=true;o.fixed=true;o.hold=o.hold0=45;o.vx=0;o.wt=0;
+  const o=makePuzzle(W/2,228,'legend');o.x=(W-8*CELL)/2;o.y=228;o.emerge=0;o.stopY=o.lane=228;o.arrived=true;o.fixed=true;o.hold=o.hold0=60;o.vx=0;o.wt=0;
   later(.8,()=>ground.push(o));b.legendBoard=o;
   message('ナスの地上絵があらわれた！ 絵をそろえろ',3.5);play('warn',1.2,.7)}
  const lb=b.legendBoard;if(lb&&!lb.done&&!lb.left)return;
@@ -667,8 +669,6 @@ function drawPartIcon(o,x,y,k=1){
  if(ix!==undefined&&has('items')){const d=(o.big?100:19)*k*Z*(o.part==='chinL'?1.12:1);   // 小さい物はパネルにほぼいっぱい
   ctx.globalAlpha*=.35;ctx.drawImage(IMG.items,ix*96,0,96,96,Math.round(x-d/2+3),Math.round(y-d/2+4),d,d);ctx.globalAlpha/=.35;   // 影
   ctx.drawImage(IMG.items,ix*96,0,96,96,Math.round(x-d/2),Math.round(y-d/2),d,d);
-  if(o.part==='unchi'){ctx.strokeStyle='#a8e07acc';ctx.lineWidth=2;                // うんちは臭いの線
-   for(let i=-1;i<=1;i++){const bx=x+i*d*.25,ph=time*6+i;ctx.beginPath();for(let j=0;j<5;j++)ctx.lineTo(bx+Math.sin(ph+j)*3,y-d*.5-j*4);ctx.stroke()}}
   return}
  if(o.part==='refl'){ctx.fillStyle='#ffd0e0';ctx.fillRect(x-3,y-3,6,6);return}
  if(['dog','cat','suika','ringo','sakana','onigiri','neko','gorira','kirin','iruka','ouchi'].includes(o.part)){drawNormalIcon(o.part,x,y,(o.big?40:14)*k);return}
@@ -677,10 +677,7 @@ function drawPartIcon(o,x,y,k=1){
  if(o.part==='nasu'){const s=(o.big?96:30)*k;
   if(has('nasu'))ctx.drawImage(IMG.nasu,Math.round(x-s/2),Math.round(y-s/2),s,s);
   else{ctx.fillStyle='#5b3a8a';ctx.beginPath();ctx.ellipse(x,y,s*.3,s*.45,-.5,0,Math.PI*2);ctx.fill()}return}
- const s=(o.big?38:14)*k;drawUnko(x,y,s,o.part==='unchi');
- if(o.part==='unchi'||o.big){ctx.strokeStyle='#a8e07a99';ctx.lineWidth=2;        // 臭い
-  for(let i=-1;i<=1;i++){const bx=x+i*s*.6,ph=time*6+i;ctx.beginPath();
-   for(let j=0;j<5;j++)ctx.lineTo(bx+Math.sin(ph+j)*3,y-s*1.1-j*4);ctx.stroke()}}}
+ const s=(o.big?38:14)*k;drawUnko(x,y,s,o.part==='unchi')}
 function charScale(o,r){return 2*r/(19*Z)}         // drawPartIcon の大きさ合わせ
 function drawParts(){
  for(const it of items){const lift=Math.min(1,it.t/.6),bob=Math.sin(it.t*5)*2,r=itemR(it);
@@ -838,7 +835,7 @@ function areaClear(){
  overlay('ゲームクリア！',
   'SCORE <b>'+score+'</b>　残機 <b>'+lives+'</b>',
   'パイロット版はここまで。遊んでくれてありがとう！',
-  'もう一度',()=>{reset()})}
+  [['コンティニュー',()=>{area=1;startArea()}],['タイトルに戻る',showTitle]])}   // クリア後のコンティニューは点数そのままで最初から
 
 // ---- 効果 -------------------------------------------------------------------
 function pop(x,y,text,col='#f6e27a',size=15){pops.push({x,y,text,col,size,t:0,life:1.1,rise:26})}
@@ -870,16 +867,27 @@ function loseLife(){
  ui()}
 function gameOver(){
  setBgm('title');
- phase='over';unlockMouse();bgmVolume(.12);
- overlay('GAME OVER','AREA <b>'+area+'</b> まで　SCORE <b>'+score+'</b>','','もう一度',()=>{reset()})}
-function overlay(title,sub,lines,btn,fn){
+ phase='over';unlockMouse();
+ overlay('GAME OVER','SCORE <b>'+score+'</b>','',[['コンティニュー',continueGame],['タイトルに戻る',showTitle]])}
+// コンティニュー：やられた所からそのまま続ける（残機を戻す）
+function continueGame(){
+ lives=LIVES;phase='play';$('overlay').classList.add('hidden');
+ ship.alive=true;ship.inv=2.5;ship.deadT=0;ship.x=ship.tx=W/2;ship.y=ship.ty=H-120;
+ setBgm(boss&&!boss.dead?'boss':'stage');message('コンティニュー！',2);ui()}
+// タイトルに戻る
+let TITLE_HTML='';
+const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）</div>';
+function showTitle(){
+ phase='ready';paused=false;cutin=null;air=[];ground=[];items=[];missiles=[];ebul=[];boss=null;if(ship)ship.opts=[];
+ $('overlay').firstElementChild.innerHTML=TITLE_HTML;$('overlay').classList.remove('hidden');bindTitle();setBgm('title')}
+function overlay(title,sub,lines,btns){            // btns：[[文字, 押した時],…]。最初のボタンは Enter・Space でも押せる
  $('overlay').classList.remove('hidden');
  $('overlay').firstElementChild.innerHTML=
   '<img id="logo" src="../assets/img/logo_nasu.png" alt="ナスの地上絵">'+
   '<h2>'+title+'</h2><p>'+sub+'</p>'+(lines?'<p>'+lines+'</p>':'')+
-  '<button id="start">'+btn+'</button><p><small>Enter・Space・N・M でも進める</small></p>'+
-  '<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED</div>';
- $('start').onclick=()=>{audio();goFullscreen();keepAwake();fn()}}
+  '<p>'+btns.map((b,i)=>'<button id="'+(i?'ov'+i:'start')+'"'+(i?' class="sub"':'')+'>'+b[0]+'</button>').join(' ')+'</p>'+
+  '<p><small>Enter・Space・N・M で「'+btns[0][0]+'」</small></p>'+CREDIT;
+ btns.forEach((b,i)=>{$(i?'ov'+i:'start').onclick=()=>{audio();goFullscreen();keepAwake();b[1]()}})}
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
@@ -1180,9 +1188,12 @@ $('pause').onclick=togglePause;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');bgmVolume(sound&&!paused&&bgmOn?.3:0)};
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
-for(const id of ['start','start2']){const el=$(id);el.onclick=()=>{setMode(el.dataset.mode);audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
-// Enter・Space は前に選んだモードを押す
-if(mode==='unchi'){const a=$('start'),b=$('start2');a.id='start2';b.id='start'}   // 並びはそのまま、Enter で押されるのを入れ替える
+function bindTitle(){
+ for(const el of document.querySelectorAll('#overlay button[data-mode]')){el.id=el.dataset.mode==='normal'?'start':'start2';
+  el.onclick=()=>{setMode(el.dataset.mode);audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
+ // Enter・Space は前に選んだモードを押す（並びはそのまま、Enter で押されるのを入れ替える）
+ if(mode==='unchi'){const a=$('start'),b=$('start2');a.id='start2';b.id='start'}}
+TITLE_HTML=$('overlay').firstElementChild.innerHTML;bindTitle();
 // ---- 設定（スマホでもPCでも：スライダーと −／＋ ボタン） ---------------------
 let cfgPausedByMe=false;
 const fmtCfg=(d,v)=>d.labels?d.labels[v]:(d.step<1?v.toFixed(d.step<.1?2:1):String(v))+(d.unit?' '+d.unit:'');
@@ -1227,7 +1238,7 @@ let ac,sound=true,sfxLoaded=false;
 const MAOU_SFX=['shot','hit','boom_s','boom_l','swap','pickup','match','clear','chain','warn','bossdown','launch','deny','start','sq2','sq3'];
 // BGM も魔王魂（8bit・ループ版）。道中＝キャロットマンステージ、ボス＝bravery heart、タイトルなど＝子猫のもんたのクッキー屋さん
 const BGM_FILE={stage:'maou_loop_bgm_8bit27',boss:'maou_loop_bgm_8bit25',title:'maou_loop_bgm_8bit29'};
-let bgmName='stage';
+let bgmName='title';
 function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;
  for(const n of SFX_NAMES){if(n==='bgm')continue;
   fetch('../assets/'+(MAOU_SFX.includes(n)?'sfx_maou/':'sfx/')+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
@@ -1238,7 +1249,7 @@ function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;
 function setBgm(name){if(name===bgmName&&bgmSrc)return;bgmName=name;stopBgm();startBgm()}
 // BGM。効果音と同じ仕組みでループ再生する
 let bgmSrc=null,bgmGain=null;
-let bgmOn=false;                                  // BGM はデフォルトで鳴らさない（BGMボタンで切り替え）
+let bgmOn=true;                                   // BGM は最初から鳴らす（BGMボタンで切り替え）
 function startBgm(){
  const buf=SFX['bgm_'+bgmName];
  if(!bgmOn||!ac||!buf||bgmSrc)return;

@@ -38,6 +38,18 @@ def make(text,accent,out,speed=1.0,pitch=0.0):
     q['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%SP,q))
     return '/'.join(''.join(m['text'] for m in ap['moras']) for ap in aps),[[round(m['pitch'],2) for m in ap['moras']] for ap in aps]
+def excite(out):
+    """伝説の攻撃：「ナスの地上絵よォォッ！」を興奮した声で。語尾の よォォッ を高く上げて伸ばす"""
+    q1,a1=phrase('なすの',1);q2,a2=phrase('ちじょうえよおお',3,down=0.0)
+    ms=a2['moras'];base=max(m['pitch'] for m in ms if m['pitch']>0)
+    for k,m in enumerate(ms[4:]):                     # よ・お・お：どんどん上がって長く
+        m['pitch']=round(base+0.25+0.18*k,3);m['vowel_length']=m['vowel_length']*(1.6+0.6*k)
+    for m in a1['moras']+ms[:4]:
+        if m['pitch']>0:m['pitch']=round(m['pitch']+0.12,3)
+    q1['accent_phrases']=[a1,a2]
+    q1['speedScale']=1.18;q1['pitchScale']=0.06;q1['intonationScale']=1.5;q1['volumeScale']=1.3
+    q1['prePhonemeLength']=0.05;q1['postPhonemeLength']=0.15;q1['outputSamplingRate']=24000
+    open(out,'wb').write(post('/synthesis?speaker=%d'%SP,q1))
 LIST="""
 こいぬ 0 koinu.wav
 こねこ 0 koneko.wav
@@ -51,10 +63,10 @@ LIST="""
 いるか 0 iruka.wav
 うんこ 1 unko.wav
 うんち 0 unchi.wav
-ちんちん 0 chinchin.wav
-おちんちん 0 ochinchin.wav
+ちんちん 1 chinchin.wav
+おちんちん 2 ochinchin.wav
 ちんこ 1 chinko.wav
-おちんこ 0 ochinko.wav
+おちんこ 2 ochinko.wav
 おうち 0 ouchi.wav
 ツーコンボ 3 combo2.wav
 スリーコンボ 4 combo3.wav
@@ -63,7 +75,6 @@ LIST="""
 シックスコンボ 5 combo6.wav
 コンボ 1 combo.wav
 なす 1 nasu.wav
-なすの|ちじょうえ 1|3 legend.wav
 """
 if __name__=='__main__':
     import os
@@ -71,3 +82,4 @@ if __name__=='__main__':
     for line in LIST.strip().splitlines():
         t,a,f=line.split()
         print(f,*make(t,a,os.path.join(out,f)))
+    excite(os.path.join(out,'legend.wav'));print('legend.wav ナスの地上絵よォォッ！')
