@@ -1189,6 +1189,10 @@ function sightFrame(x,y,w,h,col,lw){
 function drawAir(){
  for(const e of air){
   ctx.globalAlpha=e.alpha;
+  if(e.kind==='barrage'){const r=e.size*.62+Math.sin(e.t*8)*4;   // すげえ弾幕：赤く脈打つ輪で、ふつうの敵と見分ける
+   ctx.fillStyle='#e2624a33';ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.fill();
+   ctx.strokeStyle='#e2624a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.stroke();
+   if(e.tough>0){ctx.fillStyle='#1a140e';ctx.fillRect(e.x-30,e.y-r-10,60,5);ctx.fillStyle='#e2624a';ctx.fillRect(e.x-30,e.y-r-10,60*e.tough/40,5)}}
   if(e.kind==='plate'){const s=Math.abs(Math.sin(e.t*3.2));   // 回る板
    ctx.fillStyle='#1a140e';ctx.fillRect(e.x-e.size/2-2,e.y-e.size*s/2-2,e.size+4,e.size*s+4);
    ctx.fillStyle=s>.5?'#b8c4cc':'#7c8a94';ctx.fillRect(e.x-e.size/2,e.y-e.size*s/2,e.size,Math.max(2,e.size*s))}
@@ -1217,7 +1221,7 @@ function drawBomb(){
 function draw(){
  ctx.save();
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
- drawTerrain();drawBoss();drawGroundObjs();drawParts();
+ drawTerrain();drawGroundObjs();drawBoss();drawParts();   // 要塞と吹き出しは板より上に
  for(const c of caps){const b=.5+Math.sin(c.t*9)*.5;
   ctx.fillStyle='#1a140e';ctx.fillRect(c.x-13,c.y-13,26,26);ctx.fillStyle=b>.5?'#8fe0ff':'#fff';ctx.fillRect(c.x-11,c.y-11,22,22);
   ctx.fillStyle='#1a140e';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('P',c.x,c.y+5);ctx.textAlign='left'}
