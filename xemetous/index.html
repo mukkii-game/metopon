@@ -38,8 +38,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #overlay b{color:#f2d9a4}#overlay small{display:inline}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
 #overlay button.sub{background:#3a2a17;color:#f2d9a4}
-#overlay button[data-mode]{padding:12px 14px;margin:8px 2px 0}
-#overlay button[data-mode=all]{background:#a8743a}
+#overlay button[data-mode]{padding:14px 48px;margin:8px 2px 0;font-size:17px}
 .hidden{display:none!important}
 #cfg{position:absolute;inset:0;z-index:5;overflow-y:auto;touch-action:pan-y;background:#1a1109f2;padding:10px 14px 20px}
 #cfg h2{font-size:17px;margin:4px 0 8px;color:#f2d9a4;text-align:center}
@@ -64,7 +63,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
-<p><button id="start" data-mode="all">うんちありモード</button> <button id="start2" data-mode="normal">うんちなしモード</button></p><p><small>Enter・Space で前に選んだモード</small></p>
+<p><button id="start" data-mode="all">スタート</button></p><p><small>Enter・Space でスタート</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
@@ -142,7 +141,7 @@ MODES.normal.name='うんちなしモード';
 const UNCHI_T=52;
 const EASY_T=UNCHI_T;                                 // ここまでの文字そろえは「1つ動かせばそろう」やさしい板
 const unchiTime=()=>mode==='all'&&(t>=UNCHI_T||!!boss);
-let mode=(()=>{try{return localStorage.getItem('xemetous_mode')==='normal'?'normal':'all'}catch(e){return 'all'}})();   // はじめては うんちあり
+let mode='all';   // パイロット版は うんちありモードだけ（うんちなしモードは MODES.normal に残してある）
 let WORD_PART,WORDS,LETTER_POOL,PICS,EARLY_WORDS,EARLY_POOL;
 const genWords=()=>mode==='all'&&!unchiTime()?EARLY_WORDS:WORDS,pickWord=()=>{const L=genWords();return L[rnd(L.length)]};
 function setMode(m){mode=m;const M=MODES[m];WORD_PART=M.words;PICS=M.picName;
@@ -724,9 +723,10 @@ function bossDamage(d,x,y,big){
   message('要塞撃破！',3);play('bossdown');flash=.5;if(CFG.voice&&sound)playVoice(['bossCry']);
   for(let i=0;i<5;i++)later(i*.15,()=>{if(boss){boom(boss.x+(Math.random()-.5)*boss.w,boss.y+(Math.random()-.5)*boss.h,3.5);shake=14;play('boom_l',.7+Math.random()*.4)}});
   later(4.6,areaClear)}}
+function bossRetreat(b,dt){b.deadT+=dt;if(b.deadT>1.4){b.y-=26*dt;b.x+=Math.sin(b.deadT*5)*30*dt}}   // 泣きながら、ゆっくり上へ帰っていく（小さくならない）
 function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=dt;
  if(b.yuck>0)b.yuck-=dt;
- if(b.dead){b.deadT+=dt;if(b.deadT>1.4){b.y-=(b.deadT-1.4)*260*dt;b.x+=Math.sin(b.deadT*9)*40*dt}return}   // 泣きながら上へ帰っていく
+ if(b.dead){bossRetreat(b,dt);return}
  if(b.y<b.ty){b.y=Math.min(b.ty,b.y+60*dt);if(b.y>=b.ty&&!b.talked){b.talked=true;startBossTalk()}return}
  const rage=b.hp<b.max*.5;
  if(b.stun>0)b.stun-=dt;else b.mt=(b.mt||0)+dt;   // ごりらが当たると少し止まる
@@ -1067,7 +1067,7 @@ const ENDING_ROLL=[['ナスの地上絵','title'],['パイロット版',''],['',
  ['',''],
  ['あそんでくれて','big'],['ありがとう！','big']];
 const ENDING_LEN=26;
-function updateEnding(dt){const e=ending;e.t+=dt;scroll+=SPD*.6*dt;
+function updateEnding(dt){const e=ending;e.t+=dt;scroll+=SPD*.6*dt;if(boss&&boss.dead){boss.t+=dt;bossRetreat(boss,dt)}
  for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
  if(!e.said&&e.t>ENDING_LEN-5.5){e.said=true;if(CFG.voice&&sound&&!playVoice(['thanks']))speakTTS('あそんでくれて、ありがとう！')}
  if(e.t>ENDING_LEN)finishEnding()}
@@ -1083,10 +1083,7 @@ function drawEnding(){const e=ending,tt=e.t;
  // 大きなナスの地上絵が、ゆっくり光りながら浮かぶ
  const a=Math.min(1,tt/2),S=300;ctx.globalAlpha=a*(.55+.15*Math.sin(tt*2));
  ctx.imageSmoothingEnabled=true;ctx.drawImage(ART.nasu,W/2-S/2,150-S/2+Math.sin(tt*.8)*6,S,S);ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;
- // 要塞は泣きながら遠くへ
- if(tt<5&&has('kenney_boss')){const k=1-tt/5,bw=120*k,bh=63*k;ctx.globalAlpha=k;
-  ctx.drawImage(IMG.kenney_boss,W*.75-bw/2+Math.sin(tt*9)*6,60-tt*10-bh/2,bw,bh);
-  ctx.font='bold 13px sans-serif';ctx.fillStyle='#8fd0ff';ctx.textAlign='center';ctx.fillText('おうちに かえる～',W*.75,90-tt*10+bh/2);ctx.globalAlpha=1}
+ if(boss&&boss.dead)drawBoss();                      // 要塞は泣きながら、ゆっくり上へ（エンディングの間も続く）
  // スタッフロール
  ctx.textAlign='center';const sp=34,y0=H+20-(tt-1.5)*42;
  ENDING_ROLL.forEach(([txt,k],i)=>{let y=y0+i*sp;const last=ENDING_ROLL.length-1;
@@ -1495,8 +1492,7 @@ $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF'
 function bindTitle(){
  for(const el of document.querySelectorAll('#overlay button[data-mode]')){el.id=el.dataset.mode==='all'?'start':'start2';
   el.onclick=()=>{setMode(el.dataset.mode);audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
- // Enter・Space は前に選んだモードを押す（並びはそのまま、Enter で押されるのを入れ替える）
- if(mode==='normal'){const a=$('start'),b=$('start2');a.id='start2';b.id='start'}}
+}
 TITLE_HTML=$('overlay').firstElementChild.innerHTML;bindTitle();
 // ---- 設定（スマホでもPCでも：スライダーと −／＋ ボタン） ---------------------
 let cfgPausedByMe=false;
