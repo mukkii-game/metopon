@@ -382,10 +382,12 @@ let fireT=-9,groups={};
 function ebMax(){return Math.round((2+(diff-1)*2+(boss?1:0))*CFG.eFire)}    // 画面に出せる敵弾の数
 function canFire(x,y){
  if(!ship.alive||CFG.eFire<=0)return false;
- if(ebul.length>=ebMax()||t-fireT<.55/CFG.eFire)return false;     // 弾の数と、撃つ間隔
+ if(ebul.length>=ebMax()*4||t-fireT<.55/CFG.eFire)return false;   // 弾の数（4発ずつまとめて撃つので×4）と、撃つ間隔
  if(y>ship.y-60||Math.hypot(ship.x-x,ship.y-y)<130)return false;  // 後ろ・目の前からは撃たない
  return true}
-function enemyShot(x,y,spd){if(!canFire(x,y))return false;fireT=t;aimShot(x,y,spd);play('hit',1.6,.35);return true}
+function enemyShot(x,y,spd){if(!canFire(x,y))return false;fireT=t;   // 「だだだだ」と同じ向きに4発まとめて（よける手間は1発と同じ）
+ const dx=ship.x-x,dy=ship.y-y,d=Math.hypot(dx,dy)||1,v=spd||CFG.eSpeed;
+ for(let k=0;k<4;k++)later(k*.075,()=>{ebul.push({x,y,vx:dx/d*v,vy:dy/d*v});if(k===0)play('hit',1.6,.35)});return true}
 function spawnAir(kind,x,o={}){
  const e={kind,x,y:-24,t:0,vx:0,vy:0,hp:1,alpha:1,warn:0,...o};
  if(e.g)groups[e.g]=(groups[e.g]||0)+1;
@@ -964,10 +966,11 @@ function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイド�
  const g=++gid;for(let i=0;i<n;i++)later(i*gap,()=>{
   const x=x0!==undefined?x0+(side<0?i*26:-i*26):side<0?50+i*30:W-50-i*30;
   spawnAir('ring',x,{g,gn:n,shooter:shooters.includes(i)})})}
-function bakuraRows(n,gap){
- const X=[];for(let x=26;x<W;x+=48)X.push(x);let hole=1+rnd(X.length-3);
- for(let r=0;r<n;r++)later(r*gap,()=>{hole=clamp(hole+rnd(5)-2,0,X.length-2);
-  X.forEach((x,i)=>{if(i!==hole&&i!==hole+1)spawnAir('plate',x)})})}
+function bakuraRows(n,gap){                         // バキュラの林：1列に3〜4枚を ちらばらせて置く（すき間が多い）。列の間も広め
+ const X=[];for(let x=30;x<W;x+=48)X.push(x);
+ for(let r=0;r<n;r++)later(r*gap,()=>{const pick=shuffle(X.slice()),out=[];
+  for(const x of pick){if(out.length>=3+rnd(2))break;if(out.some(q=>Math.abs(q-x)<96))continue;out.push(x)}   // となりどうしは1マス以上あける
+  for(const x of out)spawnAir('plate',clamp(x+(Math.random()-.5)*20,24,W-24))})}
 function areaScript(){
  const grp=[];const G=(tm,f)=>grp.push([tm,f]);const late=area>=2;
  // 空は「山」（編隊がどっと来る）と「間」（空っぽ。地上物を落ち着いて撃てる）を交互に
@@ -992,7 +995,7 @@ function areaScript(){
  G(UNCHI_T,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
  // バキュラの林：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
  G(40.0,()=>{message('バキュラの林！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
- G(41.0,()=>bakuraRows(5,1.35));
+ G(41.0,()=>bakuraRows(5,1.8));
  G(43.0,()=>ringWave(-1,6,{x0:60}));
  G(46.0,()=>ringWave(1,6,{x0:W-60,shooters:[5]}));
  // 締めの山：大編隊を3つ重ねる
@@ -1032,7 +1035,7 @@ function areaScript(){
  G(78.5,()=>spawnGround('grid',W/2,{stopY:330,hold:13}));
  G(83.5,()=>{spawnGround('pic',W/2,{stopY:220,hold:12});spawnLine('tower',350,140,1,'h')});
  G(86.0,()=>{message('バキュラの林、ふたたび！',3);play('warn',1.3,.5)});
- G(87.0,()=>bakuraRows(6,1.25));
+ G(87.0,()=>bakuraRows(6,1.7));
  G(89.0,()=>ringWave(-1,6,{x0:60}));
  G(92.5,()=>{for(let i=0;i<4;i++)later(i*.3,()=>spawnAir('torkan',80+i*93,{stopY:100+i%2*60}))});
  G(93.5,()=>ringWave(1,8,{shooters:[2,6]}));
