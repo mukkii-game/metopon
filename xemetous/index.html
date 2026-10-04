@@ -344,7 +344,7 @@ function clearFx(o,cx,cy){
 function destroyFixed(o){
  o.dead=true;
  const pts={turret:400,pyramid:600,tower:1000}[o.kind]||300;score+=pts;
- boom(o.x,o.y,3);burst(o.x,o.y,18,'#ffe0a0');play('boom_l',1.2,.8);shake=Math.max(shake,8);
+ boom(o.x,o.y,3);burst(o.x,o.y,18,'#ffe0a0');play('boom_l',1.2,.3);shake=Math.max(shake,8);
  pop(o.x,o.y-20,'+'+pts,'#c8e6a0',15);
  if(o.kind==='tower'){caps.push({x:o.x,y:o.y,t:0});message('カプセル！ 取ると照準が伸びる',2.2)}}
 
@@ -371,7 +371,7 @@ function spawnAir(kind,x,o={}){
  if(kind==='ring'){e.vy=185;e.sprite='enemy1';e.size=30*Z}
  if(kind==='torkan'){e.vy=260;e.stopY=e.stopY||110+rnd(120);e.sprite='enemy4';e.size=34*Z}
  if(kind==='zakato'){e.y=e.y0||90+rnd(220);e.alpha=0;e.sprite='zako22';e.size=32*Z}
- if(kind==='plate'){e.vy=SPD+40;e.size=34*Z;e.hp=Infinity}
+ if(kind==='plate'){e.ph=x*.02;e.vy=SPD+40;e.size=34*Z;e.hp=Infinity}
  if(kind==='barrage'){e.vy=120;e.sprite='enemy4';e.size=64*Z;e.tough=40}
  if(kind==='giddo'){e.vy=190;e.x0=x;e.amp=e.amp||100;e.sprite='enemy2';e.size=34*Z}
  air.push(e)}
@@ -405,13 +405,15 @@ function updateAir(dt){
    else if(!e.shot){if(!e.warned){e.warned=true;e.warn=.4}
     else if(e.warn<=0){e.shot=true;enemyShot(e.x,e.y)}}
    if(e.t>1.5){e.alpha=Math.max(0,1-(e.t-1.5)/.3);if(e.t>1.8)e.gone=true}}
-  if(e.kind==='barrage'){                            // すげえ弾幕：止まって、画面の端から端まで弾の壁を撃つ。キャラで消さないと抜けられない
-   if(!e.st){e.vy=Math.max(30,(110-e.y)*2.5);if(e.y>=107){e.st=1;e.vy=0;e.hold=1.2;e.warn=1.2}}
-   else if(e.st===1){e.hold-=dt;if(e.hold<=0){e.st=2;e.n=0;e.cd=0}}
-   else if(e.st===2){e.cd-=dt;if(e.cd<=0){e.cd=.8;e.n++;play('hit',1.2,.6);
-     const off=e.n%2*6;for(let x=8+off;x<W;x+=13)ebul.push({x,y:e.y+30,vx:0,vy:150,wall:true});   // 弾の壁（すき間なし）
-     if(ship.alive)for(let k=-3;k<=3;k++){const a=Math.atan2(ship.y-e.y,ship.x-e.x)+k*.16;ebul.push({x:e.x,y:e.y+20,vx:Math.cos(a)*170,vy:Math.sin(a)*170,wall:true})}
-     if(e.n>=4){e.st=3}}}
+  if(e.kind==='barrage'){                            // ばらまき：止まってゆらゆら動きながら、ゆっくりの弾を回して撃つ
+   if(!e.st){e.vy=Math.max(30,(110-e.y)*2.5);if(e.y>=107){e.st=1;e.vy=0;e.hold=1;e.warn=1;e.x0=e.x}}
+   else if(e.st===1){e.hold-=dt;if(e.hold<=0){e.st=2;e.cd=0;e.cd2=1;e.ft=0;e.ang=0}}
+   else if(e.st===2){e.ft+=dt;e.x=e.x0+Math.sin(e.ft*.7)*110;e.cd-=dt;e.cd2-=dt;
+    if(e.cd<=0){e.cd=.32;e.ang+=.5;                // 3方向に回しながら
+     for(let k=0;k<3;k++){const a=e.ang+k*Math.PI*2/3;if(Math.sin(a)<-.2)continue;ebul.push({x:e.x,y:e.y+18,vx:Math.cos(a)*85,vy:Math.sin(a)*85+20,soft:true})}}
+    if(e.cd2<=0&&ship.alive){e.cd2=1.4;play('hit',1.2,.4);   // ときどき自機の方へ ゆっくりの5方向
+     for(let k=-2;k<=2;k++){const a=Math.atan2(ship.y-e.y,ship.x-e.x)+k*.22;ebul.push({x:e.x,y:e.y+18,vx:Math.cos(a)*95,vy:Math.sin(a)*95,soft:true})}}
+    if(e.ft>7.5)e.st=3}
    else{e.vy=toward(e.vy,-200,300,dt)}}
   if(e.kind==='giddo')e.x=e.x0+Math.sin(e.t*2.6)*e.amp;
   if(e.kind!=='giddo')e.x+=e.vx*dt;
@@ -421,7 +423,7 @@ function updateAir(dt){
 function killAir(e,mult=1){
  e.dead=true;const pts=({ring:30,torkan:50,zakato:150,giddo:80,barrage:3000}[e.kind]||30)*mult;score+=pts;
  if(mult>1)pop(e.x,e.y-12,'+'+pts,'#8fe0ff',13);
- boom(e.x,e.y,2);burst(e.x,e.y,8,'#ffe0a0');play('boom_s');
+ boom(e.x,e.y,2);burst(e.x,e.y,8,'#ffe0a0');play('kill',.95+Math.random()*.1,.8);
  if(e.g&&--groups[e.g]===0&&e.gn>=4){const b=100*e.gn;score+=b;        // 編隊を全部落とした
   popBig(e.x,e.y-24,'編隊全滅 +'+b,'#f6e27a',17);play('sq2',1,.6)}}
 
@@ -434,10 +436,24 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   if(boss)return null;                                 // ボス戦では道中の板は出さない（ボスが自分で出す）
   if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length>=2){later(1,()=>spawnGround(kind,x,{stopY,hold,arg}));return null}   // 板は同時に2枚まで（空くまで待つ）
   const o=makePuzzle(x,-120,kind,arg);o.y=-o.h*CELL-10;
+  const pw=o.w*CELL,blocked=X=>ground.some(g=>g.kind!=='puz'&&!g.dead&&g.stopY!=null&&(g.hold>0||g.y<g.stopY)&&g.x>X-30&&g.x<X+pw+30);   // 降りてくる道に止まっている地上物が無い所へ
+  if(blocked(o.x)){const xs=[];for(let X=14;X<=W-14-pw;X+=20)xs.push(X);xs.sort((a,b)=>Math.abs(a-o.x)-Math.abs(b-o.x));
+   const nx=xs.find(X=>!blocked(X));if(nx!==undefined)o.x=nx}
   o.stopY=stopY;o.hold=o.hold0=hold;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}
  const o={kind,x,y:-30,cd:2+Math.random()*2,stopY,hold};ground.push(o);return o}
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
-function spawnLine(kind,x,stopY,n,dir,hold=8){
+function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
+ for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
+  if(g.kind==='puz'){const y=g.lane!=null?g.lane:g.stopY;if(y==null)continue;a=g.x-40;b=y-30;c=g.x+g.w*CELL+40;d=y+g.h*CELL+30}   // 板はうろうろするので広めに
+  else{if(g.stopY==null||g.hold<=0)continue;a=g.x-CELL*.6;b=g.stopY-CELL*.6;c=g.x+CELL*.6;d=g.stopY+CELL*.6}
+  if(x0<c&&a<x1&&y0<d&&b<y1)return false}
+ return true}
+function spawnLine(kind,x,stopY,n,dir,hold=8,tries=0){
+ const w=(dir==='h'?n:1)*CELL,h=(dir==='h'?1:n)*CELL,cand=[];   // 重なるなら、横にずらす・高さを変える・少し待つ
+ for(const dy of [0,120,-90,220])for(const dx of [0,-120,120,-200,200])cand.push([clamp(x+dx,w/2+10,W-w/2-10),clamp(stopY+dy,90,H*.62)]);
+ const ok=cand.find(([cx,cy])=>groundFree(cx-w/2,-40,cx+w/2,dir==='h'?cy+h/2:cy+h-CELL/2));   // 上から降りてくる通り道もふくめて
+ if(!ok){if(tries<6)later(1.2,()=>spawnLine(kind,x,stopY,n,dir,hold,tries+1));return}
+ [x,stopY]=ok;
  for(let i=0;i<n;i++){const d=(i-(n-1)/2)*CELL;
   if(dir==='h')spawnGround(kind,x+d,{stopY,hold});
   else{const o=spawnGround(kind,x,{stopY:stopY+i*CELL,hold});o.y=-30-(n-1-i)*CELL}}}
@@ -445,6 +461,7 @@ function updateGround(dt){
  for(const o of ground){
   if(o.kind==='puz'){updatePend(o,dt);if(o.stopY!==undefined)updateWander(o,dt)}
   else if(o.stopY!==undefined&&o.hold>0&&o.y>=o.stopY){o.y=o.stopY;o.hold-=dt}   // 止まっている間は画面に固定
+  else if(o.stopY!==undefined&&o.y>=o.stopY){o.sinkT=(o.sinkT||0)+dt;if(o.sinkT>.7)o.dead=true}   // 止まり終わったら地面に沈んで消える（板と重ならない）
   else o.y+=SPD*dt;
   if(o.emerge!==undefined&&o.emerge<1)o.emerge=Math.min(1,o.emerge+dt/.7);   // ボス戦：地中からせり上がる
   if(o.warn>0)o.warn-=dt;
@@ -537,7 +554,7 @@ function updateParts(dt){
    o.yuckT=(o.yuckT||0)-dt;if(o.yuckT<=0){o.yuckT=.6;o.hp--;o.hitT=.15;bossDamage(o.big?36:12,p.x,p.y-10,false);if(boss.yuck<=0&&time-(boss.yuckSaid||-9)>3&&CFG.voice&&sound){boss.yuckSaid=time;playVoice(['bossYuck'])}boss.yuck=1.8;play('hit',.7,.6)}}
   if(o.part==='cat')for(const g of ground)if(g.kind!=='puz'&&!g.dead&&Math.hypot(g.x-p.x,g.y-p.y)<r+18){destroyFixed(g);o.hp--;o.hitT=.15}   // こねこ：地上の敵を壊す
   const wr=r+4+(WIDE[o.part]?16:0);
-  for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.wall){o.hp--;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
+  for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.soft){o.hp--;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
   for(const e of air){if(e.dead||e.panic||e.alpha<.5)continue;
    if(Math.hypot(e.x-p.x,e.y-p.y)<e.size*.4+r){       // ザコもバキュラも倒す
     if(e.hp===Infinity){score+=500;pop(e.x,e.y-14,'バキュラ撃破 +500','#f6e27a',14);o.hp-=2}else o.hp--;
@@ -584,7 +601,7 @@ function legendAttack(o,cx,cy){
  missiles.push({x:cx,y:cy,vy:-70,t:0,r:80,legend:true,mult:1,pow:0})}
 function legendHit(m){
  boss.legendDone=true;
- const d=Math.max(400,Math.round(boss.max*.55));bossDamage(d,m.x,m.y,true);
+ const d=boss.hp;bossDamage(d,m.x,m.y,true);   // とどめは必ずナスの地上絵（残りを全部）
  flash=.8;shake=24;for(let i=0;i<14;i++)boom(m.x+(Math.random()-.5)*160,m.y+(Math.random()-.5)*90,4);
  popBig(m.x,m.y-40,'伝説の一撃 -'+d,'#c8a0ff',28)}
 function drawLegend(m){
@@ -689,7 +706,8 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  if(b.stun>0)b.stun-=dt;else b.mt=(b.mt||0)+dt;   // ごりらが当たると少し止まる
  b.x=W/2+Math.sin(b.mt*(rage?.62:.45))*(W/2-b.w/2-8);
  // 砲台：光ってから撃つ（数は全体の上限に従う）
- for(const tr of b.turrets){if(tr.hp<=0)continue;tr.cd-=dt;if(tr.warn>0)tr.warn-=dt;
+ const legendOn=b.legendBoard&&!b.legendBoard.done&&!b.legendBoard.left;
+ for(const tr of b.turrets){if(tr.hp<=0||legendOn)continue;tr.cd-=dt;if(tr.warn>0)tr.warn-=dt;
   if(tr.cd<=0&&!tr.warning){tr.warning=true;tr.warn=.6}
   if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=(rage?2.6:3.6)+Math.random();enemyShot(b.x+tr.dx,b.y+tr.dy)}}
  // 体力が7割を切ったら、画面いっぱいのナスの地上絵（伝説の板）。その間はほかの板は出ない
@@ -698,7 +716,8 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
   const o=makePuzzle(W/2,228,'legend');o.x=(W-8*CELL)/2;o.y=228;o.emerge=0;o.stopY=o.lane=228;o.arrived=true;o.fixed=true;o.hold=o.hold0=60;o.vx=0;o.wt=0;
   later(.8,()=>ground.push(o));b.legendBoard=o;
   message('ナスの地上絵があらわれた！ 絵をそろえろ',3.5);play('warn',1.2,.7)}
- const lb=b.legendBoard;if(lb&&!lb.done&&!lb.left)return;
+ const lb=b.legendBoard;if(lb&&!lb.done&&!lb.left){   // 地上絵の間：撃ってこない編隊が、やられ役で次々に来る
+  b.fodT=(b.fodT||1)-dt;if(b.fodT<=0){b.fodT=2.6;ringWave(Math.random()<.5?-1:1,7)}return}
  if(lb&&lb.left&&!b.legendDone){b.retryT=(b.retryT||0)+dt;if(b.retryT>8){b.retryT=0;b.legend=false;b.legendBoard=null}}   // そろえられなかったら8秒後にまた出る
  // 下の方に地上パズルがせり上がる
  b.spawnT=(b.spawnT||1.5)-dt;
@@ -920,53 +939,58 @@ function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイド�
  const g=++gid;for(let i=0;i<n;i++)later(i*gap,()=>{
   const x=x0!==undefined?x0+(side<0?i*26:-i*26):side<0?50+i*30:W-50-i*30;
   spawnAir('ring',x,{g,gn:n,shooter:shooters.includes(i)})})}
+function bakuraRows(n,gap){
+ const X=[];for(let x=26;x<W;x+=48)X.push(x);let hole=1+rnd(X.length-3);
+ for(let r=0;r<n;r++)later(r*gap,()=>{hole=clamp(hole+rnd(5)-2,0,X.length-2);
+  X.forEach((x,i)=>{if(i!==hole&&i!==hole+1)spawnAir('plate',x)})})}
 function areaScript(){
  const grp=[];const G=(tm,f)=>grp.push([tm,f]);const late=area>=2;
- // 導入：撃ってこないトーロイドで引きつけて落とす練習
- G(1.0,()=>ringWave(-1,5));
- G(4.0,()=>ringWave(1,5));
- // 地上の間：空は撃たない敵だけ
- G(11.5,()=>{spawnAir('giddo',W/2,{amp:120})});
- G(15.0,()=>{spawnAir('giddo',W/2-40,{amp:110});later(.5,()=>spawnAir('giddo',W/2+40,{amp:110}))});
- // 空の山：トーカンの二段構え、撃つトーロイド、ザカート
- G(19.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
- G(21.5,()=>ringWave(-1,6,{shooters:[5]}));
- G(23.0,()=>{spawnAir('torkan',W/2,{stopY:170})});
- G(24.5,()=>ringWave(1,6,{shooters:late?[0,5]:[5]}));
- // すげえ弾幕：キャラで弾を消しながら抜ける
- G(29.0,()=>{message('すげえ弾幕が来る！ キャラをくっつけて消せ！',3.5);play('warn',1.3,.6)});
- G(31.0,()=>spawnAir('barrage',W/2));
+ // 空は「山」（編隊がどっと来る）と「間」（空っぽ。地上物を落ち着いて撃てる）を交互に
+ //  0〜9 山：導入の大編隊 → 9〜17 間 → 17〜27 山 → 27〜35 ばらまき → 35〜41 間 → 41〜49 バキュラの林 → 49〜52 間 → 52〜59 締めの山 → 59〜64 間
+ // 山1：撃ってこないトーロイドの大編隊で、引きつけて落とす練習
+ G(1.0,()=>ringWave(-1,8));
+ G(3.5,()=>ringWave(1,8));
+ G(6.0,()=>ringWave(-1,6,{x0:W/2-80}));
+ // 山2：編隊を重ねて、トーカン・ザカート・ジアラ
+ G(17.0,()=>ringWave(-1,8,{shooters:[7]}));
+ G(18.5,()=>ringWave(1,8));
+ G(20.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
+ G(21.5,()=>ringWave(-1,8,{shooters:late?[3,7]:[7]}));
+ G(23.0,()=>{spawnAir('giddo',W/2-60,{amp:110});later(.4,()=>spawnAir('giddo',W/2+60,{amp:110}))});
+ G(24.0,()=>ringWave(1,8,{shooters:[0]}));
+ G(25.5,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
+ // ばらまき：ゆっくりの弾をやたら撃ってくる敵。よけられるが、キャラがいると弾を消せて楽
+ G(27.0,()=>{message('弾をばらまく敵が来る！ キャラがいると消せて楽',3.5);play('warn',1.3,.5)});
+ G(28.0,()=>spawnAir('barrage',W/2));
+ G(30.0,()=>ringWave(-1,6));
+ G(32.5,()=>ringWave(1,6));
  G(UNCHI_T,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
- G(27.0,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
- // 休み：空は空っぽ（地上は下にまとめて書いた）
- // バキュラの壁：すき間をくぐる。合間をトーロイドが横切る
- G(38.5,()=>{for(const x of [50,120,190])spawnAir('plate',x);for(const x of [330,400])spawnAir('plate',x)});
- G(40.5,()=>{for(const x of [120,190,260,330])spawnAir('plate',x)});
- G(41.0,()=>ringWave(-1,4,{x0:60}));
- G(45.0,()=>ringWave(1,4,{x0:W-60,shooters:[3]}));
- // すげえバキュラ：画面の端から端まですき間なし（2列）。キャラでぶつかって壊さないと抜けられない
- G(42.0,()=>{message('すげえバキュラが来る！ キャラをくっつけて壊せ！',3.5);play('warn',1.3,.6)});
- G(44.5,()=>{for(let x=22;x<W;x+=44)spawnAir('plate',x);later(.9,()=>{for(let x=44;x<W;x+=44)spawnAir('plate',x)})});
- // 締めの山
- G(48.5,()=>{for(let i=0;i<3;i++)later(i*.35,()=>spawnAir('torkan',110+i*110,{stopY:100+i%2*60}))});
- G(51.0,()=>{spawnAir('giddo',100,{amp:80});spawnAir('giddo',W-100,{amp:80})});
- G(52.5,()=>ringWave(-1,6,{shooters:[2]}));
- G(53.5,()=>ringWave(1,6,{shooters:late?[2,5]:[]}));
- G(56.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- // ---- 地上（大きな文字盤は同時に2枚まで） ----
+ // バキュラの林：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
+ G(40.0,()=>{message('バキュラの林！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
+ G(41.0,()=>bakuraRows(5,1.35));
+ G(43.0,()=>ringWave(-1,6,{x0:60}));
+ G(46.0,()=>ringWave(1,6,{x0:W-60,shooters:[5]}));
+ // 締めの山：大編隊を3つ重ねる
+ G(52.0,()=>{for(let i=0;i<3;i++)later(i*.35,()=>spawnAir('torkan',110+i*110,{stopY:100+i%2*60}))});
+ G(53.0,()=>ringWave(-1,8,{shooters:[2]}));
+ G(54.0,()=>ringWave(1,8,{shooters:late?[2,5]:[5]}));
+ G(55.5,()=>ringWave(-1,8,{x0:W/2+60}));
+ G(56.5,()=>{spawnAir('giddo',100,{amp:80});spawnAir('giddo',W-100,{amp:80})});
+ G(57.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
+ // ---- 地上（大きな文字盤は同時に2枚まで。けす敵は空の「間」に多めに） ----
  G(5.5,()=>spawnGround('word',W/2,{stopY:200,hold:12,arg:0}));           // ことば（横か縦の1列）
- G(9.0,()=>spawnLine('pyramid',110,130,3,'h'));                                  // けす：横に3つ
- G(11.0,()=>spawnGround('word',350,{stopY:260,hold:11,arg:1}));
- G(15.0,()=>spawnLine('turret',W/2,120,2,'h'));                                  // けす：撃ってくる
+ G(10.0,()=>spawnLine('pyramid',110,130,3,'h'));                                 // けす：横に3つ
+ G(12.0,()=>spawnGround('word',350,{stopY:260,hold:11,arg:1}));
+ G(14.0,()=>spawnLine('turret',W/2,120,2,'h'));                                  // けす：撃ってくる
  G(19.0,()=>spawnGround('grid',W/2,{stopY:200,hold:14}));                         // 5×3：何を作る？ 連鎖でコンボ
- G(24.0,()=>spawnLine('pyramid',W/2,420,4,'h',7));
- G(30.5,()=>{spawnGround('pic',120,{stopY:200,hold:13,arg:0});spawnGround('tower',350,{stopY:140})});   // ピースそろえ：ナス
- G(34.0,()=>spawnLine('turret',W/2,420,3,'h'));
- G(37.0,()=>spawnGround('word',330,{stopY:200,hold:11,arg:2}));
- G(43.0,()=>spawnLine('turret',70,120,3,'v'));
- G(46.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:1}));             // ピースそろえ：2つ目の地上絵
- G(52.0,()=>{spawnGround('word',110,{stopY:200,hold:10,arg:3});spawnLine('pyramid',340,420,3,'h')});
- G(57.0,()=>spawnLine('turret',W/2,130,3,'h',6));
+ G(30.0,()=>{spawnGround('pic',120,{stopY:200,hold:13,arg:0});spawnLine('tower',350,140,1,'h')});   // ピースそろえ
+ G(35.5,()=>spawnLine('turret',W/2,420,3,'h'));
+ G(37.5,()=>spawnGround('word',330,{stopY:200,hold:11,arg:2}));
+ G(39.0,()=>spawnLine('pyramid',100,140,3,'h',7));
+ G(47.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:1}));             // ピースそろえ：2つ目の地上絵
+ G(49.5,()=>spawnLine('pyramid',W/2,420,4,'h',7));
+ G(53.0,()=>spawnGround('word',110,{stopY:200,hold:10,arg:3}));
+ G(59.0,()=>spawnLine('turret',W/2,130,3,'h',6));
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
  return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm/diff**.15,f])}   // 時刻順に（書いた順に依らない）
@@ -1104,7 +1128,7 @@ function update(dt){
  for(const s of shots){const y0=s.y;s.y-=640*dt;
   for(const e of air){if(e.dead||e.alpha<.5)continue;
    if(Math.abs(s.x-e.x)<e.size*.55+6&&e.y+e.size/2>=s.y&&e.y-e.size/2<=y0){
-    s.dead=true;if(e.tough>0){e.tough--;e.warn=Math.max(e.warn,.05);burst(s.x,s.y,2,'#ffffff')}else if(e.hp!==Infinity)killAir(e);else{burst(s.x,s.y,3,'#ffffff');play('hit',2,.2)}break}}
+    s.dead=true;if(e.tough>0){e.tough--;e.warn=Math.max(e.warn,.05);burst(s.x,s.y,2,'#ffffff')}else if(e.hp!==Infinity)killAir(e);else{burst(s.x,s.y,3,'#ffffff');clank()}break}}
   if(!s.dead&&boss&&!boss.dead&&boss.y>=boss.ty-1&&bossHit(s.x,s.y,0)){s.dead=true;bossDamage(1,s.x,s.y,false)}   // 通常弾もボスに効く（1発1）
   if(s.y<-10)s.dead=true}
  shots=shots.filter(s=>!s.dead);
@@ -1198,6 +1222,7 @@ function drawGroundObjs(){
    for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
     ctx.fillRect(x+sx*d-(sx>0?8:0),y+sy*d-(sy>0?2:0),8,2);ctx.fillRect(x+sx*d-(sx>0?2:0),y+sy*d-(sy>0?8:0),2,8)}}
   ctx.save();ctx.translate(x,y);ctx.scale(Z,Z);ctx.translate(-x,-y);   // 地上の敵も大きく
+  if(o.sinkT){const k=Math.max(0,1-o.sinkT/.7);ctx.globalAlpha=k;ctx.translate(x,y);ctx.scale(1,.4+.6*k);ctx.translate(-x,-y)}   // 沈んでいく
   if(o.kind==='turret'){if(drawKTile('turret',x,y,30)){   // Kenney の砲台（砲身は絵に描いてある。光る時だけ白く）
     if(o.warn>0&&Math.floor(time*20)%2){ctx.fillStyle='#ffffff';ctx.fillRect(x-3,y-3,6,6)}}
    else{ctx.fillStyle='#3a2a1a';ctx.fillRect(x-14,y-14,28,28);
@@ -1217,7 +1242,7 @@ function drawGroundObjs(){
   else if(o.kind==='tower'){ctx.fillStyle='#3a6ac0';ctx.fillRect(x-10,y-16,20,32);
    ctx.fillStyle='#f6e27a';ctx.fillRect(x-6,y-12,12,6);ctx.strokeStyle='#1a140e';ctx.lineWidth=2;ctx.strokeRect(x-10,y-16,20,32);
    ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('P',x,y+8);ctx.textAlign='left'}
-  ctx.restore()}
+  ctx.restore();ctx.globalAlpha=1}
  // 照準は自機の前に固定（いまどこを狙っているか）。地上パズルに重なっている時は、
  // それとは別に「回るマス」を板の上に二重に出す（照準そのものは動かさない）。
  if(!ship.alive)return;
@@ -1253,11 +1278,13 @@ function drawAir(){
    ctx.fillStyle='#e2624a33';ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.fill();
    ctx.strokeStyle='#e2624a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.stroke();
    if(e.tough>0){ctx.fillStyle='#1a140e';ctx.fillRect(e.x-30,e.y-r-10,60,5);ctx.fillStyle='#e2624a';ctx.fillRect(e.x-30,e.y-r-10,60*e.tough/40,5)}}
-  if(e.kind==='plate'){const s=Math.abs(Math.sin(e.t*3.2));   // 回る板（縦に潰れて回って見える）
-   if(has('kenney_plate')){const h=Math.max(2,Math.round(e.size*s));   // Kenney の鉄板。表と裏で明るさが違う
-    ctx.drawImage(IMG.kenney_plate,s>.5?0:16,0,16,16,Math.round(e.x-e.size/2),Math.round(e.y-h/2),Math.round(e.size),h)}
-   else{ctx.fillStyle='#1a140e';ctx.fillRect(e.x-e.size/2-2,e.y-e.size*s/2-2,e.size+4,e.size*s+4);
-   ctx.fillStyle=s>.5?'#b8c4cc':'#7c8a94';ctx.fillRect(e.x-e.size/2,e.y-e.size*s/2,e.size,Math.max(2,e.size*s))}}
+  if(e.kind==='plate'){const c=Math.cos(e.t*2.1+(e.ph||0)),h=Math.max(3,Math.round(e.size*Math.abs(c))),w=Math.round(e.size),x0=Math.round(e.x-w/2),y0=Math.round(e.y-h/2);   // 回る板：一定の速さでゆっくり回る
+   ctx.fillStyle='#1a140e';ctx.fillRect(x0-2,y0-2,w+4,h+4);
+   if(c>0){if(has('kenney_plate'))ctx.drawImage(IMG.kenney_plate,0,0,16,16,x0,y0,w,h);else{ctx.fillStyle='#b8c4cc';ctx.fillRect(x0,y0,w,h)}   // 表：明るい鉄板
+    ctx.fillStyle='#ffffff55';ctx.fillRect(x0,y0,w,Math.max(1,h*.18))}
+   else{ctx.fillStyle='#4a3a5a';ctx.fillRect(x0,y0,w,h);ctx.fillStyle='#2a2036';ctx.fillRect(x0+3,y0+Math.max(1,h*.2),w-6,Math.max(1,h*.6));   // 裏：暗い紫
+    ctx.fillStyle='#e2624a';ctx.fillRect(Math.round(e.x-3),Math.round(e.y-Math.max(1,h*.15)),6,Math.max(2,Math.round(h*.3)))}
+   if(h<=6){ctx.fillStyle='#d8e4ea';ctx.fillRect(x0,Math.round(e.y-1),w,2)}}   // 真横を向いた時の縁
   else if(e.sprite&&drawKShip(e.sprite,e.x+(e.panic?Math.sin(e.spinP||0)*3:0),e.y,e.size*1.15)){}   // Kenney の機体（32px の絵は余白があるので少し大きめに）
   else if(has(e.sprite)){const im=IMG[e.sprite],w=e.size,h=e.size*im.height/im.width,jx=e.panic?Math.sin(e.spinP||0)*3:0;
    ctx.drawImage(im,Math.round(e.x-w/2+jx),Math.round(e.y-h/2),w,h)}
@@ -1455,7 +1482,7 @@ function drawKShip(k,x,y,s){if(!has('kenney_ships'))return false;
 function drawKTile(k,x,y,s){if(!has('kenney_tiles'))return false;
  ctx.drawImage(IMG.kenney_tiles,KTILE[k]*16,0,16,16,Math.round(x-s/2),Math.round(y-s/2),Math.round(s),Math.round(s));return true}
 const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3',
- 'chain','deny','move','start','warn','bossdown','pickup','launch','charge','fanfare','bgm'];
+ 'chain','deny','move','start','warn','bossdown','pickup','launch','charge','fanfare','bgm','kill'];
 const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
  place:[260,.09,'square'],swap:[700,.06,'square'],match:[560,.12,'triangle'],clear:[780,.18,'triangle'],
  sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],deny:[140,.12,'square'],
@@ -1463,7 +1490,7 @@ const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'
  pickup:[880,.1,'square'],launch:[1200,.3,'square'],charge:[1200,.05,'square']};
 let ac,sound=true,sfxLoaded=false;
 // 効果音は魔王魂（ファミコン風効果音）から選んだもの（assets/sfx_maou）。無い名前は前の合成音（assets/sfx）
-const MAOU_SFX=['fanfare','shot','hit','boom_s','boom_l','swap','pickup','match','clear','chain','warn','bossdown','launch','deny','start','sq2','sq3'];
+const MAOU_SFX=['kill','fanfare','shot','hit','boom_s','boom_l','swap','pickup','match','clear','chain','warn','bossdown','launch','deny','start','sq2','sq3'];
 // BGM も魔王魂（8bit・ループ版）。道中＝キャロットマンステージ、ボス＝bravery heart、タイトルなど＝子猫のもんたのクッキー屋さん
 const BGM_FILE={stage:'maou_loop_bgm_8bit27',boss:'maou_loop_bgm_8bit25',title:'maou_loop_bgm_8bit29'};
 let bgmName='title';
@@ -1497,6 +1524,11 @@ function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
  if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
  const s=ac.createBufferSource(),g=ac.createGain();s.buffer=buf;s.playbackRate.value=rate;
  g.gain.value=.55*vol;s.connect(g);g.connect(outNode());s.start()}
+let clankT=0;
+function clank(){if(!sound||!ac||ac.currentTime-clankT<.05)return;clankT=ac.currentTime;   // 金属に当たる「カン」：倍音がずれた短い音を重ねる
+ const t0=ac.currentTime,v=ac.currentTime<voiceEnd?.02:.06;
+ for(const [f,k] of [[1320,1],[2090,.6],[3170,.35]]){const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=f*(.97+Math.random()*.06);
+  g.gain.setValueAtTime(v*k,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+.12);o.connect(g);g.connect(outNode());o.start(t0);o.stop(t0+.13)}}
 function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.createOscillator(),g=ac.createGain();
  o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);
  o.connect(g);g.connect(outNode());o.start();o.stop(ac.currentTime+d)}

@@ -79,7 +79,7 @@
 ## 効果音・BGM（XEMETOUS 本線）— `assets/sfx_maou/`・`assets/bgm/`
 **魔王魂**（https://maou.audio/ 個人・商用・内容を問わず無料、著作表記「音楽：魔王魂」が必要、曲単体の再配布は不可）。
 - 効果音：ファミコン風効果音（レトロ01〜30）から、音の形（スペクトログラム）を見て選び、22050Hz・モノラルに変換。
-  shot=02、hit=19、boom_s=11、boom_l=27、swap=16、pickup=08、match=29、clear=15、chain=21、warn=10、bossdown=30、launch=25、deny=04、start=09。
+  shot=02、hit=19、boom_s=11、boom_l=27、swap=16、pickup=08、match=29、clear=15、chain=21、warn=10、bossdown=30、launch=25、deny=04、start=09、kill（空の敵を倒した音）=26 の頭0.45秒（後ろをフェードアウト）。
 - クリアのファンファーレ：ジングル09（長調の和音が重なって最後に伸びる。和音を調べて明るい長調のものから選んだ）。
 - BGM（ループ版）：道中＝8bit27「キャロットマンステージ」、ボス＝8bit25「bravery heart」、タイトル・クリア＝8bit29「子猫のもんたのクッキー屋さん」。
 画面のクレジットに「音楽・効果音：魔王魂」と出している。ほかの試作（本編・BLAST など）は前の合成音のまま。
