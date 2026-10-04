@@ -75,7 +75,7 @@ LIST="""
 きりん 0 kirin.wav
 いるか 0 iruka.wav
 うんこ 1 unko.wav
-うんち 0 unchi.wav
+うんち 1 unchi.wav
 ちんちん 1 chinchin.wav
 おちんちん 2 ochinchin.wav
 ちんこ 1 chinko.wav
