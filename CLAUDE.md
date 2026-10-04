@@ -22,7 +22,8 @@
   ```
   docker run -d --rm --name vv -p 50021:50021 voicevox/voicevox_engine:cpu-ubuntu20.04-latest
   ```
-  （クラウドでは先に `dockerd &`。ローカルなら VOICEVOX アプリを起動しておくだけでもよい。ポート 50021）
+  （クラウドでは先に `dockerd &`。ローカル（このWindows機）は C:/Users/mucky/voicevox_engine/engine/run.exe を起動する。ポート 50021）
+  - 役割の説明（tip_*.wav）とボスの泣き言（boss_yuck・boss_cry）は文をエンジンのアクセントで読ませている（sentence()）。
   - 女の子＝春日部つむぎ（speaker 8）。ボスの名乗り＝青山龍星（speaker 13）。
   - 言葉を足したら `tools/gen_voice.py` の LIST（言葉・アクセント位置・ファイル名）と `xemetous/index.html` の `VOICE_FILE` の両方に。
   - アクセントはエンジン任せにせず、東京式の決まりで高さを付け直している（0＝平板、1＝頭高、n＝n拍目の後で下がる）。
@@ -41,7 +42,7 @@
 - ユーザーは音声入力でひらがな混じりの短い指示を出す。分かりにくい時は直前の流れから読み取り、勝手に大きく変えない。
 
 ## まだ決まっていないこと
-- キャラの役割は仮に決めた（docs/xemetous.md の表）。遊んでみて強さを調整する。説明の声は未収録。
+- キャラの役割は仮に決めた（docs/xemetous.md の表）。遊んでみて強さを調整する。
 - 地面（砂）とピラミッドの絵はまだ前の自作のまま。自機・空の敵・砲台・Pの塔・ボスは Kenney「Pixel Shmup」（CC0）に差し替えた
   （`python tools/gen_kenney.py <展開したzip>` で assets/img/kenney_*.png を作り直す。読めない時は前の自作の絵で描く）。
 - 女の子の絵はコードで描いたちびキャラ（画像生成AIの絵は不評で戻した）。
