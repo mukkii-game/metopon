@@ -22,7 +22,10 @@
   ```
   docker run -d --rm --name vv -p 50021:50021 voicevox/voicevox_engine:cpu-ubuntu20.04-latest
   ```
-  （クラウドでは先に `dockerd &`。ローカル（このWindows機）は C:/Users/mucky/voicevox_engine/engine/run.exe を起動する。ポート 50021）
+  （クラウドでは先に `dockerd &`。ポート 50021）
+  - VOICEVOX エンジン（ローカル）: どの PC も Google Drive の `G:マイドライブAI道具VOICEVOXengineun.exe` を起動する
+    （`--host 127.0.0.1 --port 50021`）。無ければ公式 GitHub（VOICEVOX/voicevox_engine の Releases、windows-cpu の .vvpp＝zip）から取って
+    そこへ展開する。C: には置かない。
   - 役割の説明（tip_*.wav）とボスの泣き言（boss_yuck・boss_cry）は文をエンジンのアクセントで読ませている（sentence()）。
   - 女の子＝春日部つむぎ（speaker 8）。ボスの名乗り＝青山龍星（speaker 13）。
   - 言葉を足したら `tools/gen_voice.py` の LIST（言葉・アクセント位置・ファイル名）と `xemetous/index.html` の `VOICE_FILE` の両方に。
