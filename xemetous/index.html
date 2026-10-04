@@ -1302,6 +1302,11 @@ function draw(){
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
  drawCutin();drawBossTalk();
+ if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
+  ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  ctx.font='bold 30px sans-serif';ctx.fillStyle='#f6e7c1';ctx.fillText('一時停止',W/2,H/2-20);
+  ctx.font='bold 14px sans-serif';ctx.fillStyle='#d4bd8e';ctx.fillText('（'+pauseWhy+'）',W/2,H/2+8);
+  ctx.fillStyle='#e0a93c';ctx.fillText(usedTouch?'画面をタップすると再開':'「再開」ボタンで再開',W/2,H/2+40);ctx.textAlign='left'}
  if(phase==='play'){ctx.font='bold 11px monospace';ctx.fillStyle='#f2d9a4';ctx.fillText('AREA '+area,10,18);
   if(boss&&!boss.dead){const k=boss.hp/boss.max;                       // ボスの体力：上に大きく
    ctx.fillStyle='#1a140e';ctx.fillRect(8,24,W-16,18);ctx.fillStyle='#4a3620';ctx.fillRect(11,27,W-22,12);
@@ -1337,6 +1342,7 @@ function groundUp(src,fire=true){if(!groundHeld||src!==groundSrc)return;groundHe
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
  if(phase==='ending'){finishEnding();return}
+ if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')){togglePause();resumeT=performance.now();return}   // 止まっている時は画面を押すと再開
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
  try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
@@ -1365,7 +1371,7 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
   touchMover=null;groundUp('t'+e.pointerId,tap)}});    // 動かさずに押して離した＝地上弾
 // マウス：通常弾は自動。左ボタンを押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('mousedown',e=>{
- if(phase!=='play'||paused)return;e.preventDefault();audio();mouseMode=true;
+ if(phase!=='play'||paused||performance.now()-resumeT<400)return;e.preventDefault();audio();mouseMode=true;   // 再開のクリックでは撃たない
  if(document.pointerLockElement!==canvas&&canvas.requestPointerLock)try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(err){}
  if(e.button===0)groundDown('m0','h');               // 左右どちらも同じ（照準の1マスで撃つ・つかむ）
  if(e.button===2)groundDown('m2','v')});              // 右も同じ
@@ -1390,12 +1396,13 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;keys.delete(k);
  groundUp('k'+k,phase==='play'&&!paused)});
-function togglePause(){if(phase!=='play')return;paused=!paused;
+let pauseWhy='',resumeT=0;
+function togglePause(why){if(phase!=='play')return;paused=!paused;pauseWhy=paused&&typeof why==='string'?why:'停止ボタン';
  $('pause').textContent=paused?'再開':'停止';bgmVolume(paused||!sound?0:.3);
  if(paused){mouseShoot=keyShoot=false;groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;touchMover=touchBtn=null;unlockMouse()}}
-window.addEventListener('blur',()=>{if(phase==='play'&&!paused)togglePause()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play'&&!paused)togglePause()});
-$('pause').onclick=togglePause;
+window.addEventListener('blur',()=>{if(phase==='play'&&!paused&&!usedTouch)togglePause('ほかの窓に移ったため')});   // スマホでは止めない（通知などでも起きるため）
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play'&&!paused)togglePause('画面が隠れたため')});
+$('pause').onclick=()=>{if(touchMover)return;togglePause('停止ボタン')};   // 画面をなぞっている最中に指が当たっても止めない
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');bgmVolume(sound&&!paused&&bgmOn?.3:0)};
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
