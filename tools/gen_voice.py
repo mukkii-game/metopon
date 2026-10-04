@@ -26,6 +26,9 @@ def phrase(text,accent,down=0.0):
         elif accent==0: hi=(i>=2)
         else: hi=(2<=i<=accent)
         if m['pitch']>0: m['pitch']=round(base+(0.32 if hi else -0.18)-0.025*i,3)
+    # 2拍目が「ン・ッ・ー」の時は、1拍目はあまり下がらない（ウンチ は ほぼ平らに少し上がるだけ）
+    if accent!=1 and len(ms)>1 and ms[1]['text'] in ('ン','ッ','ー') and ms[0]['pitch']>0:
+        ms[0]['pitch']=round(ms[1]['pitch']-0.08,3)
     return q,ap[0]
 def make(text,accent,out,speed=1.0,pitch=0.0):
     """text は「なすの|ちじょうえ」のように | で句に分けられる（accent も 1|3 のように）"""

@@ -829,13 +829,14 @@ function areaScript(){
  return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm/diff**.15,f])}   // 時刻順に（書いた順に依らない）
 function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLock()}catch(e){}}
 function areaClear(){
- setBgm('title');
- phase='clear';unlockMouse();bgmVolume(.12);
- // パイロット版なので1面でおしまい
+ stopBgm();bgmName='';                               // BGM を止めて、クリアのファンファーレ（魔王魂 ジングル09）を1回
+ if(sound&&ac&&SFX.fanfare){const src=ac.createBufferSource(),g=ac.createGain();src.buffer=SFX.fanfare;g.gain.value=.8;src.connect(g);g.connect(ac.destination);src.start()}
+ phase='clear';unlockMouse();
+ // パイロット版なので1面でおしまい。クリアした時はタイトルに戻るだけ
  overlay('ゲームクリア！',
   'SCORE <b>'+score+'</b>　残機 <b>'+lives+'</b>',
   'パイロット版はここまで。遊んでくれてありがとう！',
-  [['コンティニュー',()=>{area=1;startArea()}],['タイトルに戻る',showTitle]])}   // クリア後のコンティニューは点数そのままで最初から
+  [['タイトルに戻る',showTitle]])}
 
 // ---- 効果 -------------------------------------------------------------------
 function pop(x,y,text,col='#f6e27a',size=15){pops.push({x,y,text,col,size,t:0,life:1.1,rise:26})}
@@ -1227,7 +1228,7 @@ const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit',
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
 const SFX={},SFX_NAMES=['shot','hit','boom_s','boom_l','place','swap','match','clear','sq2','sq3',
- 'chain','deny','move','start','warn','bossdown','pickup','launch','charge','bgm'];
+ 'chain','deny','move','start','warn','bossdown','pickup','launch','charge','fanfare','bgm'];
 const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'square'],boom_l:[70,.3,'square'],
  place:[260,.09,'square'],swap:[700,.06,'square'],match:[560,.12,'triangle'],clear:[780,.18,'triangle'],
  sq2:[880,.22,'triangle'],sq3:[1040,.3,'triangle'],chain:[900,.1,'square'],deny:[140,.12,'square'],
@@ -1235,7 +1236,7 @@ const FALLBACK={shot:[620,.04,'square'],hit:[300,.04,'square'],boom_s:[110,.14,'
  pickup:[880,.1,'square'],launch:[1200,.3,'square'],charge:[1200,.05,'square']};
 let ac,sound=true,sfxLoaded=false;
 // 効果音は魔王魂（ファミコン風効果音）から選んだもの（assets/sfx_maou）。無い名前は前の合成音（assets/sfx）
-const MAOU_SFX=['shot','hit','boom_s','boom_l','swap','pickup','match','clear','chain','warn','bossdown','launch','deny','start','sq2','sq3'];
+const MAOU_SFX=['fanfare','shot','hit','boom_s','boom_l','swap','pickup','match','clear','chain','warn','bossdown','launch','deny','start','sq2','sq3'];
 // BGM も魔王魂（8bit・ループ版）。道中＝キャロットマンステージ、ボス＝bravery heart、タイトルなど＝子猫のもんたのクッキー屋さん
 const BGM_FILE={stage:'maou_loop_bgm_8bit27',boss:'maou_loop_bgm_8bit25',title:'maou_loop_bgm_8bit29'};
 let bgmName='title';
