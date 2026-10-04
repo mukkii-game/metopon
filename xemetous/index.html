@@ -30,7 +30,7 @@ button:active{background:#8a6528}
 canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #overlay{position:absolute;inset:0;overflow-y:auto;touch-action:pan-y;background:linear-gradient(180deg,#1a1109d0,#1a1109f0);
  display:flex;align-items:flex-start;justify-content:center;padding:14px 16px 20px;text-align:center}
-#logo{display:block;width:100%;max-width:340px;margin:0 auto 2px;border-radius:6px;box-shadow:0 6px 18px #00000099}
+#logo{display:block;width:100%;max-width:380px;margin:0 auto 2px;border-radius:6px;box-shadow:0 6px 18px #00000099}
 #credit{margin-top:12px;font-size:10px;line-height:1.6;letter-spacing:2px;color:#b79b6c}
 #credit b{display:block;font-size:13px;letter-spacing:4px;color:#f2d9a4}
 #overlay h2{font-size:19px;margin:8px 0;color:#f2d9a4}
@@ -840,7 +840,7 @@ let cutin=null,jaVoices=[];
 const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','りんご':'ringo','さかな':'sakana','おさかな':'osakana','おにぎり':'onigiri',
  'ごりら':'gorira','きりん':'kirin','いるか':'iruka',
  'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko','おちんこ':'ochinko','おうち':'ouchi',
- 'なす':'nasu',legend:'legend',bossIntro:'boss_intro',bossYuck:'boss_yuck',bossCry:'boss_cry',
+ 'なす':'nasu',legend:'legend',bossIntro:'boss_intro',thanks:'thanks',bossYuck:'boss_yuck',bossCry:'boss_cry',
  ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi','bossUnko'].map(k=>['tip_'+k,'tip_'+k])),
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
@@ -972,12 +972,52 @@ function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLo
 function areaClear(){
  stopBgm();bgmName='';                               // BGM を止めて、クリアのファンファーレ（魔王魂 ジングル09）を1回
  if(sound&&ac&&SFX.fanfare){const src=ac.createBufferSource(),g=ac.createGain();src.buffer=SFX.fanfare;g.gain.value=.8;src.connect(g);g.connect(ac.destination);src.start()}
- phase='clear';unlockMouse();
+ phase='ending';unlockMouse();ending={t:0,said:false};ebul=[];air=[];items=[];missiles=[];cutin=null}
+let ending=null;
+// ---- エンディング：地上絵の上を、スタッフの名前が流れていく ----------------------
+const ENDING_ROLL=[['ナスの地上絵','title'],['パイロット版',''],['',''],
+ ['インドアジェネシスは',''],['おうちに かえっていった',''],['',''],['ナスカの なすは',''],['きょうも まもられた',''],['',''],['',''],
+ ['企画・ゲームデザイン','h'],['MUKKII',''],['',''],
+ ['声','h'],['VOICEVOX:春日部つむぎ',''],['VOICEVOX:青山龍星',''],['',''],
+ ['音楽・効果音','h'],['魔王魂',''],['',''],
+ ['絵文字','h'],['Twemoji（CC-BY 4.0）',''],['',''],
+ ['機体・地形','h'],['Kenney（CC0）',''],['',''],
+ ['',''],
+ ['あそんでくれて','big'],['ありがとう！','big']];
+const ENDING_LEN=26;
+function updateEnding(dt){const e=ending;e.t+=dt;scroll+=SPD*.6*dt;
+ for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
+ if(!e.said&&e.t>ENDING_LEN-5.5){e.said=true;if(CFG.voice&&sound&&!playVoice(['thanks']))speakTTS('あそんでくれて、ありがとう！')}
+ if(e.t>ENDING_LEN)finishEnding()}
+function finishEnding(){if(phase!=='ending')return;
+ phase='clear';ending=null;
  // パイロット版なので1面でおしまい。クリアした時はタイトルに戻るだけ
  overlay('ゲームクリア！',
   'SCORE <b>'+score+'</b>　残機 <b>'+lives+'</b>',
   'パイロット版はここまで。遊んでくれてありがとう！',
   [['タイトルに戻る',showTitle]])}
+function drawEnding(){const e=ending,tt=e.t;
+ ctx.fillStyle='#1a110988';ctx.fillRect(0,0,W,H);
+ // 大きなナスの地上絵が、ゆっくり光りながら浮かぶ
+ const a=Math.min(1,tt/2),S=300;ctx.globalAlpha=a*(.55+.15*Math.sin(tt*2));
+ ctx.imageSmoothingEnabled=true;ctx.drawImage(ART.nasu,W/2-S/2,150-S/2+Math.sin(tt*.8)*6,S,S);ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;
+ // 要塞は泣きながら遠くへ
+ if(tt<5&&has('kenney_boss')){const k=1-tt/5,bw=120*k,bh=63*k;ctx.globalAlpha=k;
+  ctx.drawImage(IMG.kenney_boss,W*.75-bw/2+Math.sin(tt*9)*6,60-tt*10-bh/2,bw,bh);
+  ctx.font='bold 13px sans-serif';ctx.fillStyle='#8fd0ff';ctx.textAlign='center';ctx.fillText('おうちに かえる～',W*.75,90-tt*10+bh/2);ctx.globalAlpha=1}
+ // スタッフロール
+ ctx.textAlign='center';const sp=34,y0=H+20-(tt-1.5)*42;
+ ENDING_ROLL.forEach(([txt,k],i)=>{let y=y0+i*sp;const last=ENDING_ROLL.length-1;
+  if(k==='big')y=Math.max(y,H*.5+(i-last+1)*44);           // 最後の「ありがとう」は真ん中で止まる
+  if(y<-30||y>H+30||!txt)return;
+  ctx.font=k==='title'?'bold 34px sans-serif':k==='big'?'bold 30px sans-serif':k==='h'?'bold 14px monospace':'bold 19px sans-serif';
+  ctx.fillStyle='#1a140e';ctx.fillText(txt,W/2+2,y+2);ctx.fillStyle=k==='h'?'#e0a93c':k==='big'?'#ffb0c8':'#f6e7c1';ctx.fillText(txt,W/2,y)});
+ ctx.textAlign='left';
+ // 女の子が下で手をふる
+ const gy=H-100+Math.max(0,3-tt)*40;drawGirl(70,gy-Math.abs(Math.sin(tt*3))*4,70,Math.floor(tt*6)%2===0&&e.said&&tt<ENDING_LEN-3);
+ ctx.fillStyle='#ffe0cc';ctx.beginPath();ctx.arc(118+Math.sin(tt*6)*6,gy-30,9,0,Math.PI*2);ctx.fill();   // ふっている手
+ ctx.font='bold 13px monospace';ctx.fillStyle='#f2d9a4';ctx.textAlign='right';ctx.fillText('SCORE '+score,W-14,H-16);
+ ctx.fillStyle='#d4bd8e';ctx.fillText(Math.floor(tt*2)%2?'押すと とばす':'',W-14,H-36);ctx.textAlign='left'}
 
 // ---- 効果 -------------------------------------------------------------------
 function pop(x,y,text,col='#f6e27a',size=15){pops.push({x,y,text,col,size,t:0,life:1.1,rise:26})}
@@ -1241,6 +1281,7 @@ function drawBomb(){
 function draw(){
  ctx.save();
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+ if(phase==='ending'){drawTerrain();drawEnding();ctx.restore();return}
  drawTerrain();drawGroundObjs();drawBoss();drawParts();   // 要塞と吹き出しは板より上に
  for(const c of caps){const b=.5+Math.sin(c.t*9)*.5;
   ctx.fillStyle='#1a140e';ctx.fillRect(c.x-13,c.y-13,26,26);ctx.fillStyle=b>.5?'#8fe0ff':'#fff';ctx.fillRect(c.x-11,c.y-11,22,22);
@@ -1295,6 +1336,7 @@ function groundUp(src,fire=true){if(!groundHeld||src!==groundSrc)return;groundHe
  if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir:aim};else fireBomb();lastUpT=t}
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
+ if(phase==='ending'){finishEnding();return}
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
  try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
@@ -1334,6 +1376,7 @@ window.addEventListener('keydown',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;
  if(!$('cfg').classList.contains('hidden')){                 // 設定を開いている間はゲームに渡さない
   if(k==='c'||k==='Escape'){e.preventDefault();closeCfg()}return}
+ if(phase==='ending'&&!e.repeat){e.preventDefault();finishEnding();return}   // エンディングは押すと とばせる
  if(k==='c'&&!e.repeat){e.preventDefault();openCfg();return}
  if(!$('overlay').classList.contains('hidden')&&['Enter',' ','n','m','z','x'].includes(k)){
   e.preventDefault();if(!e.repeat&&$('start'))$('start').click();return}
@@ -1510,7 +1553,7 @@ if(window.ResizeObserver)new ResizeObserver(resize).observe($('stage'));resize()
 ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:0,opts:[]};shots=[];ebul=[];air=[];ground=[];caps=[];parts=[];booms=[];pops=[];script=[];si=0;
 let last=performance.now();
 function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
- try{if(phase==='play'&&!paused)update(dt);else scroll+=dt*SPD*.5;
+ try{if(phase==='play'&&!paused)update(dt);else if(phase==='ending')updateEnding(dt);else scroll+=dt*SPD*.5;
   draw()}catch(e){console.error(e)}                  // 1つの不具合で画面が止まらないように
  requestAnimationFrame(frame)}
 requestAnimationFrame(frame);

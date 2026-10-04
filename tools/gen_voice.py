@@ -133,3 +133,4 @@ if __name__=='__main__':
     # ボスの泣き言：少し高く、抑揚を大きく（涙目）
     sentence('きちゃないの、いや〜！！',os.path.join(out,'boss_yuck.wav'),BOSS_SP,speed=1.05,pitch=0.06,inton=1.7,vol=1.2);print('boss_yuck.wav')
     sentence('インドア派なんで、おうちに帰る〜！',os.path.join(out,'boss_cry.wav'),BOSS_SP,speed=1.0,pitch=0.05,inton=1.6,vol=1.2,accs={1:0,2:1});print('boss_cry.wav')   # おうちに＝平板、かえる＝頭高
+    sentence('あそんでくれて、ありがとう！',os.path.join(out,'thanks.wav'),speed=1.0,inton=1.4);print('thanks.wav')   # エンディング
