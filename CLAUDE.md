@@ -23,7 +23,7 @@
   docker run -d --rm --name vv -p 50021:50021 voicevox/voicevox_engine:cpu-ubuntu20.04-latest
   ```
   （クラウドでは先に `dockerd &`。ポート 50021）
-  - VOICEVOX エンジン（ローカル）: どの PC も Google Drive の `G:マイドライブAI道具VOICEVOXengineun.exe` を起動する
+  - VOICEVOX エンジン（ローカル）: どの PC も Google Drive の `G:\マイドライブ\AI道具\VOICEVOX\engineun.exe` を起動する
     （`--host 127.0.0.1 --port 50021`）。無ければ公式 GitHub（VOICEVOX/voicevox_engine の Releases、windows-cpu の .vvpp＝zip）から取って
     そこへ展開する。C: には置かない。
   - 役割の説明（tip_*.wav）とボスの泣き言（boss_yuck・boss_cry）は文をエンジンのアクセントで読ませている（sentence()）。
