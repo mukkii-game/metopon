@@ -55,6 +55,19 @@
 | `bgm` | BGM（約14秒のループ） |
 | `start` | ゲーム開始のジングル |
 
+## 機体・砲台・要塞の絵（XEMETOUS 本線）— `assets/img/kenney_*.png`
+**Kenney「Pixel Shmup」1.1**（https://kenney.nl/assets/pixel-shmup 、公式から kenney_pixel-shmup.zip を取得）。
+パック内の License.txt で **CC0（Creative Commons Zero）** と確認（クレジットは任意）。写しを `assets/img/kenney_pixel-shmup_License.txt` に置いた。
+任意だが画面のクレジットに「機体：Kenney（CC0）」と出している。`python tools/gen_kenney.py <展開したフォルダ>` で作り直せる。
+
+| ファイル | 中身（元のファイル） |
+| --- | --- |
+| `kenney_ships.png`（32×32×5） | 自機＝Ships/ship_0000（青）、リング＝ship_0010（緑）、円盤＝ship_0009（赤）、箱＝ship_0011（黄）、翼＝ship_0005（赤い翼）。敵は180°回して下向き |
+| `kenney_tiles.png`（16×16×4） | 要塞の砲台＝Tiles/tile_0016、壊れた跡＝tile_0008、Pの塔＝tile_0025、地上の砲台＝tile_0017 |
+| `kenney_boss.png`（120×63） | 要塞インドアジェネシスの船体。Kenney の灰色（ship_0014 の色）で八角形の台を描き、真ん中に ship_0014 を下向きに載せた合成。コアと四隅の砲台はゲーム側で重ねる |
+
+読めなかった時は前の自作（`ship.png`・`enemy*.png`・`zako22.png` とコードの描画）で描く。地面とピラミッドは自作のまま。
+
 ## 出てくる物の絵 — `assets/img/items.png`
 **Twemoji**（CC-BY 4.0、npm の @twemoji/svg）の絵文字を96pxで横に並べたもの：
 🐶🐱🍉🍎🐟🍙🦍🦒🐬🏠💩🍆🐘（順に こいぬ・こねこ・すいか・りんご・さかな・おにぎり・ごりら・きりん・いるか・おうち・うんこ/うんち・ナス・ちんちん）。
