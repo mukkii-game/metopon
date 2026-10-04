@@ -1382,7 +1382,7 @@ function draw(){
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
  drawCutin();drawBossTalk();
- if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
+ if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')&&$('overlay').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
   ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   ctx.font='bold 30px sans-serif';ctx.fillStyle='#f6e7c1';ctx.fillText('一時停止',W/2,H/2-20);
   ctx.font='bold 14px sans-serif';ctx.fillStyle='#d4bd8e';ctx.fillText('（'+pauseWhy+'）',W/2,H/2+8);
@@ -1464,6 +1464,7 @@ window.addEventListener('keydown',e=>{
   if(k==='c'||k==='Escape'){e.preventDefault();closeCfg()}return}
  if(phase==='ending'&&!e.repeat){e.preventDefault();finishEnding();return}   // エンディングは押すと とばせる
  if(k==='c'&&!e.repeat){e.preventDefault();openCfg();return}
+ if(k==='Escape'&&!e.repeat&&phase==='play'){e.preventDefault();togglePause('Esc キー');return}   // Esc で一時停止・再開
  if(!$('overlay').classList.contains('hidden')&&['Enter',' ','n','m','z','x'].includes(k)){
   e.preventDefault();if(!e.repeat&&$('start'))$('start').click();return}
  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','n','m','z','x'].includes(k))e.preventDefault();
@@ -1477,12 +1478,15 @@ window.addEventListener('keyup',e=>{
  const k=e.key.length===1?e.key.toLowerCase():e.key;keys.delete(k);
  groundUp('k'+k,phase==='play'&&!paused)});
 let pauseWhy='',resumeT=0;
-function togglePause(why){if(phase!=='play')return;paused=!paused;pauseWhy=paused&&typeof why==='string'?why:'停止ボタン';
+function togglePause(why,menu=true){if(phase!=='play')return;paused=!paused;pauseWhy=paused&&typeof why==='string'?why:'停止ボタン';
  $('pause').textContent=paused?'再開':'停止';bgmVolume(paused||!sound?0:.3);
- if(paused){mouseShoot=keyShoot=false;groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;touchMover=touchBtn=null;unlockMouse()}}
+ if(paused){mouseShoot=keyShoot=false;groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;touchMover=touchBtn=null;unlockMouse();
+  if(menu)overlay('一時停止','（'+pauseWhy+'）','Esc でも再開できる',[['再開',()=>{if(paused)togglePause()}],['タイトルに戻る',()=>{paused=false;$('pause').textContent='停止';showTitle()}]])}   // 止めた時のメニュー
+ else $('overlay').classList.add('hidden')}
 window.addEventListener('blur',()=>{if(phase==='play'&&!paused&&!usedTouch)togglePause('ほかの窓に移ったため')});   // スマホでは止めない（通知などでも起きるため）
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play'&&!paused)togglePause('画面が隠れたため')});
-$('pause').onclick=()=>{if(touchMover)return;togglePause('停止ボタン')};   // 画面をなぞっている最中に指が当たっても止めない
+$('pause').onclick=()=>{if(touchMover)return;togglePause('停止ボタン')};
+document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&phase==='play'&&!paused&&mouseMode)togglePause('Esc キー')});   // マウス操作中は Esc でまずマウスが外れるので、そこで止める   // 画面をなぞっている最中に指が当たっても止めない
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');bgmVolume(sound&&!paused&&bgmOn?.3:0)};
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
@@ -1510,10 +1514,10 @@ function buildCfg(){const box=$('cfglist');box.innerHTML='';
   el.querySelector('.up').onclick=()=>setCfg(d,CFG[d.k]+d.step);
   setCfg(d,CFG[d.k])}}
 function openCfg(){if(!$('cfg').classList.contains('hidden'))return;
- cfgPausedByMe=phase==='play'&&!paused;if(cfgPausedByMe)togglePause();else unlockMouse();
+ cfgPausedByMe=phase==='play'&&!paused;if(cfgPausedByMe)togglePause('設定',false);else unlockMouse();
  keys.clear();$('cfg').classList.remove('hidden')}
 function closeCfg(){$('cfg').classList.add('hidden');if(document.activeElement)document.activeElement.blur();
- if(cfgPausedByMe&&paused)togglePause();cfgPausedByMe=false}
+ if(cfgPausedByMe&&paused)togglePause(null,false);cfgPausedByMe=false}
 buildCfg();
 $('cfgbtn').onclick=()=>{if($('cfg').classList.contains('hidden'))openCfg();else closeCfg()};
 $('cfgclose').onclick=closeCfg;
