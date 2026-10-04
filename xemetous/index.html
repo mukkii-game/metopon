@@ -496,7 +496,8 @@ const ROLE={gorira:'ごりらは|がんじょうなんだよ！',dog:'こいぬ�
  onigiri:'おにぎりは|みんなを げんきにするよ！',suika:'すいかは|われて まわりも こわすよ！',ringo:'りんごは|びゅーんと はやいよ！',
  sakana:'さかなは|たまを ひろく けすよ！',cat:'こねこは|じめんの てきを こわすよ！',kirin:'きりんは|くびで うえの たまも けすよ！',
  unko:'うんこは|ボスに すっごく きくよ！',unchi:'うんちも|ボスに よく きくよ！',chin:'ちんちんは|たまを ひろく けすよ！',
- chinL:'おちんちんは|たまを ひろく けすよ！',ouchi:'おうちは|いちどだけ まもってくれるよ！'};
+ chinL:'おちんちんは|たまを ひろく けすよ！',ouchi:'おうちは|いちどだけ まもってくれるよ！',
+ bossUnko:'うんこを なすりつけると いやがるよ！|ひとの いやがることを しよう！'};   // ボス戦の始めに（うんちありモード）
 const WIDE={sakana:1,chin:1,chinL:1};                 // 弾を消す範囲が広い
 let tipShown={},tipQueue=[];
 function roleTip(part){if(tipShown[part]||!ROLE[part])return;tipShown[part]=1;tipQueue.push(part)}
@@ -580,6 +581,7 @@ function legendAttack(o,cx,cy){
  if(CFG.voice&&sound&&!playVoice(['legend']))speakTTS('なすのちじょうえよおおっ！');
  missiles.push({x:cx,y:cy,vy:-70,t:0,r:80,legend:true,mult:1,pow:0})}
 function legendHit(m){
+ boss.legendDone=true;
  const d=Math.max(400,Math.round(boss.max*.55));bossDamage(d,m.x,m.y,true);
  flash=.8;shake=24;for(let i=0;i<14;i++)boom(m.x+(Math.random()-.5)*160,m.y+(Math.random()-.5)*90,4);
  popBig(m.x,m.y-40,'伝説の一撃 -'+d,'#c8a0ff',28)}
@@ -588,7 +590,7 @@ function drawLegend(m){
  if(has('items')){ctx.imageSmoothingEnabled=true;ctx.drawImage(IMG.items,11*96,0,96,96,m.x-s/2,m.y-s/2,s,s);ctx.imageSmoothingEnabled=false}}
 function startBoss(){
  setBgm('boss');
- const hp=Math.round(700*(1+(area-1)*.35));
+ const hp=Math.round(1000*(1+(area-1)*.35));
  boss={x:W/2,y:-90,ty:150,w:240,h:126,hp,max:hp,t:0,flash:0,dead:false,deadT:0,
   turrets:[[-88,-34],[88,-34],[-88,34],[88,34]].map(([dx,dy])=>({dx,dy,hp:1,cd:2+Math.random()*2,warn:0}))};
  message('WARNING　地を這う要塞 インドアジェネシス',3.5);play('warn');
@@ -612,7 +614,7 @@ function startBossTalk(){
  bossTalk={t:0,env,seg:env?env.seg:[[.2,2.6],[3,6]],end:dur+1.1};ebul=[]}
 function updateBossTalk(dt){const k=bossTalk;k.t+=dt;if(boss)boss.t+=dt;
  for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
- if(k.t>k.end){bossTalk=null;if(boss)boss.mt=0}}
+ if(k.t>k.end){bossTalk=null;if(boss)boss.mt=0;if(mode==='all')roleTip('bossUnko')}}
 function talkOpen(){const k=bossTalk;if(!k)return 0;
  if(k.env){const i=Math.floor(k.t*30);return k.env.on[i]?1:0}
  return k.seg.some(([a,b])=>k.t>a&&k.t<b)&&Math.floor(k.t*8)%2?1:0}
@@ -665,7 +667,11 @@ function drawBossTalk(){
  ctx.restore();ctx.textAlign='left';ctx.globalAlpha=1}
 function bossHit(x,y,r){const b=boss;return Math.abs(x-b.x)<b.w/2+r-10&&Math.abs(y-b.y)<b.h/2+r-10}
 function bossDamage(d,x,y,big){
- if(!boss||boss.dead)return;boss.hp-=d;boss.flash=.18;score+=d*10;
+ if(!boss||boss.dead)return;
+ const floor=Math.ceil(boss.max*.3);                 // 伝説の攻撃（ナスの地上絵）を当てるまでは 3割より下に減らない
+ if(!boss.legendDone&&boss.hp-d<floor){d=Math.max(0,boss.hp-floor);
+  if(d<=0){if(time-(boss.armorMsg||-9)>2.5){boss.armorMsg=time;popBig(boss.x,boss.y+boss.h/2+10,'ナスの地上絵でないと効かない！','#c8a0ff',16)}return}}
+ boss.hp-=d;boss.flash=.18;score+=d*10;
  if(big){boom(x,y,3.2);burst(x,y,24,'#8fe0ff');play('boom_l',.9);shake=Math.max(shake,10);popBig(x,y-20,'-'+d,'#8fe0ff',22)}
  else if(d>1){boom(x,y,1.8);play('hit',.8,.7);pop(x,y-14,'-'+d,'#ffffff',14)}
  else{burst(x,y,3,'#ffffff');play('hit',1.6,.15)}
@@ -691,6 +697,7 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
   later(.8,()=>ground.push(o));b.legendBoard=o;
   message('ナスの地上絵があらわれた！ 絵をそろえろ',3.5);play('warn',1.2,.7)}
  const lb=b.legendBoard;if(lb&&!lb.done&&!lb.left)return;
+ if(lb&&lb.left&&!b.legendDone){b.retryT=(b.retryT||0)+dt;if(b.retryT>8){b.retryT=0;b.legend=false;b.legendBoard=null}}   // そろえられなかったら8秒後にまた出る
  // 下の方に地上パズルがせり上がる
  b.spawnT=(b.spawnT||1.5)-dt;
  if(b.spawnT<=0){b.spawnT=6;b.n=(b.n||0)+1;
@@ -834,7 +841,7 @@ const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','
  'ごりら':'gorira','きりん':'kirin','いるか':'iruka',
  'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko','おちんこ':'ochinko','おうち':'ouchi',
  'なす':'nasu',legend:'legend',bossIntro:'boss_intro',bossYuck:'boss_yuck',bossCry:'boss_cry',
- ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi'].map(k=>['tip_'+k,'tip_'+k])),
+ ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi','bossUnko'].map(k=>['tip_'+k,'tip_'+k])),
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
 function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;
@@ -1088,7 +1095,7 @@ function update(dt){
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
  for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
  if(cutin){cutin.t+=dt;if(cutin.t>cutin.life)cutin=null}
- if(!cutin&&tipQueue.length){const part=tipQueue.shift(),[a,b]=ROLE[part].split('|');cutin={tip:[a,b],text:'',combo:1,t:0,life:2.8};
+ if(!cutin&&tipQueue.length){const part=tipQueue.shift(),[a,b]=ROLE[part].split('|');cutin={tip:[a,b],text:'',combo:1,t:0,life:Math.max(2.8,(VOX['tip_'+part]?VOX['tip_'+part].duration:0)+.6)};
   if(CFG.voice&&sound)playVoice(['tip_'+part],true)}   // 女の子の声（音声ファイルが無ければ黙って字だけ）
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
