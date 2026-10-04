@@ -484,7 +484,8 @@ function spawnLine(kind,x,stopY,n,dir,hold=8,tries=0){
   else{const o=spawnGround(kind,x,{stopY:stopY+i*CELL,hold});o.y=-30-(n-1-i)*CELL}}}
 function updateGround(dt){
  for(const o of ground){
-  if(o.kind==='puz'){updatePend(o,dt);if(o.stopY!==undefined)updateWander(o,dt)}
+  if(o.kind==='puz'){updatePend(o,dt);if(o.stopY!==undefined)updateWander(o,dt);
+   if(boss&&!boss.dead&&!o.left&&boss.y>=boss.ty-1){const lim=boss.y+boss.h/2+22;if(o.y<lim){o.y=lim;if(o.lane!=null&&o.lane<lim)o.lane=lim;if(o.stopY!=null&&o.stopY<lim)o.stopY=lim}}}   // ボス戦：板（地上絵・文字）は必ず要塞より下（上へ帰る時だけ別）
   else if(o.stopY!==undefined&&o.hold>0&&o.y>=o.stopY){o.y=o.stopY;o.hold-=dt}   // 止まっている間は画面に固定
   else if(o.stopY!==undefined&&o.y>=o.stopY){o.sinkT=(o.sinkT||0)+dt;if(o.sinkT>.7)o.dead=true}   // 止まり終わったら地面に沈んで消える（板と重ならない）
   else o.y+=SPD*dt;
@@ -738,7 +739,7 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  // 体力が7割を切ったら、画面いっぱいのナスの地上絵（伝説の板）。その間はほかの板は出ない
  if(!b.legend&&b.hp<b.max*.7){b.legend=true;
   for(const g of ground)if(g.kind==='puz'&&!g.done){if(g.pend)materialize(g);g.hold=0;if(!g.arrived)g.left=true}   // ほかの板は帰らせる
-  const o=makePuzzle(W/2,228,'legend');o.x=(W-8*CELL)/2;o.y=228;o.emerge=0;o.stopY=o.lane=228;o.arrived=true;o.fixed=true;o.hold=o.hold0=60;o.vx=0;o.wt=0;
+  const LY=Math.max(228,Math.round(b.y+b.h/2+22));const o=makePuzzle(W/2,LY,'legend');o.x=(W-8*CELL)/2;o.y=LY;o.emerge=0;o.stopY=o.lane=LY;o.arrived=true;o.fixed=true;o.hold=o.hold0=60;o.vx=0;o.wt=0;
   later(.8,()=>ground.push(o));b.legendBoard=o;
   message('ナスの地上絵があらわれた！ 絵をそろえろ',3.5);play('warn',1.2,.7)}
  const lb=b.legendBoard;if(lb&&!lb.done&&!lb.left){   // 地上絵の間：撃ってこない編隊が、やられ役で次々に来る
