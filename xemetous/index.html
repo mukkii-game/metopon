@@ -912,6 +912,8 @@ function speakTTS(text){
 function unlockSpeech(){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
 // カットイン：言葉ができた瞬間（声と同時）に出す。待っている間にほかの言葉が増えたら、吹き出しを書き足す
 function showCutin(words,combo){
+ if(cutin&&cutin.tip){for(const s of voxSrcs)try{s.stop()}catch(e){}voxSrcs=[];voiceQueueEnd=0;cutin=null}   // 説明より言葉が先（説明の声も止める）
+ for(const w of words)if(WORD_PART[w])roleTip(WORD_PART[w]);   // 初めての言葉なら、すぐ後に役割の説明
  const keep=cutin&&cutin.t<cutin.life-.3;              // 出ている途中なら、出し直しの動きはしない
  cutin={text:words.join('・')+'！',combo,t:keep?Math.min(cutin.t,.3):0,life:Math.max(2.6,1.2+words.length*.7)}}
 function announce(words,combo){                       // まとめて出る時：コンボなら「ツーコンボ！」
@@ -1214,7 +1216,8 @@ function update(dt){
  for(const b of booms)b.t+=dt;booms=booms.filter(b=>b.t<.3);
  for(const p of pops){p.t+=dt;p.y-=p.rise*dt}pops=pops.filter(p=>p.t<p.life);
  if(cutin){cutin.t+=dt;if(cutin.t>cutin.life)cutin=null}
- if(!cutin&&tipQueue.length){const part=tipQueue.shift(),[a,b]=ROLE[part].split('|');cutin={tip:[a,b],text:'',combo:1,t:0,life:Math.max(2.8,(VOX['tip_'+part]?VOX['tip_'+part].duration:0)+.6)};
+ if(tipQueue.length&&(!cutin||!cutin.tip&&!cutin.legend&&cutin.t>1.1)){   // 言葉のカットインが1秒ほど出たら、すぐ説明に切り替える
+ const part=tipQueue.shift(),[a,b]=ROLE[part].split('|');cutin={tip:[a,b],text:'',combo:1,t:0,life:Math.max(2.8,(VOX['tip_'+part]?VOX['tip_'+part].duration:0)+.6)};
   if(CFG.voice&&sound)playVoice(['tip_'+part],true)}   // 女の子の声（音声ファイルが無ければ黙って字だけ）
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
