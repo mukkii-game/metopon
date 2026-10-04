@@ -65,7 +65,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="all">うんちありモード</button> <button id="start2" data-mode="normal">うんちなしモード</button></p><p><small>Enter・Space で前に選んだモード</small></p>
-<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体：Kenney（CC0）</div></div></div>
+<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
 <p><small>変えた数値はこの端末に残る。プレイ中に開くと一時停止する。キーボードは C で開閉</small></p></div></div></div></div>
@@ -1013,7 +1013,7 @@ function continueGame(){
  setBgm(boss&&!boss.dead?'boss':'stage');message('コンティニュー！',2);ui()}
 // タイトルに戻る
 let TITLE_HTML='';
-const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体：Kenney（CC0）</div>';
+const CREDIT='<div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div>';
 function showTitle(){
  phase='ready';paused=false;cutin=null;air=[];ground=[];items=[];missiles=[];ebul=[];boss=null;if(ship)ship.opts=[];
  $('overlay').firstElementChild.innerHTML=TITLE_HTML;$('overlay').classList.remove('hidden');bindTitle();setBgm('title')}
@@ -1103,8 +1103,18 @@ function tile(k,x,y,size,lit){
  if(has('slab'))ctx.drawImage(lit?IMG.slab_lit:IMG.slab,Math.round(x),Math.round(y),size,size);
  else{ctx.fillStyle=lit?SAND.light:SAND.base;ctx.fillRect(x+1,y+1,size-2,size-2)}
  glyph(k,x+size/2,y+size/2,size)}
+// 砂地：Kenney の茶色の地面（kenney_ground.png 160×256）を3倍にした絵を一度だけ作って模様にする（縦横につながる）
+let groundPat=null;
+function kenneyGround(){
+ if(groundPat)return groundPat;if(!has('kenney_ground'))return null;
+ const g=IMG.kenney_ground,c=document.createElement('canvas');c.width=g.width*3;c.height=g.height*3;
+ const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(g,0,0,c.width,c.height);
+ x.fillStyle='rgba(20,12,8,.12)';x.fillRect(0,0,c.width,c.height);   // 少しだけ沈めて、地上の板と文字を浮かせる
+ return groundPat=ctx.createPattern(c,'repeat')}
 function drawTerrain(){
- if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
+ const kg=kenneyGround();
+ if(kg){ctx.save();ctx.translate(-20,Math.floor(scroll%768));ctx.fillStyle=kg;ctx.fillRect(0,-768,W+40,H+768);ctx.restore()}
+ else if(has('sand')){const p=ctx.createPattern(IMG.sand,'repeat');ctx.save();ctx.translate(0,scroll%64);
   ctx.fillStyle=p;ctx.fillRect(0,-64,W,H+64);ctx.restore()}
  else{ctx.fillStyle=SAND.dark;ctx.fillRect(0,0,W,H)}
  // ナスカの線のような道（地面と一緒に流れる）
@@ -1147,7 +1157,8 @@ function drawGroundObjs(){
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*16,y+Math.sin(a)*16);ctx.stroke();
    ctx.fillStyle=o.warn>0&&Math.floor(time*20)%2?'#ffffff':'#e2624a';ctx.fillRect(x-3,y-3,6,6)}
    if(o.warn>0)warnRing(x,y,14,o.warn)}
-  if(o.kind==='pyramid'){                      // ピラミッド：左右で明暗、太い輪郭
+  if(o.kind==='pyramid'&&has('kenney_pyramid'))ctx.drawImage(IMG.kenney_pyramid,x-18,y-18,40,40);   // Kenney の地面の色で描いたピラミッド（右下2pxは影）
+  else if(o.kind==='pyramid'){                 // 読めない時：左右で明暗、太い輪郭
    const P=[[x,y-14],[x+15,y+11],[x-15,y+11]];
    ctx.fillStyle='#1a140e';ctx.beginPath();ctx.moveTo(x,y-18);ctx.lineTo(x+18,y+13);ctx.lineTo(x-18,y+13);ctx.closePath();ctx.fill();
    ctx.fillStyle='#8f6d38';ctx.beginPath();ctx.moveTo(...P[0]);ctx.lineTo(x,y+14);ctx.lineTo(...P[2]);ctx.closePath();ctx.fill();
@@ -1193,9 +1204,11 @@ function drawAir(){
    ctx.fillStyle='#e2624a33';ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.fill();
    ctx.strokeStyle='#e2624a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.stroke();
    if(e.tough>0){ctx.fillStyle='#1a140e';ctx.fillRect(e.x-30,e.y-r-10,60,5);ctx.fillStyle='#e2624a';ctx.fillRect(e.x-30,e.y-r-10,60*e.tough/40,5)}}
-  if(e.kind==='plate'){const s=Math.abs(Math.sin(e.t*3.2));   // 回る板
-   ctx.fillStyle='#1a140e';ctx.fillRect(e.x-e.size/2-2,e.y-e.size*s/2-2,e.size+4,e.size*s+4);
-   ctx.fillStyle=s>.5?'#b8c4cc':'#7c8a94';ctx.fillRect(e.x-e.size/2,e.y-e.size*s/2,e.size,Math.max(2,e.size*s))}
+  if(e.kind==='plate'){const s=Math.abs(Math.sin(e.t*3.2));   // 回る板（縦に潰れて回って見える）
+   if(has('kenney_plate')){const h=Math.max(2,Math.round(e.size*s));   // Kenney の鉄板。表と裏で明るさが違う
+    ctx.drawImage(IMG.kenney_plate,s>.5?0:16,0,16,16,Math.round(e.x-e.size/2),Math.round(e.y-h/2),Math.round(e.size),h)}
+   else{ctx.fillStyle='#1a140e';ctx.fillRect(e.x-e.size/2-2,e.y-e.size*s/2-2,e.size+4,e.size*s+4);
+   ctx.fillStyle=s>.5?'#b8c4cc':'#7c8a94';ctx.fillRect(e.x-e.size/2,e.y-e.size*s/2,e.size,Math.max(2,e.size*s))}}
   else if(e.sprite&&drawKShip(e.sprite,e.x+(e.panic?Math.sin(e.spinP||0)*3:0),e.y,e.size*1.15)){}   // Kenney の機体（32px の絵は余白があるので少し大きめに）
   else if(has(e.sprite)){const im=IMG[e.sprite],w=e.size,h=e.size*im.height/im.width,jx=e.panic?Math.sin(e.spinP||0)*3:0;
    ctx.drawImage(im,Math.round(e.x-w/2+jx),Math.round(e.y-h/2),w,h)}
@@ -1371,7 +1384,8 @@ $('cfgclose').onclick=closeCfg;
 $('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 // ---- アセット（本編と共用） -------------------------------------------------
 const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
- 'boss1','boss2','boss3','boss4','enemy4','kenney_ships','kenney_tiles','kenney_boss'];
+ 'boss1','boss2','boss3','boss4','enemy4','kenney_ships','kenney_tiles','kenney_boss',
+ 'kenney_plate','kenney_pyramid','kenney_ground'];
 for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
 // Kenney「Pixel Shmup」(CC0) から切り出した絵（tools/gen_kenney.py）。読めない時は前の自作の絵で描く
