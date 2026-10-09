@@ -69,7 +69,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo_nasu.png" alt="ナスの地上絵">
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
-つかむ・地上弾（照準の1マス）：タッチは長押し／左右クリック／N・M<br>
+地上弾・つかむ（照準の1マス）：タップ／クリック／N・M を1回押す。つかんだ文字はもう1回で はなす<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="all">スタート</button></p><p><small>Enter・Space でスタート</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div></div></div>
@@ -272,7 +272,7 @@ function boardAt(px,py){                       // 照準の下の板とマス
 let grab=null;
 function isLocked(o,r,c){return !!(o.pend&&o.pend.words.some(f=>f.cs.some(([a,b])=>a===r&&b===c)))}   // できた言葉の文字は動かせない
 function startGrab(hit){
- if(isLocked(hit.o,hit.r,hit.c)){play('deny',1,.4);groundHeld=armed=false;groundSrc=null;return}
+ if(isLocked(hit.o,hit.r,hit.c)){play('deny',1,.4);return}
  grab={o:hit.o,r:hit.r,c:hit.c,moves:0};play('pickup',1.6,.4)}
 function updateGrab(){
  if(!grab)return;const o=grab.o;
@@ -283,10 +283,10 @@ function updateGrab(){
  while((grab.r!==r||grab.c!==c)&&guard++<12){         // 速く動いても1マスずつ入れ替える
   const nr=grab.c!==c?grab.r:grab.r+Math.sign(r-grab.r),nc=grab.c!==c?grab.c+Math.sign(c-grab.c):grab.c;
   if(isLocked(o,nr,nc)){endGrab();return}             // できた言葉にぶつかったら、そこで終わり
-  swapCells(o.cells,[grab.r,grab.c],[nr,nc]);grab.r=nr;grab.c=nc;grab.moves++;play('swap',1.3+Math.random()*.2,.35)}}
+  swapCells(o.cells,[grab.r,grab.c],[nr,nc]);grab.r=nr;grab.c=nc;grab.moves++;play('swap',1.3+Math.random()*.2,.35);
+  if(o.type==='pic'?picSolved(o):wordsFound(o).some(f=>!f.cs.some(([a,b])=>isLocked(o,a,b)))){endGrab();return}}}   // そろったら、はなすまでもなく その場で確定
 function endGrab(){
  if(!grab)return;const o=grab.o,moved=grab.moves>0;grab=null;
- groundHeld=armed=false;groundSrc=null;            // 板の外に出て終わった時も、押しっぱなしの状態を解く
  if(moved&&!o.done)resolveBoard(o)}
 // ---- 地上弾 -----------------------------------------------------------------
 function fireBomb(){
@@ -1210,8 +1210,6 @@ function update(dt){
 
  if(groundHeld&&!ship.alive){groundHeld=armed=false;groundSrc=null}
  updateGrab();
- if(touchMover&&!touchMover.moved&&!groundHeld&&time-touchMover.t0>.22){const sp=sightPoint();   // タッチ：文字の上で長押し→つかんで、そのままなぞって動かす
-  if(boardAt(sp.x,sp.y))groundDown('t'+touchMover.id,touchMover.dir)}
  if(pendBomb&&t>=pendBomb.at){aim=pendBomb.dir;pendBomb=null;fireBomb()}
  if(bomb){bomb.t+=dt;
   if(bomb.f&&!bomb.f.dead&&!bomb.f.done){bomb.tx=bomb.f.x+bomb.ox;bomb.ty=bomb.f.y+bomb.oy}else bomb.ty+=SPD*dt;   // 狙った物に付いていく／無ければ地面と流れる
@@ -1242,9 +1240,10 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
- if(mouseMode)return'マウス：移動（通常弾は自動）　左右どちらのボタンでも：文字の上ならつかんで動かす／それ以外は地上弾　2回すばやく＝撃ち出す';
- if(usedTouch)return'なぞる＝移動（通常弾は自動）　文字の上で長押し＝つかんでなぞる／それ以外で押して離す＝地上弾　2回すばやく＝撃ち出す';
- return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上ならつかむ（押したまま動かす）／それ以外は地上弾　2回すばやく＝撃ち出す'}
+ if(grab)return'つかんでいる：動かすと文字が入れかわる。もう1回押すと そこで はなす（そろえば自動で決まる）';
+ if(mouseMode)return'マウス：移動（通常弾は自動）　クリック：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
+ if(usedTouch)return'なぞる＝移動（通常弾は自動）　タップ：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
+ return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す'}
 // ---- 描画 -------------------------------------------------------------------
 function glyph(k,x,y,size){
  if(has('glyphs'))ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size)}
@@ -1434,16 +1433,17 @@ let groundSrc=null;
 // 地上弾は出さずにパーツだけを発射する（持っていない時は離した瞬間に撃つ）。
 const DBL_T=.25;
 let lastUpT=-9,launchPress=false,pendBomb=null;
-function groundDown(src,dir){if(groundHeld||!ship.alive)return;groundHeld=armed=true;groundSrc=src;aim=dir;
- if(ship.opts.length&&(pendBomb||t-lastUpT<DBL_T)){pendBomb=null;launchParts();launchPress=true;return}
+let lastPressT=-9;
+function groundPress(dir){                            // 1回押した：つかんでいれば はなす／2回すばやく＝撃ち出す／文字の上なら つかむ／それ以外は地上弾
+ if(!ship.alive)return;
+ if(grab){endGrab();return}
+ if(ship.opts.length&&(pendBomb||t-lastPressT<DBL_T)){pendBomb=null;lastPressT=-9;launchParts();return}
  const sp=sightPoint(),hit=boardAt(sp.x,sp.y);
- if(hit){launchPress=false;startGrab(hit);return}       // 照準が文字（ピース）の上なら、つかむ
- launchPress=false;play('charge',dir==='h'?1.3:1.1,.35)}
-function groundUp(src,fire=true){if(!groundHeld||src!==groundSrc)return;groundHeld=armed=false;groundSrc=null;
- if(launchPress){launchPress=false;lastUpT=-9;return}
- if(grab){const tap=!grab.moves;endGrab();if(tap)lastUpT=t;return}
- if(!fire)return;
- if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir:aim};else fireBomb();lastUpT=t}
+ if(hit){startGrab(hit);return}
+ lastPressT=t;aim=dir;
+ if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir};else fireBomb()}   // キャラを持っている時だけ、2回目を少し待つ
+function groundDown(src,dir){if(phase!=='play'||paused)return;groundPress(dir)}
+function groundUp(){}                                 // 離した時は何もしない（押し続けなくてよい）
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
  if(phase==='ending')return;
@@ -1453,9 +1453,9 @@ canvas.addEventListener('pointerdown',e=>{
  try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
  const p=point(e);
  const dir='h';                                       // 照準は1マス（向きは無い）
- if(touchMover){touchBtn=e.pointerId;groundDown('t'+e.pointerId,dir);return}   // 動かしている間に別の指：押して離して地上弾
+ if(touchMover){touchBtn=e.pointerId;return}         // 動かしている間に別の指：その指を離した時に1回押したことにする
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,moved:false,dir};
- const sp=sightPoint();if(!boardAt(sp.x,sp.y))groundDown('t'+e.pointerId,dir)});   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
+ });   // タッチは、動かさずに押して離した（タップ）時に1回押したことにする   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
 function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,24,W-24);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-30)}
 canvas.addEventListener('pointermove',e=>{
@@ -1466,14 +1466,14 @@ canvas.addEventListener('pointermove',e=>{
  if(touchMover&&touchMover.id===e.pointerId){const p=point(e);
   nudge((p.x-touchMover.lx)*TOUCH_SENS,(p.y-touchMover.ly)*TOUCH_SENS);touchMover.lx=p.x;touchMover.ly=p.y;
   if(!touchMover.moved&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>TAP_MOVE){
-   touchMover.moved=true;if(!grab)groundUp('t'+e.pointerId,false)}}});
+   touchMover.moved=true}}});
 for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
  if(e.pointerType==='mouse')return;
  const up=e.type==='pointerup';
- if(touchBtn===e.pointerId){touchBtn=null;groundUp('t'+e.pointerId,up)}
+ if(touchBtn===e.pointerId){touchBtn=null;if(up&&phase==='play'&&!paused)groundPress('h')}
  if(touchMover&&touchMover.id===e.pointerId){
   const tap=!touchMover.moved&&up;
-  touchMover=null;groundUp('t'+e.pointerId,tap)}});    // 動かさずに押して離した＝地上弾
+  touchMover=null;if(tap&&phase==='play'&&!paused)groundPress('h')}});    // 動かさずに押して離した＝地上弾
 // マウス：通常弾は自動。左ボタンを押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('mousedown',e=>{
  if(phase!=='play'||paused||performance.now()-resumeT<400)return;e.preventDefault();audio();mouseMode=true;   // 再開のクリックでは撃たない
