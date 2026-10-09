@@ -327,7 +327,7 @@ function resolveBoard(o){
  if(o.type==='pic'){
   if(picSolved(o)){
    const cx=o.x+o.w*CELL/2,cy=o.y+o.h*CELL/2;o.solving=true;o.flashAt=time;o.hold=Math.max(o.hold,FLASH_T+.2);
-   play('match',1.1,.8);shake=Math.max(shake,3);
+   if(!playItemSE(o.legend?'legend':o.pic))play('match',1.1,.8);shake=Math.max(shake,3);   // その物の音（なければ前の音）
    later(FLASH_T,()=>{o.done=true;o.dieT=0;             // 0.5秒 ぴかぴか光ってから
     if(o.legend){legendAttack(o,cx,cy);return}
     score+=1500;items.push({x:cx,y:cy,t:0,part:o.pic,big:true,mult:1,g:++gseq,born:time});popBig(cx,cy-40,PICS[o.pic]+'！','#c8a0ff',22);
@@ -344,7 +344,8 @@ function checkNewWords(o){
  if(!o.pend)o.pend={words:[],t:0};
  for(const f of nw)f.at=time;
  o.pend.words.push(...nw);o.pend.t=PEND_T+FLASH_T;
- const n=o.pend.words.length;play('match',1+n*.12,.8);shake=Math.max(shake,3);   // そろった！の手ごたえ
+ const n=o.pend.words.length;shake=Math.max(shake,3);   // そろった！の手ごたえ：その物の音（ごりらならウホウホ）
+ nw.forEach((f,i)=>{if(!playItemSE(WORD_PART[f.word],i*.35))play('match',1+n*.12,.8)});
  later(FLASH_T,()=>{                                   // 0.5秒 ぴかぴか光ってから、読み上げて女の子が出る
   for(const f of nw){const [r,c]=f.cs[Math.floor(f.cs.length/2)];
    popBig(o.x+c*CELL+CELL/2,o.y+r*CELL-10,f.word,'#ffffff',20+f.word.length*2);sayWord(f.word)}
@@ -918,7 +919,23 @@ const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','
  ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi','bossUnko'].map(k=>['tip_'+k,'tip_'+k])),
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
+// そろった瞬間に鳴らす「その物の音」（効果音ラボ。ごりら・おうちは VOICEVOX、いるかは合成）
+const ITEM_SE={dog:'dog1.mp3',cat:'cat-cry3.mp3',neko:'cat-cry3.mp3',chin:'elephant1.mp3',chinL:'elephant1.mp3',suika:'sweet-eat1.mp3',ringo:'apple1.mp3',
+ onigiri:'rice-eat1.mp3',sakana:'catch-fish1.mp3',kirin:'extend1.mp3',unko:'windgas1.mp3',unchi:'windgas1.mp3',nasu:'kira1.mp3',legend:'kira1.mp3',gorira:'uho.wav',ouchi:'house.wav'};
+const ISE={};
+function playItemSE(part,delay=0){                    // 1.6秒で打ち切る（長い鳴き声が次の声にかぶらないように）
+ if(!sound||!ac)return false;
+ if(part==='iruka'){const t0=ac.currentTime+delay;            // いるか：キュイキュイ（高い音をすべらせる）
+  for(let k=0;k<3;k++){const o=ac.createOscillator(),g=ac.createGain(),a=t0+k*.13;o.type='sine';
+   o.frequency.setValueAtTime(2200,a);o.frequency.exponentialRampToValueAtTime(4200,a+.06);o.frequency.exponentialRampToValueAtTime(2600,a+.1);
+   g.gain.setValueAtTime(0,a);g.gain.linearRampToValueAtTime(.12,a+.015);g.gain.exponentialRampToValueAtTime(.001,a+.11);o.connect(g);g.connect(outNode());o.start(a);o.stop(a+.12)}
+  return true}
+ const buf=ISE[ITEM_SE[part]];if(!buf)return false;
+ const t0=ac.currentTime+delay,src=ac.createBufferSource(),g=ac.createGain(),d=Math.min(buf.duration,1.6);src.buffer=buf;
+ g.gain.setValueAtTime(.9,t0);g.gain.setValueAtTime(.9,t0+d-.15);g.gain.linearRampToValueAtTime(0,t0+d);
+ src.connect(g);g.connect(outNode());src.start(t0);src.stop(t0+d);return true}
 function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;
+ for(const f of new Set(Object.values(ITEM_SE)))fetch('../assets/se_item/'+f).then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{ISE[f]=b}).catch(()=>{});
  for(const [k,f] of Object.entries(VOICE_FILE))fetch('../assets/voice/'+f+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{VOX[k]=b}).catch(()=>{})}
 let voxSrcs=[],voiceEnd=0,voiceQueueEnd=0;
 function playVoice(keys,queue){                      // 言葉を順につなげて読む（queue＝今しゃべっている後ろにつなぐ）

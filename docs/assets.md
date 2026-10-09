@@ -84,6 +84,13 @@
 - BGM（ループ版）：道中＝8bit27「キャロットマンステージ」、ボス＝8bit25「bravery heart」、タイトル・クリア＝8bit29「子猫のもんたのクッキー屋さん」。
 画面のクレジットに「音楽・効果音：魔王魂」と出している。ほかの試作（本編・BLAST など）は前の合成音のまま。
 
+## そろった瞬間の「その物の音」 — `assets/se_item/`
+**効果音ラボ**（https://soundeffect-lab.info/ 商用無料・クレジット不要。ゲームへの組み込みは可、音源だけの再配布・直リンクは禁止。規約 https://soundeffect-lab.info/agreement/ を2026-10-09に確認）。
+こいぬ＝dog1（ワン）、こねこ・こねこの絵＝cat-cry3（ニャウ～ン）、ちんちん系＝elephant1（パオーン）、すいか＝sweet-eat1、りんご＝apple1、
+おにぎり＝rice-eat1、さかな＝catch-fish1（バシャッ）、きりん＝extend1（伸びる）、うんこ・うんち＝windgas1（オナラ）、ナスの地上絵＝kira1。
+ごりら＝uho.wav（VOICEVOX:青山龍星「ウホッ、ウホッ！」）、おうち＝house.wav（VOICEVOX:春日部つむぎ「ハウス！」）は tools/gen_voice.py で作る。
+いるかはゲーム内で合成（キュイキュイ）。長い音は1.6秒で打ち切る。
+
 ## タイトルロゴ — `assets/img/logo_nasu.png`
 `tools/logo_nasu.html` をブラウザ（Playwright）で描いて書き出した。文字は Google Fonts の **Dela Gothic One** と
 **DotGothic16**（どちらも SIL Open Font License。npm の @fontsource から取得）、背景は砂の絵（assets/img/sand.png）と線で描いたナス。
