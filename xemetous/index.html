@@ -264,7 +264,7 @@ function sightDir(){return null}                 // 照準はいつも1マス（
 function sightRect(){const p=sightPoint(),d=sightDir();return d?blastRect(p.x,p.y,d):{x:p.x-CELL/2,y:p.y-CELL/2,w:CELL,h:CELL}}
 function boardAt(px,py){                       // 照準の下の板とマス
  for(const o of ground){
-  if(o.kind!=='puz'||o.done||o.left||(o.emerge!==undefined&&o.emerge<1))continue;
+  if(o.kind!=='puz'||o.done||o.solving||o.left||(o.emerge!==undefined&&o.emerge<1))continue;
   const c=Math.floor((px-o.x)/CELL),r=Math.floor((py-o.y)/CELL);
   if(r>=0&&r<o.h&&c>=0&&c<o.w)return{o,r,c}}
  return null}
@@ -326,26 +326,31 @@ function landBomb(b){
 function resolveBoard(o){
  if(o.type==='pic'){
   if(picSolved(o)){
-   const cx=o.x+o.w*CELL/2,cy=o.y+o.h*CELL/2;o.done=true;o.dieT=0;
-   if(o.legend){legendAttack(o,cx,cy);return}
-   score+=1500;items.push({x:cx,y:cy,t:0,part:o.pic,big:true,mult:1,g:++gseq,born:time});popBig(cx,cy-40,PICS[o.pic]+'！','#c8a0ff',22);
-   const nm={nasu:'なす',neko:'こねこ',unko:'うんこ'}[o.pic];sayWord(nm);showCutin([nm],1);
-   clearFx(o,cx,cy)}
+   const cx=o.x+o.w*CELL/2,cy=o.y+o.h*CELL/2;o.solving=true;o.flashAt=time;o.hold=Math.max(o.hold,FLASH_T+.2);
+   play('match',1.1,.8);shake=Math.max(shake,3);
+   later(FLASH_T,()=>{o.done=true;o.dieT=0;             // 0.5秒 ぴかぴか光ってから
+    if(o.legend){legendAttack(o,cx,cy);return}
+    score+=1500;items.push({x:cx,y:cy,t:0,part:o.pic,big:true,mult:1,g:++gseq,born:time});popBig(cx,cy-40,PICS[o.pic]+'！','#c8a0ff',22);
+    const nm={nasu:'なす',neko:'こねこ',unko:'うんこ'}[o.pic];sayWord(nm);showCutin([nm],1);
+    clearFx(o,cx,cy)})}
   return}
  checkNewWords(o)}
 // 言葉ができたら、すぐには出さずに少しの間（PEND_T 秒）光らせておく。その間に同じ板でほかの言葉ができたら
 // それも光らせて待つ。時間が来たらまとめて出てくる＝コンボ（「おちんちん・ちんこ！」のように読み上げる）
-const PEND_T=2.2;
+const PEND_T=2.2,FLASH_T=.5;                       // FLASH_T：そろった瞬間に光らせる時間（そのあと読み上げ）
 function checkNewWords(o){
  const nw=wordsFound(o).filter(f=>!f.cs.some(([r,c])=>isLocked(o,r,c)));
  if(!nw.length)return;
  if(!o.pend)o.pend={words:[],t:0};
- o.pend.words.push(...nw);o.pend.t=PEND_T;
- for(const f of nw){const [r,c]=f.cs[Math.floor(f.cs.length/2)];
-  popBig(o.x+c*CELL+CELL/2,o.y+r*CELL-10,f.word,'#ffffff',20+f.word.length*2);sayWord(f.word)}
- const n=o.pend.words.length;play('match',1+n*.12,.8);
- showCutin(o.pend.words.map(f=>f.word),n);           // 声と同時に女の子が出る
- if(n>1)pop(o.x+o.w*CELL/2,o.y-26,n+'コンボ…','#f6e27a',18)}
+ for(const f of nw)f.at=time;
+ o.pend.words.push(...nw);o.pend.t=PEND_T+FLASH_T;
+ const n=o.pend.words.length;play('match',1+n*.12,.8);shake=Math.max(shake,3);   // そろった！の手ごたえ
+ later(FLASH_T,()=>{                                   // 0.5秒 ぴかぴか光ってから、読み上げて女の子が出る
+  for(const f of nw){const [r,c]=f.cs[Math.floor(f.cs.length/2)];
+   popBig(o.x+c*CELL+CELL/2,o.y+r*CELL-10,f.word,'#ffffff',20+f.word.length*2);sayWord(f.word)}
+  if(!o.pend)return;
+  showCutin(o.pend.words.map(f=>f.word),o.pend.words.length);
+  if(o.pend.words.length>1)pop(o.x+o.w*CELL/2,o.y-26,o.pend.words.length+'コンボ…','#f6e27a',18)})}
 function updatePend(o,dt){
  if(!o.pend||o.done)return;
  o.pend.t-=dt;if(o.pend.t<=0)materialize(o)}
@@ -1280,6 +1285,12 @@ function drawGroundObjs(){
    for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++){const id=o.cells[r][c],x=o.x+c*CELL,y=o.y+r*CELL,ok=m.has(r*o.w+c);
     if(grab&&grab.o===o&&grab.r===r&&grab.c===c){ctx.fillStyle='#1a140e88';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);continue}   // つかんでいるマスは浮かせて描く
     drawCell(o,id,x,y,ok);
+    const fl=o.solving&&time-o.flashAt<FLASH_T?o.flashAt:isLocked(o,r,c)?(o.pend.words.find(f=>f.cs.some(([a2,b2])=>a2===r&&b2===c)).at||-9):-9;
+    if(time-fl<FLASH_T){const on=Math.floor((time-fl)*16)%2===0,k=1+.12*Math.sin((time-fl)/FLASH_T*Math.PI);   // そろった瞬間：ぴかぴか点滅して ふくらむ
+     ctx.save();ctx.translate(x+CELL/2,y+CELL/2);ctx.scale(k,k);ctx.translate(-x-CELL/2,-y-CELL/2);
+     drawCell(o,id,x,y,true);ctx.globalAlpha=a*(on?.75:.25);ctx.fillStyle=on?'#ffffff':'#fff6a0';ctx.fillRect(x,y,CELL,CELL);ctx.globalAlpha=a;
+     if(o.type!=='pic'){ctx.font='bold '+Math.round(CELL*.62)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle=on?'#e8404a':'#1a140e';ctx.fillText(id,x+CELL/2,y+CELL*.72);ctx.textAlign='left'}
+     ctx.strokeStyle=on?'#ffffff':'#f6e27a';ctx.lineWidth=4;ctx.strokeRect(x+2,y+2,CELL-4,CELL-4);ctx.restore();continue}
     if(isLocked(o,r,c)){const f=o.pend.words.find(f=>f.cs.some(([a2,b2])=>a2===r&&b2===c)),b=.5+Math.sin(time*12)*.5;   // できた言葉のパネルは、出てくる物の絵に変わる
      if(has('slab'))ctx.drawImage(IMG.slab_lit,x,y,CELL,CELL);
      ctx.globalAlpha=a*(.2+b*.2);ctx.fillStyle='#fff6a0';ctx.fillRect(x,y,CELL,CELL);ctx.globalAlpha=a;
