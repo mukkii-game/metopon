@@ -379,12 +379,17 @@ function bestDrag(o,cells){                            // 1枚をまっすぐす
  return best}
 function refillBoard(o){
  const empty=[];for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++)if(o.cells[r][c]==null)empty.push([r,c]);
+ for(let k=0;k<20;k++){const f=wordsFound(o)[0];if(!f)break;   // 落ちてきただけで そろってしまう所は、1文字 入れかえ直す
+  const [r,c]=f.cs[rnd(f.cs.length)];o.cells[r][c]=null;empty.push([r,c])}
  if(!empty.length)return;
- let best=null,bs=-1;
- for(let k=0;k<160;k++){const cl=o.cells.map(x=>x.slice());
+ let best=null,bs=0;
+ for(let k=0;k<200;k++){const cl=o.cells.map(x=>x.slice());
   const pool=[...pickWord(),...pickWord()];                  // 言葉の文字を多めに混ぜる
   for(const [r,c] of empty)cl[r][c]=Math.random()<.75?pool[rnd(pool.length)]:randLetter();
+  if(wordsFound({w:o.w,h:o.h,cells:cl}).length)continue;   // 補充しただけで そろってしまう並びは使わない
   const sc=bestDrag(o,cl);if(sc>bs){bs=sc;best=cl}if(bs>=2)break}
+ if(!best){best=o.cells.map(x=>x.slice());for(const [r,c] of empty)best[r][c]=randLetter();   // 見つからない時：そろわない文字にばらす
+  for(let k=0;k<200&&wordsFound({w:o.w,h:o.h,cells:best}).length;k++){const [r,c]=empty[rnd(empty.length)];best[r][c]=randLetter()}}
  o.cells=best}
 function clearFx(o,cx,cy){
  play('clear');play('boom_l',1.1,.6);shake=Math.max(shake,8);flash=.12;
@@ -401,7 +406,7 @@ function destroyFixed(o){
 //            すぐには戻れないので、引きつけて追いかければ落とせる（トーロイド型）
 //  torkan … 降りてきてブレーキ、止まって光ってから1発、加速して帰る（トーカン型）
 //  zakato … ふっと現れ、光ってから1発撃って消える（ザカート型）
-//  plate  … 弾が効かない回る板。壁になって降りてくる（バキュラ型）
+//  plate  … 弾が効かない回る板。壁になって降りてくる（パキュラ型）
 //  giddo  … S字に大きくうねって通り抜ける。撃たない（ジアラ型）
 // 敵の弾は「撃つ前に必ず光る（予告）」「画面に出せる数に上限」「撃つ間隔を空ける」
 // 「自機の近く・後ろからは撃たない」。パズルをしながらでも避けられる量にしてある。
@@ -552,7 +557,7 @@ function updateWander(o,dt){
 // ---- 生まれたキャラ（言葉や絵がそろうと生まれる） -----------------------------
 // ・言葉なら文字の数だけ小さく生まれて、ゆっくり昇っていく。**どれか1つを照準で捕まえると、同じ言葉から生まれた
 //   ぶんが全部集まって1体の大きなキャラ**になり、照準にくっつく（いくつでもくっつけられる）。
-// ・くっついたキャラは 敵の弾を消す・ザコを倒す・**バキュラを倒せるのはこれだけ**。ぶつかると HP が減り、0 で消える。
+// ・くっついたキャラは 敵の弾を消す・ザコを倒す・**パキュラを倒せるのはこれだけ**。ぶつかると HP が減り、0 で消える。
 // ・生まれてから CHAR_LIFE 秒たつと、どこかへ飛んで行ってしまう。くっついている間も通常弾は撃てる。
 // ・地上弾を**2回すばやく押す**と全部を撃ち出してボスにぶつける（飛んでいる間は時間切れにならない）。
 //   威力は HP の減り具合と関係なし。n 体同時なら n 倍、コンボで生まれたぶんはさらにコンボ数倍。
@@ -609,8 +614,8 @@ function updateParts(dt){
   const wr=r+4+(WIDE[o.part]?16:0);
   for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.soft){o.hp--;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
   for(const e of air){if(e.dead||e.panic||e.alpha<.5)continue;
-   if(Math.hypot(e.x-p.x,e.y-p.y)<e.size*.4+r){       // ザコもバキュラも倒す
-    if(e.hp===Infinity){score+=500;pop(e.x,e.y-14,'バキュラ撃破 +500','#f6e27a',14);o.hp-=2}else o.hp--;
+   if(Math.hypot(e.x-p.x,e.y-p.y)<e.size*.4+r){       // ザコもパキュラも倒す
+    if(e.hp===Infinity){score+=500;pop(e.x,e.y-14,'パキュラ撃破 +500','#f6e27a',14);o.hp-=2}else o.hp--;
     killAir(e);o.hitT=.15}}
   if(o.hp<=0){o.dead=true;boom(p.x,p.y,o.big?3:2);play('boom_s',1.4)}}
  ship.opts=ship.opts.filter(o=>!o.dead);
@@ -1004,7 +1009,7 @@ function drawCutin(){
 // ---- 面の台本（出す時刻・種類・位置） ----------------------------------------
 // ゼビウスの1面のように「空の山場」と「地上をじっくり狙う間」を交互に置いてメリハリを付ける。
 // 地上は「そろえる（ことば・ピース）」と「けす（横・縦に並んだ敵）」を混ぜる。
-//  導入 → 地上の間 → 空の山 → 休み（パズル） → バキュラの壁 → 締めの山 → 静かに終わる
+//  導入 → 地上の間 → 空の山 → 休み（パズル） → パキュラの壁 → 締めの山 → 静かに終わる
 const AREA_LEN=100;               // ここでボスが出る（台本の時刻。実際は ×STRETCH）
 let gid=0;
 function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
@@ -1013,7 +1018,7 @@ function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイド�
  const g=++gid;for(let i=0;i<n;i++)later(i*gap,()=>{
   const x=x0!==undefined?x0+(side<0?i*26:-i*26):side<0?50+i*30:W-50-i*30;
   spawnAir('ring',x,{g,gn:n,shooter:shooters.includes(i)})})}
-function bakuraRows(n,gap){                         // バキュラの林：1列に3〜4枚を ちらばらせて置く（すき間が多い）。列の間も広め
+function bakuraRows(n,gap){                         // パキュラの林：1列に3〜4枚を ちらばらせて置く（すき間が多い）。列の間も広め
  const X=[];for(let x=30;x<W;x+=48)X.push(x);
  for(let r=0;r<n;r++)later(r*gap,()=>{const pick=shuffle(X.slice()),out=[];
   for(const x of pick){if(out.length>=3+rnd(2))break;if(out.some(q=>Math.abs(q-x)<96))continue;out.push(x)}   // となりどうしは1マス以上あける
@@ -1021,7 +1026,7 @@ function bakuraRows(n,gap){                         // バキュラの林：1列
 function areaScript(){
  const grp=[];const G=(tm,f)=>grp.push([tm,f]);const late=area>=2;
  // 空は「山」（編隊がどっと来る）と「間」（空っぽ。地上物を落ち着いて撃てる）を交互に
- //  0〜9 山：導入の大編隊 → 9〜17 間 → 17〜27 山 → 27〜35 ばらまき → 35〜41 間 → 41〜49 バキュラの林 → 49〜52 間 → 52〜59 締めの山 → 59〜64 間
+ //  0〜9 山：導入の大編隊 → 9〜17 間 → 17〜27 山 → 27〜35 ばらまき → 35〜41 間 → 41〜49 パキュラの林 → 49〜52 間 → 52〜59 締めの山 → 59〜64 間
  // 山1：撃ってこないトーロイドの大編隊で、引きつけて落とす練習
  G(1.0,()=>ringWave(-1,8));
  G(3.5,()=>ringWave(1,8));
@@ -1040,8 +1045,8 @@ function areaScript(){
  G(30.0,()=>ringWave(-1,6));
  G(32.5,()=>ringWave(1,6));
  G(UNCHI_T/STRETCH,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
- // バキュラの林：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
- G(40.0,()=>{message('バキュラの林！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
+ // パキュラの林：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
+ G(40.0,()=>{message('パキュラの林！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
  G(41.0,()=>bakuraRows(5,1.8));
  G(43.0,()=>ringWave(-1,6,{x0:60}));
  G(46.0,()=>ringWave(1,6,{x0:W-60,shooters:[5]}));
@@ -1066,7 +1071,7 @@ function areaScript(){
  G(49.5,()=>spawnLine('pyramid',W/2,420,4,'h',7));
  G(53.0,()=>spawnGround('word',110,{stopY:200,hold:10,arg:3}));
  G(59.0,()=>spawnLine('turret',W/2,130,3,'h',6));
- // ---- 後半（60〜100秒）：もう一回り。山 → 間 → ばらまき＋編隊 → 間 → バキュラの林 → 締め ----
+ // ---- 後半（60〜100秒）：もう一回り。山 → 間 → ばらまき＋編隊 → 間 → パキュラの林 → 締め ----
  G(61.0,()=>ringWave(-1,8));
  G(62.5,()=>ringWave(1,8,{shooters:[7]}));
  G(64.0,()=>{spawnAir('torkan',110,{stopY:110});spawnAir('torkan',W/2,{stopY:150});spawnAir('torkan',W-110,{stopY:110})});
@@ -1081,7 +1086,7 @@ function areaScript(){
  G(80.5,()=>ringWave(1,8,{shooters:[0]}));
  G(78.5,()=>spawnGround('grid',W/2,{stopY:330,hold:13}));
  G(83.5,()=>{spawnGround('pic',W/2,{stopY:220,hold:12});spawnLine('tower',350,140,1,'h')});
- G(86.0,()=>{message('バキュラの林、ふたたび！',3);play('warn',1.3,.5)});
+ G(86.0,()=>{message('パキュラの林、ふたたび！',3);play('warn',1.3,.5)});
  G(87.0,()=>bakuraRows(6,1.7));
  G(89.0,()=>ringWave(-1,6,{x0:60}));
  G(92.5,()=>{for(let i=0;i<4;i++)later(i*.3,()=>spawnAir('torkan',80+i*93,{stopY:100+i%2*60}))});
