@@ -174,6 +174,13 @@ function wordsFound(o){                       // 読める言葉（重なる時�
 function swapCells(cells,a,b){const t=cells[a[0]][a[1]];cells[a[0]][a[1]]=cells[b[0]][b[1]];cells[b[0]][b[1]]=t}
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
 const randLetter=()=>{const P=mode==='all'&&!unchiTime()?EARLY_POOL:LETTER_POOL;return P[rnd(P.length)]};
+const artCache={};
+function pieceHasArt(pic,w,h,id){                     // そのピースに絵（線）が描いてあるか。無地のピースは入れかえても見分けがつかない
+ const A=artOf(pic);if(!A)return true;
+ const key=pic+w+'x'+h;if(!artCache[key]){const g=A.getContext('2d'),m=[];
+  for(let i=0;i<w*h;i++){const d=g.getImageData((i%w)*CELL,Math.floor(i/w)*CELL,CELL,CELL).data;let n=0;for(let j=3;j<d.length;j+=16)if(d[j]>60)n++;m.push(n>12)}
+  artCache[key]=m}
+ return artCache[key][id]}
 function makePuzzle(x,y,type='word',arg){
  let w,h,cells,o;
  const easy=type!=='legend'&&!boss&&t<EASY_T;
@@ -210,9 +217,13 @@ function makePuzzle(x,y,type='word',arg){
   cells=[];for(let r=0;r<h;r++){cells.push([]);for(let c=0;c<w;c++)cells[r].push(r*w+c)}
   if(type==='legend'){                                 // 伝説の板：隣どうしの入れ替えを4か所だけ（重ならない）。1回ずつ直せば完成
    const used=new Set();let k=0;
-   while(k<4){const v=Math.random()<.5,r=rnd(v?h-1:h),c=rnd(v?w:w-1),a=[r,c],b=v?[r+1,c]:[r,c+1];
-    if(used.has(a+'')||used.has(b+''))continue;used.add(a+'');used.add(b+'');swapCells(cells,a,b);k++}}
-  else do{for(let k=0;k<3;k++){if(Math.random()<.5){const r=rnd(h),c=rnd(w-1);swapCells(cells,[r,c],[r,c+1])}else{const r=rnd(h-1),c=rnd(w);swapCells(cells,[r,c],[r+1,c])}}}
+   let tries=0;
+   while(k<4&&tries++<2000){const v=Math.random()<.5,r=rnd(v?h-1:h),c=rnd(v?w:w-1),a=[r,c],b=v?[r+1,c]:[r,c+1];
+    if(used.has(a+'')||used.has(b+''))continue;
+    if(!pieceHasArt(pic,w,h,a[0]*w+a[1])||!pieceHasArt(pic,w,h,b[0]*w+b[1]))continue;   // 絵の描いてある ピースどうしだけ入れかえる（無地の所は ずらさない）
+    used.add(a+'');used.add(b+'');swapCells(cells,a,b);k++}}
+  else do{for(let k=0,tr=0;k<3&&tr<300;tr++){const v=Math.random()<.5,r=rnd(v?h-1:h),c=rnd(v?w:w-1),a=[r,c],b=v?[r+1,c]:[r,c+1];
+   if(!pieceHasArt(pic,w,h,cells[a[0]][a[1]])||!pieceHasArt(pic,w,h,cells[b[0]][b[1]]))continue;swapCells(cells,a,b);k++}}
   while(picSolved({w,h,cells}))}
  return{kind:'puz',...o,x:clamp(x-w*CELL/2,14,W-14-w*CELL),y,w,h,cells,done:false,hitT:0}}
 function picSolved(o){return o.cells.every((row,r)=>row.every((v,c)=>v===r*o.w+c))}
