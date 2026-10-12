@@ -318,7 +318,7 @@ function landBomb(b){
  for(const o of ground){
   if(o.kind==='puz'||o.dead)continue;
   if(o.kind==='bigpyr'){if(Math.abs(o.x-x)<CELL*1.5+14&&Math.abs(o.y-y)<CELL*1.5+14){o.hp--;o.hitT=.2;boom(x,y,2.6);play('hit',.7,.7);
-    if(o.hp<=0){destroyFixed(o);n++}else pop(o.x,o.y-CELL*1.5-6,'あと'+o.hp+'発','#ffffff',14)}continue}
+    if(o.hp<=0){destroyFixed(o);n++}}continue}
   if(inBlast(o,r)){destroyFixed(o);n++}}
  if(boss&&!boss.dead&&boss.y>=boss.ty-1){                // ボス：コアに当てると少し、四隅の砲台は壊せる
   if(inBlast({x:boss.x,y:boss.y},r,16))bossDamage(6,boss.x,boss.y,false);
@@ -504,7 +504,7 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   if(blocked(o.x)){const xs=[];for(let X=14;X<=W-14-pw;X+=20)xs.push(X);xs.sort((a,b)=>Math.abs(a-o.x)-Math.abs(b-o.x));
    const nx=xs.find(X=>!blocked(X));if(nx!==undefined)o.x=nx}
   o.stopY=stopY;o.hold=o.hold0=hold*1.5;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}   // 板が帰るまで長めに（1.5倍）
- const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hp:kind==='bigpyr'?4:1};if(kind==='bigpyr')o.aim=(++bigSeq)%2===0;ground.push(o);return o}   // 巨大ピラミッドは ばらまき型と ねらい撃ち型が交互
+ const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hp:kind==='bigpyr'?2:1};if(kind==='bigpyr')o.aim=(++bigSeq)%2===0;ground.push(o);return o}   // 巨大ピラミッドは ばらまき型と ねらい撃ち型が交互
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
  for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
@@ -1393,7 +1393,7 @@ function drawGroundObjs(){
    if(o.hitT>0){o.hitT-=1/60;ctx.globalAlpha=k*.5;ctx.fillStyle='#ffffff';ctx.fillRect(x-S/2,y-S/2,S,S);ctx.globalAlpha=k}
    if(o.aim){ctx.fillStyle='#e2624a';ctx.beginPath();ctx.arc(x-APEX,y-APEX,9,0,Math.PI*2);ctx.fill()}   // ねらい撃ち型は てっぺんが赤い
    if(o.warn>0&&Math.floor(time*20)%2){ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x-APEX,y-APEX,12,0,Math.PI*2);ctx.fill()}
-   for(let i=0;i<4;i++){ctx.fillStyle=i<o.hp?'#e2624a':'#3a2a1a';ctx.fillRect(x-30+i*16,y-S/2-12,12,6)}   // のこり
+   if(o.hp<2&&Math.floor(time*8)%2){ctx.globalAlpha=k*.45;ctx.fillStyle='#ff3020';ctx.fillRect(x-S/2,y-S/2,S,S);ctx.globalAlpha=k}   // 1発当たったら 赤く点滅（もう少しで壊れる）
    ctx.restore();continue}
   ctx.save();ctx.translate(x,y);ctx.scale(Z,Z);ctx.translate(-x,-y);   // 地上の敵も大きく
   if(o.sinkT){const k=Math.max(0,1-o.sinkT/.7);ctx.globalAlpha=k;ctx.translate(x,y);ctx.scale(1,.4+.6*k);ctx.translate(-x,-y)}   // 沈んでいく
