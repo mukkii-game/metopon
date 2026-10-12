@@ -811,7 +811,10 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  const legendOn=b.legendBoard&&!b.legendBoard.done&&!b.legendBoard.left;
  for(const tr of b.turrets){if(tr.hp<=0||legendOn)continue;tr.cd-=dt;if(tr.warn>0)tr.warn-=dt;
   if(tr.cd<=0&&!tr.warning){tr.warning=true;tr.warn=.6}
-  if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=(rage?2.6:3.6)+Math.random();enemyShot(b.x+tr.dx,b.y+tr.dy)}}
+  if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=(rage?2.8:3.6)+Math.random()*1.2;   // 四隅の砲台：光ってから 3方向に「だだだ」（よけられる程度）
+   if(ship.alive){const x=b.x+tr.dx,y=b.y+tr.dy,base=Math.atan2(ship.y-y,ship.x-x);play('hit',1.4,.35);
+    for(let k=0;k<3;k++)later(k*.09,()=>{if(tr.hp<=0||!boss||boss.dead)return;const bx=boss.x+tr.dx,by=boss.y+tr.dy;
+     for(const j of [-1,0,1]){const a=base+j*.28;ebul.push({x:bx,y:by,vx:Math.cos(a)*140,vy:Math.sin(a)*140})}})}}}
  // 体力が7割を切ったら、画面いっぱいのナスの地上絵（伝説の板）。その間はほかの板は出ない
  if(!b.legend&&b.hp<b.max*.7){b.legend=true;
   for(const g of ground)if(g.kind==='puz'&&!g.done){if(g.pend)materialize(g);g.hold=0;if(!g.arrived)g.left=true}   // ほかの板は帰らせる
