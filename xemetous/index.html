@@ -69,7 +69,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo_nasu.png" alt="ナスの地上絵">
 <p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
-地上弾・つかむ（照準の1マス）：タップ／クリック／N・M を1回押す。つかんだ文字はもう1回で はなす<br>
+地上弾・つかむ（照準の1マス）：タップ／クリック／N・M を1回押す。つかんだ文字はもう1回で はなす<br>コントローラ：スティック/十字＝移動、A＝地上弾・つかむ、START＝一時停止<br>
 2回すばやく押す：出てきた物を撃ち出す</small></p>
 <p><button id="start" data-mode="all">スタート</button></p><p><small>Enter・Space でスタート</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div></div></div>
@@ -110,7 +110,7 @@ function applyCfg(){if(master)master.gain.value=CFG.volume/100;SPD=CFG.scroll;SI
  TOUCH_SENS=CFG.touchSens*CFG.shipSpeed;MOUSE_SENS=CFG.mouseSens*CFG.shipSpeed}
 applyCfg();
 const SHOT_RATE=.11;            // 通常弾の最短の間隔
-const TAP_MOVE=12;              // タッチ：これより動かさずに離したら地上弾（動かしたら移動だけ）
+const TAP_MOVE=20;              // タッチ：これより動かさずに離したら地上弾（動かしたら移動だけ）
 const LIVES=3;
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
@@ -278,7 +278,9 @@ function updateGrab(){
  if(!grab)return;const o=grab.o;
  if(o.done||!ship.alive){endGrab();return}
  const sp=sightPoint(),c=Math.floor((sp.x-o.x)/CELL),r=Math.floor((sp.y-o.y)/CELL);
- if(r<0||r>=o.h||c<0||c>=o.w){endGrab();return}     // 板の外に出たら、そこで終わり
+ const rr=clamp(r,0,o.h-1),cc=clamp(c,0,o.w-1);
+ if(Math.abs(r-rr)>1||Math.abs(c-cc)>1){endGrab();return}   // 板から大きく(1マスより)はなれたら はなす。少しのはみ出しは いちばん端のマスとして扱う
+ r=rr;c=cc;
  let guard=0;
  while((grab.r!==r||grab.c!==c)&&guard++<12){         // 速く動いても1マスずつ入れ替える
   const nr=grab.c!==c?grab.r:grab.r+Math.sign(r-grab.r),nc=grab.c!==c?grab.c+Math.sign(c-grab.c):grab.c;
@@ -399,7 +401,10 @@ function destroyFixed(o){
  const pts={turret:400,pyramid:600,tower:1000}[o.kind]||300;score+=pts;
  boom(o.x,o.y,3);burst(o.x,o.y,18,'#ffe0a0');play('boom_l',1.2,.3);shake=Math.max(shake,8);
  pop(o.x,o.y-20,'+'+pts,'#c8e6a0',15);
- if(o.kind==='tower'){caps.push({x:o.x,y:o.y,t:0});message('カプセル！ 取ると照準が伸びる',2.2)}}
+ if(o.kind==='tower'){caps.push({x:o.x,y:o.y,t:0});message('カプセル！ 取ると照準が伸びる',2.2)}
+ if(o.grp&&lineLeft[o.grp]>0&&--lineLeft[o.grp]===0){const L=lineInfo[o.grp];   // 組を全部壊した
+  if(L.n===1&&L.kind==='pyramid')later(.35,()=>spawnPuzzleAt(o.x,o.y,'pic'));
+  else if(L.n>=2)later(.35,()=>spawnPuzzleAt(o.x,o.y,L.n>=4?'grid':'word'))}}
 
 // ---- 空の敵（ゼビウスの敵の「型」を借りたオリジナル） -------------------------
 //  ring   … 自機の方へ寄ってきて、縦に並ぶ（x がそろう）と引き返す。ただし慣性があって
@@ -504,6 +509,19 @@ function groundFree(x0,y0,x1,y1){                    // その範囲に、ほか
   else{if(g.stopY==null||g.hold<=0)continue;a=g.x-CELL*.6;b=g.stopY-CELL*.6;c=g.x+CELL*.6;d=g.stopY+CELL*.6}
   if(x0<c&&a<x1&&y0<d&&b<y1)return false}
  return true}
+// 地上物を壊すとパズル：ひとつだけのピラミッド → 絵合わせ、並んだ地上物を全部 → 文字そろえ（4つ以上なら 5×3）
+let lineSeq=0,lineLeft={},lineInfo={},puzHintShown=false;
+function spawnPuzzleAt(x,y,type,tries=0){
+ if(boss||phase!=='play')return;
+ if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length>=2){if(tries<8)later(1,()=>spawnPuzzleAt(x,y,type,tries+1));return}
+ const o=makePuzzle(x,y,type),pw=o.w*CELL,ph=o.h*CELL;
+ o.x=clamp(x-pw/2,14,W-14-pw);let best=null;
+ for(const dy of [0,-70,70,-140,140,-210]){const yy=clamp(y-ph/2+dy,90,H*.6-ph/2);
+  if(!ground.some(g=>g.kind==='puz'&&!g.done&&!g.left&&o.x<g.x+g.w*CELL+10&&g.x<o.x+pw+10&&yy<g.y+g.h*CELL+10&&g.y<yy+ph+10)){best=yy;break}}
+ if(best==null){if(tries<8)later(1,()=>spawnPuzzleAt(x,y,type,tries+1));return}
+ o.y=best;o.emerge=0;o.stopY=o.lane=o.y;o.arrived=true;o.hold=o.hold0=type==='grid'?21:16;o.vx=(Math.random()<.5?-1:1)*12;o.wt=0;ground.push(o);
+ burst(x,y,24,'#f6e27a');play('sq2',1,.6);
+ if(!puzHintShown){puzHintShown=true;message(type==='pic'?'ピラミッドを壊したら 絵合わせが出た！':'並んだ地上物を全部壊したら 文字パズルが出た！',3.5)}}
 function spawnLine(kind,x,stopY,n,dir,hold=8,tries=0){
  if(!tries){x+=(Math.random()-.5)*100;stopY+=(Math.random()-.5)*40}   // 毎プレイ違う
  const w=(dir==='h'?n:1)*CELL,h=(dir==='h'?1:n)*CELL,cand=[];   // 重なるなら、横にずらす・高さを変える・少し待つ
@@ -511,9 +529,11 @@ function spawnLine(kind,x,stopY,n,dir,hold=8,tries=0){
  const ok=cand.find(([cx,cy])=>groundFree(cx-w/2,-40,cx+w/2,dir==='h'?cy+h/2:cy+h-CELL/2));   // 上から降りてくる通り道もふくめて
  if(!ok){if(tries<6)later(1.2,()=>spawnLine(kind,x,stopY,n,dir,hold,tries+1));return}
  [x,stopY]=ok;
+ const g=++lineSeq;lineLeft[g]=n;lineInfo[g]={n,kind};   // まとめて壊すとパズルが出る組
  for(let i=0;i<n;i++){const d=(i-(n-1)/2)*CELL;
-  if(dir==='h')spawnGround(kind,x+d,{stopY,hold});
-  else{const o=spawnGround(kind,x,{stopY:stopY+i*CELL,hold});o.y=-30-(n-1-i)*CELL}}}
+  const o=dir==='h'?spawnGround(kind,x+d,{stopY,hold}):spawnGround(kind,x,{stopY:stopY+i*CELL,hold});
+  if(dir!=='h')o.y=-30-(n-1-i)*CELL;
+  o.grp=g}}
 function updateGround(dt){
  for(const o of ground){
   if(o.kind==='puz'){updatePend(o,dt);if(o.stopY!==undefined)updateWander(o,dt);
@@ -1018,7 +1038,7 @@ function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイド�
  const g=++gid;for(let i=0;i<n;i++)later(i*gap,()=>{
   const x=x0!==undefined?x0+(side<0?i*26:-i*26):side<0?50+i*30:W-50-i*30;
   spawnAir('ring',x,{g,gn:n,shooter:shooters.includes(i)})})}
-function bakuraRows(n,gap){                         // パキュラの林：1列に3〜4枚を ちらばらせて置く（すき間が多い）。列の間も広め
+function bakuraRows(n,gap){                         // パキュラの森：1列に3〜4枚を ちらばらせて置く（すき間が多い）。列の間も広め
  const X=[];for(let x=30;x<W;x+=48)X.push(x);
  for(let r=0;r<n;r++)later(r*gap,()=>{const pick=shuffle(X.slice()),out=[];
   for(const x of pick){if(out.length>=3+rnd(2))break;if(out.some(q=>Math.abs(q-x)<96))continue;out.push(x)}   // となりどうしは1マス以上あける
@@ -1026,7 +1046,7 @@ function bakuraRows(n,gap){                         // パキュラの林：1列
 function areaScript(){
  const grp=[];const G=(tm,f)=>grp.push([tm,f]);const late=area>=2;
  // 空は「山」（編隊がどっと来る）と「間」（空っぽ。地上物を落ち着いて撃てる）を交互に
- //  0〜9 山：導入の大編隊 → 9〜17 間 → 17〜27 山 → 27〜35 ばらまき → 35〜41 間 → 41〜49 パキュラの林 → 49〜52 間 → 52〜59 締めの山 → 59〜64 間
+ //  0〜9 山：導入の大編隊 → 9〜17 間 → 17〜27 山 → 27〜35 ばらまき → 35〜41 間 → 41〜49 パキュラの森 → 49〜52 間 → 52〜59 締めの山 → 59〜64 間
  // 山1：撃ってこないトーロイドの大編隊で、引きつけて落とす練習
  G(1.0,()=>ringWave(-1,8));
  G(3.5,()=>ringWave(1,8));
@@ -1045,8 +1065,8 @@ function areaScript(){
  G(30.0,()=>ringWave(-1,6));
  G(32.5,()=>ringWave(1,6));
  G(UNCHI_T/STRETCH,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
- // パキュラの林：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
- G(40.0,()=>{message('パキュラの林！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
+ // パキュラの森：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
+ G(40.0,()=>{message('パキュラの森！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
  G(41.0,()=>bakuraRows(5,1.8));
  G(43.0,()=>ringWave(-1,6,{x0:60}));
  G(46.0,()=>ringWave(1,6,{x0:W-60,shooters:[5]}));
@@ -1057,43 +1077,46 @@ function areaScript(){
  G(55.5,()=>ringWave(-1,8,{x0:W/2+60}));
  G(56.5,()=>{spawnAir('giddo',100,{amp:80});spawnAir('giddo',W-100,{amp:80})});
  G(57.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- // ---- 地上（大きな文字盤は同時に2枚まで。けす敵は空の「間」に多めに） ----
- G(5.5,()=>spawnGround('word',W/2,{stopY:200,hold:12,arg:0}));           // ことば（横か縦の1列）
- G(10.0,()=>spawnLine('pyramid',110,130,3,'h'));                                 // けす：横に3つ
- G(12.0,()=>spawnGround('word',350,{stopY:260,hold:11,arg:1}));
- G(14.0,()=>spawnLine('turret',W/2,120,2,'h'));                                  // けす：撃ってくる
- G(19.0,()=>spawnGround('grid',W/2,{stopY:200,hold:14}));                         // 5×3：何を作る？ 連鎖でコンボ
- G(30.0,()=>{spawnGround('pic',120,{stopY:200,hold:13,arg:0});spawnLine('tower',350,140,1,'h')});   // ピースそろえ
+ // ---- 地上：上から降りてくる板は絵合わせだけ。文字パズルは並んだ地上物を全部壊すと出る（ひとつのピラミッドなら絵合わせ） ----
+ G(3.5,()=>spawnLine('pyramid',120,150,1,'h',9));                                 // ひとつのピラミッド → 絵合わせ
+ G(7.0,()=>spawnLine('pyramid',W/2+60,170,3,'h',9));                              // 3つ並び → 文字そろえ
+ G(12.0,()=>spawnLine('turret',W/2,120,2,'h'));                                   // 2つ（撃ってくる）→ 文字そろえ
+ G(17.5,()=>spawnLine('pyramid',W/2,400,4,'h',9));                                // 4つ並び → 5×3
+ G(22.0,()=>spawnLine('pyramid',330,150,1,'h',8));
+ G(30.0,()=>{spawnGround('pic',120,{stopY:200,hold:13});spawnLine('tower',350,140,1,'h')});   // 上から降りてくる絵合わせ
+ G(33.0,()=>spawnLine('pyramid',W/2,170,3,'h',9));                                // 森の少し前：すばやく壊して そろえれば、森でキャラが使える
  G(35.5,()=>spawnLine('turret',W/2,420,3,'h'));
- G(37.5,()=>spawnGround('word',330,{stopY:200,hold:11,arg:2}));
- G(39.0,()=>spawnLine('pyramid',100,140,3,'h',7));
- G(47.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12,arg:1}));             // ピースそろえ：2つ目の地上絵
- G(49.5,()=>spawnLine('pyramid',W/2,420,4,'h',7));
- G(53.0,()=>spawnGround('word',110,{stopY:200,hold:10,arg:3}));
+ G(38.0,()=>spawnLine('pyramid',100,140,1,'h',7));
+ G(44.0,()=>spawnLine('pyramid',340,160,1,'h',8));
+ G(47.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12}));
+ G(49.5,()=>spawnLine('pyramid',W/2,420,4,'h',8));
+ G(53.0,()=>spawnLine('pyramid',110,170,3,'h',8));
  G(59.0,()=>spawnLine('turret',W/2,130,3,'h',6));
- // ---- 後半（60〜100秒）：もう一回り。山 → 間 → ばらまき＋編隊 → 間 → パキュラの林 → 締め ----
+ // ---- 後半（60〜100秒）：もう一回り。山 → 間 → ばらまき＋編隊 → 間 → パキュラの森 → 締め ----
  G(61.0,()=>ringWave(-1,8));
  G(62.5,()=>ringWave(1,8,{shooters:[7]}));
  G(64.0,()=>{spawnAir('torkan',110,{stopY:110});spawnAir('torkan',W/2,{stopY:150});spawnAir('torkan',W-110,{stopY:110})});
  G(65.5,()=>ringWave(-1,8,{shooters:[3]}));
  G(67.0,()=>{spawnAir('giddo',W/2-70,{amp:100});later(.4,()=>spawnAir('giddo',W/2+70,{amp:100}))});
- G(70.0,()=>spawnGround('word',W/2,{stopY:220,hold:11}));
+ G(63.0,()=>spawnLine('pyramid',120,150,1,'h',8));
+ G(68.5,()=>spawnLine('pyramid',W/2,170,3,'h',9));
  G(71.0,()=>spawnLine('turret',W/2,130,3,'h'));
  G(73.5,()=>spawnLine('pyramid',110,420,3,'h',7));
  G(76.0,()=>{message('また弾をばらまく敵！',3);play('warn',1.3,.5)});
  G(77.0,()=>spawnAir('barrage',W/2));
  G(78.0,()=>ringWave(-1,8));
  G(80.5,()=>ringWave(1,8,{shooters:[0]}));
- G(78.5,()=>spawnGround('grid',W/2,{stopY:330,hold:13}));
- G(83.5,()=>{spawnGround('pic',W/2,{stopY:220,hold:12});spawnLine('tower',350,140,1,'h')});
- G(86.0,()=>{message('パキュラの林、ふたたび！',3);play('warn',1.3,.5)});
+ G(78.5,()=>spawnLine('pyramid',W/2,400,4,'h',8));
+ G(81.0,()=>spawnLine('pyramid',W/2,160,3,'h',8));   // 森（2回目）の少し前
+ G(84.5,()=>{spawnGround('pic',W/2,{stopY:220,hold:12});spawnLine('tower',350,140,1,'h')});
+ G(86.0,()=>{message('パキュラの森、ふたたび！',3);play('warn',1.3,.5)});
  G(87.0,()=>bakuraRows(6,1.7));
  G(89.0,()=>ringWave(-1,6,{x0:60}));
  G(92.5,()=>{for(let i=0;i<4;i++)later(i*.3,()=>spawnAir('torkan',80+i*93,{stopY:100+i%2*60}))});
  G(93.5,()=>ringWave(1,8,{shooters:[2,6]}));
  G(94.5,()=>ringWave(-1,8));
  G(95.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- G(96.0,()=>spawnGround('word',110,{stopY:220,hold:10}));
+ G(95.0,()=>spawnLine('pyramid',110,160,1,'h',7));
  G(97.0,()=>spawnLine('turret',330,130,2,'h',5));
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
@@ -1166,7 +1189,7 @@ function startArea(){
  ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:2,deadT:0,opts:ship&&ship.opts||[]};   // くっつけたパーツは次のエリアへ持ち越す
  items=[];missiles=[];boss=null;
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
- t=0;timers=[];cutin=null;bossTalk=null;tipQueue=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
+ t=0;timers=[];cutin=null;bossTalk=null;lineLeft={};lineInfo={};puzHintShown=false;tipQueue=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
  phase='play';$('overlay').classList.add('hidden');
  bgmVolume(sound&&!paused?.3:0);play('start');
  message('AREA '+area+'　空の敵は通常弾、地上は地上弾',3);ui()}
@@ -1267,6 +1290,7 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
+ if(padUsed&&!usedTouch)return grab?'つかんでいる：動かすと入れかわる。A で はなす（そろえば自動で決まる）':'スティック/十字＝移動（通常弾は自動）　A：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す　START＝一時停止';
  if(grab)return'つかんでいる：動かすと文字が入れかわる。もう1回押すと そこで はなす（そろえば自動で決まる）';
  if(mouseMode)return'マウス：移動（通常弾は自動）　クリック：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
  if(usedTouch)return'なぞる＝移動（通常弾は自動）　タップ：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
@@ -1705,9 +1729,27 @@ function resize(){const st=$('stage'),sw=st.clientWidth,sh=st.clientHeight;
 window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('stage'));resize();
 ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:0,opts:[]};shots=[];ebul=[];air=[];ground=[];caps=[];parts=[];booms=[];pops=[];script=[];si=0;
+// ---- コントローラ（どのゲームでも最初から対応）：スティック/十字＝移動、A・B・X・Y＝地上弾/つかむ/はなす（2回すばやく＝撃ち出す）、START＝一時停止
+let padPrev=[],padUsed=false;
+function pollPad(dt){
+ const gps=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const g of gps)if(g&&g.connected){gp=g;break}
+ if(!gp)return;
+ const b=i=>!!(gp.buttons[i]&&gp.buttons[i].pressed),down=i=>b(i)&&!padPrev[i];
+ let x=gp.axes[0]||0,y=gp.axes[1]||0;if(Math.hypot(x,y)<.25){x=0;y=0}
+ if(b(14))x=-1;if(b(15))x=1;if(b(12))y=-1;if(b(13))y=1;
+ const ov=!$('overlay').classList.contains('hidden'),cfgOpen=!$('cfg').classList.contains('hidden');
+ if(cfgOpen){if(down(1)||down(9))closeCfg()}
+ else if(ov){if(down(0)||down(9)){audio();if($('start'))$('start').click()}else if(down(1)&&$('ov1'))$('ov1').click()}
+ else if(phase==='play'){
+  if(down(9)){togglePause('START ボタン')}
+  else if(!paused){
+   if(x||y){const v=CFG.keySpeed*CFG.shipSpeed*dt;ship.tx=clamp(ship.tx+x*v,24,W-24);ship.ty=clamp(ship.ty+y*v,SIGHT_AHEAD+40,H-30);padUsed=true;mouseMode=false}
+   if(down(0)||down(1)||down(2)||down(3)){padUsed=true;mouseMode=false;audio();groundPress('h')}}}
+ padPrev=gp.buttons.map(q=>q.pressed)}
+window.addEventListener('gamepadconnected',()=>{padUsed=true;message('コントローラをつなぎました（A＝地上弾・つかむ、START＝一時停止）',3)});
 let last=performance.now();
 function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
- try{if(phase==='play'&&!paused)update(dt);else if(phase==='ending')updateEnding(dt);else scroll+=dt*SPD*.5;
+ try{pollPad(dt);if(phase==='play'&&!paused)update(dt);else if(phase==='ending')updateEnding(dt);else scroll+=dt*SPD*.5;
   draw()}catch(e){console.error(e)}                  // 1つの不具合で画面が止まらないように
  requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
