@@ -1012,8 +1012,8 @@ function playItemSE(part,delay=0){                    // 1.6秒で打ち切る�
  g.gain.setValueAtTime(.9,t0);g.gain.setValueAtTime(.9,t0+d-.15);g.gain.linearRampToValueAtTime(0,t0+d);
  src.connect(g);g.connect(outNode());src.start(t0);src.stop(t0+d);return true}
 function loadVoice(){if(voxLoaded||!ac)return;voxLoaded=true;
- for(const f of new Set(Object.values(ITEM_SE)))fetch('../assets/se_item/'+f).then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{ISE[f]=b}).catch(()=>{});
- for(const [k,f] of Object.entries(VOICE_FILE))fetch('../assets/voice/'+f+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>{VOX[k]=b}).catch(()=>{})}
+ for(const f of new Set(Object.values(ITEM_SE)))loadAudio('../assets/se_item/'+f,b=>{ISE[f]=b});
+ for(const [k,f] of Object.entries(VOICE_FILE))loadAudio('../assets/voice/'+f+'.wav',b=>{VOX[k]=b})}
 let voxSrcs=[],voiceEnd=0,voiceQueueEnd=0;
 function playVoice(keys,queue){                      // 言葉を順につなげて読む（queue＝今しゃべっている後ろにつなぐ）
  if(!ac)return false;const bufs=keys.map(k=>VOX[k]);if(bufs.some(b=>!b))return false;
@@ -1690,13 +1690,16 @@ const MAOU_SFX=['kill','fanfare','shot','hit','boom_s','boom_l','swap','pickup',
 // BGM も魔王魂（8bit・ループ版）。道中＝キャロットマンステージ、ボス＝bravery heart、タイトルなど＝子猫のもんたのクッキー屋さん
 const BGM_FILE={stage:'maou_loop_bgm_8bit27',boss:'maou_loop_bgm_8bit25',title:'maou_loop_bgm_8bit29'};
 let bgmName='title';
+// 音は1つずつ順番に読み込む（スマホで「スタート」直後にまとめて読み込むと、かくつく）。タイトル画面のうちから読み始める
+const audioQ=[];let audioBusy=false;
+function loadAudio(url,cb,first){(first?audioQ.unshift.bind(audioQ):audioQ.push.bind(audioQ))({url,cb});pumpAudio()}
+function pumpAudio(){if(audioBusy||!audioQ.length||!ac)return;audioBusy=true;const {url,cb}=audioQ.shift();
+ fetch(url).then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(cb).catch(()=>{}).finally(()=>{audioBusy=false;setTimeout(pumpAudio,phase==='play'?60:5)})}
 function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;
  for(const n of SFX_NAMES){if(n==='bgm')continue;
-  fetch('../assets/'+(MAOU_SFX.includes(n)?'sfx_maou/':'sfx/')+n+'.wav').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
-   .then(b=>{SFX[n]=b}).catch(()=>{})}
+  loadAudio('../assets/'+(MAOU_SFX.includes(n)?'sfx_maou/':'sfx/')+n+'.wav',b=>{SFX[n]=b},true)}
  for(const [k,f] of Object.entries(BGM_FILE))
-  fetch('../assets/bgm/'+f+'.mp3').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b))
-   .then(b=>{SFX['bgm_'+k]=b;if(k===bgmName)startBgm()}).catch(()=>{})}
+  loadAudio('../assets/bgm/'+f+'.mp3',b=>{SFX['bgm_'+k]=b;if(k===bgmName)startBgm()},k===bgmName||k==='stage')}
 function setBgm(name){if(name===bgmName&&bgmSrc)return;bgmName=name;stopBgm();startBgm()}
 // BGM。効果音と同じ仕組みでループ再生する
 let bgmSrc=null,bgmGain=null;
@@ -1731,6 +1734,7 @@ function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.
 function audio(){unlockAudio();setTimeout(loadVoice,0);
  if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
  ac.resume().catch(()=>{});loadSfx()}
+try{ac=new(window.AudioContext||window.webkitAudioContext)();loadSfx();loadVoice()}catch(e){}   // 止まったままの音の箱を先に作って、タイトルのうちに読み込んでおく（鳴らすのはスタート後）
 
 // ---- 全画面と誤タッチ対策 ---------------------------------------------------
 const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
