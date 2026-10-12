@@ -277,7 +277,7 @@ function startGrab(hit){
 function updateGrab(){
  if(!grab)return;const o=grab.o;
  if(o.done||!ship.alive){endGrab();return}
- const sp=sightPoint(),c=Math.floor((sp.x-o.x)/CELL),r=Math.floor((sp.y-o.y)/CELL);
+ const sp=sightPoint();let c=Math.floor((sp.x-o.x)/CELL),r=Math.floor((sp.y-o.y)/CELL);
  const rr=clamp(r,0,o.h-1),cc=clamp(c,0,o.w-1);
  if(Math.abs(r-rr)>1||Math.abs(c-cc)>1){endGrab();return}   // 板から大きく(1マスより)はなれたら はなす。少しのはみ出しは いちばん端のマスとして扱う
  r=rr;c=cc;
@@ -317,6 +317,8 @@ function landBomb(b){
  let n=0;
  for(const o of ground){
   if(o.kind==='puz'||o.dead)continue;
+  if(o.kind==='bigpyr'){if(Math.abs(o.x-x)<CELL*1.5+14&&Math.abs(o.y-y)<CELL*1.5+14){o.hp--;o.hitT=.2;boom(x,y,2.6);play('hit',.7,.7);
+    if(o.hp<=0){destroyFixed(o);n++}else pop(o.x,o.y-CELL*1.5-6,'あと'+o.hp+'発','#ffffff',14)}continue}
   if(inBlast(o,r)){destroyFixed(o);n++}}
  if(boss&&!boss.dead&&boss.y>=boss.ty-1){                // ボス：コアに当てると少し、四隅の砲台は壊せる
   if(inBlast({x:boss.x,y:boss.y},r,16))bossDamage(6,boss.x,boss.y,false);
@@ -398,12 +400,13 @@ function clearFx(o,cx,cy){
  for(let i=0;i<3;i++)boom(o.x+Math.random()*o.w*CELL,o.y+Math.random()*o.h*CELL,2.4);burst(cx,cy,24,'#f6e27a')}
 function destroyFixed(o){
  o.dead=true;
- const pts={turret:400,pyramid:600,tower:1000}[o.kind]||300;score+=pts;
+ const pts={turret:400,pyramid:600,tower:1000,bigpyr:3000}[o.kind]||300;score+=pts;
+ if(o.kind==='bigpyr'){for(let i=0;i<8;i++)later(i*.07,()=>boom(o.x+(Math.random()-.5)*CELL*2.4,o.y+(Math.random()-.5)*CELL*2.4,3.2));shake=Math.max(shake,14)}
  boom(o.x,o.y,3);burst(o.x,o.y,18,'#ffe0a0');play('boom_l',1.2,.3);shake=Math.max(shake,8);
  pop(o.x,o.y-20,'+'+pts,'#c8e6a0',15);
  if(o.kind==='tower'){caps.push({x:o.x,y:o.y,t:0});message('カプセル！ 取ると照準が伸びる',2.2)}
  if(o.grp&&lineLeft[o.grp]>0&&--lineLeft[o.grp]===0){const L=lineInfo[o.grp];   // 組を全部壊した
-  if(L.n===1&&L.kind==='pyramid')later(.35,()=>spawnPuzzleAt(o.x,o.y,'pic'));
+  if(L.n===1&&(L.kind==='pyramid'||L.kind==='bigpyr'))later(o.kind==='bigpyr'?.7:.35,()=>spawnPuzzleAt(o.x,o.y,'pic'));
   else if(L.n>=2)later(.35,()=>spawnPuzzleAt(o.x,o.y,L.n>=4?'grid':'word'))}}
 
 // ---- 空の敵（ゼビウスの敵の「型」を借りたオリジナル） -------------------------
@@ -501,12 +504,12 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   if(blocked(o.x)){const xs=[];for(let X=14;X<=W-14-pw;X+=20)xs.push(X);xs.sort((a,b)=>Math.abs(a-o.x)-Math.abs(b-o.x));
    const nx=xs.find(X=>!blocked(X));if(nx!==undefined)o.x=nx}
   o.stopY=stopY;o.hold=o.hold0=hold*1.5;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}   // 板が帰るまで長めに（1.5倍）
- const o={kind,x,y:-30,cd:2+Math.random()*2,stopY,hold};ground.push(o);return o}
+ const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hp:kind==='bigpyr'?4:1};ground.push(o);return o}
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
  for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
   if(g.kind==='puz'){const y=g.lane!=null?g.lane:g.stopY;if(y==null)continue;a=g.x-40;b=y-30;c=g.x+g.w*CELL+40;d=y+g.h*CELL+30}   // 板はうろうろするので広めに
-  else{if(g.stopY==null||g.hold<=0)continue;a=g.x-CELL*.6;b=g.stopY-CELL*.6;c=g.x+CELL*.6;d=g.stopY+CELL*.6}
+  else{if(g.stopY==null||g.hold<=0)continue;const k=g.kind==='bigpyr'?1.7:.6;a=g.x-CELL*k;b=g.stopY-CELL*k;c=g.x+CELL*k;d=g.stopY+CELL*k}
   if(x0<c&&a<x1&&y0<d&&b<y1)return false}
  return true}
 // 地上物を壊すとパズル：ひとつだけのピラミッド → 絵合わせ、並んだ地上物を全部 → 文字そろえ（4つ以上なら 5×3）
@@ -524,7 +527,7 @@ function spawnPuzzleAt(x,y,type,tries=0){
  if(!puzHintShown){puzHintShown=true;message(type==='pic'?'ピラミッドを壊したら 絵合わせが出た！':'並んだ地上物を全部壊したら 文字パズルが出た！',3.5)}}
 function spawnLine(kind,x,stopY,n,dir,hold=8,tries=0){
  if(!tries){x+=(Math.random()-.5)*100;stopY+=(Math.random()-.5)*40}   // 毎プレイ違う
- const w=(dir==='h'?n:1)*CELL,h=(dir==='h'?1:n)*CELL,cand=[];   // 重なるなら、横にずらす・高さを変える・少し待つ
+ const sz=kind==='bigpyr'?3:1,w=(dir==='h'?n:1)*CELL*sz,h=(dir==='h'?1:n)*CELL*sz,cand=[];   // 重なるなら、横にずらす・高さを変える・少し待つ
  for(const dy of [0,120,-90,220])for(const dx of [0,-120,120,-200,200])cand.push([clamp(x+dx,w/2+10,W-w/2-10),clamp(stopY+dy,90,H*.62)]);
  const ok=cand.find(([cx,cy])=>groundFree(cx-w/2,-40,cx+w/2,dir==='h'?cy+h/2:cy+h-CELL/2));   // 上から降りてくる通り道もふくめて
  if(!ok){if(tries<6)later(1.2,()=>spawnLine(kind,x,stopY,n,dir,hold,tries+1));return}
@@ -543,6 +546,10 @@ function updateGround(dt){
   else o.y+=SPD*dt;
   if(o.emerge!==undefined&&o.emerge<1)o.emerge=Math.min(1,o.emerge+dt/.7);   // ボス戦：地中からせり上がる
   if(o.warn>0)o.warn-=dt;
+  if(o.kind==='bigpyr'&&!o.dead&&!o.sinkT&&o.y>40&&ship.alive){o.cd-=dt;   // 巨大ピラミッド：光ってから、5方向に「だだだだ」を連射
+   if(o.cd<=.5&&!o.warned){o.warned=true;o.warn=.5}
+   if(o.cd<=0){o.cd=1.25;o.warned=false;const base=Math.atan2(ship.y-o.y,ship.x-o.x);play('hit',1.1,.5);
+    for(let k=0;k<4;k++)later(k*.08,()=>{if(o.dead)return;for(let j=-2;j<=2;j++){const a=base+j*.32;ebul.push({x:o.x,y:o.y+CELL*.8,vx:Math.cos(a)*135,vy:Math.sin(a)*135})}})}}
   if(o.kind==='turret'&&!o.dead&&o.y>40&&o.y<ship.y-80){o.cd-=dt;   // 砲台：光ってから1発。間はたっぷり
    if(o.cd<=0&&!o.warn){o.warn=.6;o.cd=9}
    if(o.cd>8&&o.warn<=0){o.cd=(4+Math.random()*2)/Math.sqrt(diff);o.warn=0;enemyShot(o.x,o.y)}}
@@ -1101,16 +1108,16 @@ function areaScript(){
  G(56.5,()=>{spawnAir('giddo',100,{amp:80});spawnAir('giddo',W-100,{amp:80})});
  G(57.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
  // ---- 地上：上から降りてくる板は絵合わせだけ。文字パズルは並んだ地上物を全部壊すと出る（ひとつのピラミッドなら絵合わせ） ----
- G(3.5,()=>spawnLine('pyramid',120,150,1,'h',9));                                 // ひとつのピラミッド → 絵合わせ
+ G(3.5,()=>spawnLine('bigpyr',120,150,1,'h',12));                                 // ひとつのピラミッド → 絵合わせ
  G(7.0,()=>spawnLine('pyramid',W/2+60,170,3,'h',9));                              // 3つ並び → 文字そろえ
  G(12.0,()=>spawnLine('turret',W/2,120,2,'h'));                                   // 2つ（撃ってくる）→ 文字そろえ
  G(17.5,()=>spawnLine('pyramid',W/2,400,4,'h',9));                                // 4つ並び → 5×3
- G(22.0,()=>spawnLine('pyramid',330,150,1,'h',8));
+ G(22.0,()=>spawnLine('bigpyr',330,150,1,'h',11));
  G(30.0,()=>{spawnGround('pic',120,{stopY:200,hold:13});spawnLine('tower',350,140,1,'h')});   // 上から降りてくる絵合わせ
  G(33.0,()=>spawnLine('pyramid',W/2,170,3,'h',9));                                // 森の少し前：すばやく壊して そろえれば、森でキャラが使える
  G(35.5,()=>spawnLine('turret',W/2,420,3,'h'));
- G(38.0,()=>spawnLine('pyramid',100,140,1,'h',7));
- G(44.0,()=>spawnLine('pyramid',340,160,1,'h',8));
+ G(38.0,()=>spawnLine('bigpyr',100,140,1,'h',10));
+ G(44.0,()=>spawnLine('bigpyr',340,160,1,'h',11));
  G(47.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12}));
  G(49.5,()=>spawnLine('pyramid',W/2,420,4,'h',8));
  G(53.0,()=>spawnLine('pyramid',110,170,3,'h',8));
@@ -1121,7 +1128,7 @@ function areaScript(){
  G(64.0,()=>{spawnAir('torkan',110,{stopY:110});spawnAir('torkan',W/2,{stopY:150});spawnAir('torkan',W-110,{stopY:110})});
  G(65.5,()=>ringWave(-1,8,{shooters:[3]}));
  G(67.0,()=>{spawnAir('giddo',W/2-70,{amp:100});later(.4,()=>spawnAir('giddo',W/2+70,{amp:100}))});
- G(63.0,()=>spawnLine('pyramid',120,150,1,'h',8));
+ G(63.0,()=>spawnLine('bigpyr',120,150,1,'h',11));
  G(68.5,()=>spawnLine('pyramid',W/2,170,3,'h',9));
  G(71.0,()=>spawnLine('turret',W/2,130,3,'h'));
  G(73.5,()=>spawnLine('pyramid',110,420,3,'h',7));
@@ -1139,7 +1146,7 @@ function areaScript(){
  G(93.5,()=>ringWave(1,8,{shooters:[2,6]}));
  G(94.5,()=>ringWave(-1,8));
  G(95.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- G(95.0,()=>spawnLine('pyramid',110,160,1,'h',7));
+ G(95.0,()=>spawnLine('bigpyr',110,160,1,'h',10));
  G(97.0,()=>spawnLine('turret',330,130,2,'h',5));
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
@@ -1376,6 +1383,13 @@ function drawGroundObjs(){
    const k=Math.floor(time*10)%2?'#e2624a':'#ffffff',d=24*Z;ctx.fillStyle=k;
    for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
     ctx.fillRect(x+sx*d-(sx>0?8:0),y+sy*d-(sy>0?2:0),8,2);ctx.fillRect(x+sx*d-(sx>0?2:0),y+sy*d-(sy>0?8:0),2,8)}}
+  if(o.kind==='bigpyr'){const S=CELL*3,k=o.sinkT?Math.max(0,1-o.sinkT/.7):1;ctx.save();ctx.globalAlpha=k;   // 巨大ピラミッド
+   ctx.fillStyle='#00000055';ctx.fillRect(x-S/2+10,y-S/2+14,S,S);
+   if(has('kenney_pyramid'))ctx.drawImage(IMG.kenney_pyramid,x-S/2,y-S/2,S,S);else{ctx.fillStyle='#c8a062';ctx.beginPath();ctx.moveTo(x,y-S/2);ctx.lineTo(x+S/2,y+S/2);ctx.lineTo(x-S/2,y+S/2);ctx.fill()}
+   if(o.hitT>0){o.hitT-=1/60;ctx.globalAlpha=k*.5;ctx.fillStyle='#ffffff';ctx.fillRect(x-S/2,y-S/2,S,S);ctx.globalAlpha=k}
+   if(o.warn>0&&Math.floor(time*20)%2){ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x,y+CELL*.8,10,0,Math.PI*2);ctx.fill()}
+   for(let i=0;i<4;i++){ctx.fillStyle=i<o.hp?'#e2624a':'#3a2a1a';ctx.fillRect(x-30+i*16,y-S/2-12,12,6)}   // のこり
+   ctx.restore();continue}
   ctx.save();ctx.translate(x,y);ctx.scale(Z,Z);ctx.translate(-x,-y);   // 地上の敵も大きく
   if(o.sinkT){const k=Math.max(0,1-o.sinkT/.7);ctx.globalAlpha=k;ctx.translate(x,y);ctx.scale(1,.4+.6*k);ctx.translate(-x,-y)}   // 沈んでいく
   if(o.kind==='turret'){if(drawKTile('turret',x,y,30)){   // Kenney の砲台（砲身は絵に描いてある。光る時だけ白く）
