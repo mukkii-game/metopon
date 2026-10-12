@@ -504,7 +504,7 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   if(blocked(o.x)){const xs=[];for(let X=14;X<=W-14-pw;X+=20)xs.push(X);xs.sort((a,b)=>Math.abs(a-o.x)-Math.abs(b-o.x));
    const nx=xs.find(X=>!blocked(X));if(nx!==undefined)o.x=nx}
   o.stopY=stopY;o.hold=o.hold0=hold*1.5;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}   // 板が帰るまで長めに（1.5倍）
- const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hp:kind==='bigpyr'?4:1};ground.push(o);return o}
+ const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hp:kind==='bigpyr'?4:1};if(kind==='bigpyr')o.aim=(++bigSeq)%2===0;ground.push(o);return o}   // 巨大ピラミッドは ばらまき型と ねらい撃ち型が交互
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
  for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
@@ -513,7 +513,8 @@ function groundFree(x0,y0,x1,y1){                    // その範囲に、ほか
   if(x0<c&&a<x1&&y0<d&&b<y1)return false}
  return true}
 // 地上物を壊すとパズル：ひとつだけのピラミッド → 絵合わせ、並んだ地上物を全部 → 文字そろえ（4つ以上なら 5×3）
-let lineSeq=0,lineLeft={},lineInfo={},puzHintShown=false;
+const APEX=CELL*3*.075;                              // 巨大ピラミッドの てっぺん（絵の金色の所）は中心から少し左上
+let bigSeq=0,lineSeq=0,lineLeft={},lineInfo={},puzHintShown=false;
 function spawnPuzzleAt(x,y,type,tries=0){
  if(boss||phase!=='play')return;
  if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length>=2){if(tries<8)later(1,()=>spawnPuzzleAt(x,y,type,tries+1));return}
@@ -548,8 +549,11 @@ function updateGround(dt){
   if(o.warn>0)o.warn-=dt;
   if(o.kind==='bigpyr'&&!o.dead&&!o.sinkT&&o.y>40&&ship.alive){o.cd-=dt;   // 巨大ピラミッド：光ってから、5方向に「だだだだ」を連射
    if(o.cd<=.5&&!o.warned){o.warned=true;o.warn=.5}
-   if(o.cd<=0){o.cd=1.25;o.warned=false;const base=Math.atan2(ship.y-o.y,ship.x-o.x);play('hit',1.1,.5);
-    for(let k=0;k<4;k++)later(k*.08,()=>{if(o.dead)return;for(let j=-2;j<=2;j++){const a=base+j*.32;ebul.push({x:o.x,y:o.y+CELL*.8,vx:Math.cos(a)*135,vy:Math.sin(a)*135})}})}}
+   if(o.cd<=0){o.warned=false;play('hit',1.1,.5);          // 弾は絵のまん中（てっぺん）から出る
+    if(o.aim){o.cd=1.6;for(let k=0;k<12;k++)later(k*.06,()=>{if(o.dead||!ship.alive)return;   // ねらい撃ち型：自機をねらって ずらずらっと12発
+      const ax=o.x-APEX,ay=o.y-APEX,a=Math.atan2(ship.y-ay,ship.x-ax);ebul.push({x:ax,y:ay,vx:Math.cos(a)*170,vy:Math.sin(a)*170})})}
+    else{o.cd=1.25;const base=Math.atan2(ship.y-o.y,ship.x-o.x);   // ばらまき型：5方向に「だだだだ」
+     for(let k=0;k<4;k++)later(k*.08,()=>{if(o.dead)return;for(let j=-2;j<=2;j++){const a=base+j*.32;ebul.push({x:o.x-APEX,y:o.y-APEX,vx:Math.cos(a)*135,vy:Math.sin(a)*135})}})}}}
   if(o.kind==='turret'&&!o.dead&&o.y>40&&o.y<ship.y-80){o.cd-=dt;   // 砲台：光ってから1発。間はたっぷり
    if(o.cd<=0&&!o.warn){o.warn=.6;o.cd=9}
    if(o.cd>8&&o.warn<=0){o.cd=(4+Math.random()*2)/Math.sqrt(diff);o.warn=0;enemyShot(o.x,o.y)}}
@@ -1387,7 +1391,8 @@ function drawGroundObjs(){
    ctx.fillStyle='#00000055';ctx.fillRect(x-S/2+10,y-S/2+14,S,S);
    if(has('kenney_pyramid'))ctx.drawImage(IMG.kenney_pyramid,x-S/2,y-S/2,S,S);else{ctx.fillStyle='#c8a062';ctx.beginPath();ctx.moveTo(x,y-S/2);ctx.lineTo(x+S/2,y+S/2);ctx.lineTo(x-S/2,y+S/2);ctx.fill()}
    if(o.hitT>0){o.hitT-=1/60;ctx.globalAlpha=k*.5;ctx.fillStyle='#ffffff';ctx.fillRect(x-S/2,y-S/2,S,S);ctx.globalAlpha=k}
-   if(o.warn>0&&Math.floor(time*20)%2){ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x,y+CELL*.8,10,0,Math.PI*2);ctx.fill()}
+   if(o.aim){ctx.fillStyle='#e2624a';ctx.beginPath();ctx.arc(x-APEX,y-APEX,9,0,Math.PI*2);ctx.fill()}   // ねらい撃ち型は てっぺんが赤い
+   if(o.warn>0&&Math.floor(time*20)%2){ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x-APEX,y-APEX,12,0,Math.PI*2);ctx.fill()}
    for(let i=0;i<4;i++){ctx.fillStyle=i<o.hp?'#e2624a':'#3a2a1a';ctx.fillRect(x-30+i*16,y-S/2-12,12,6)}   // のこり
    ctx.restore();continue}
   ctx.save();ctx.translate(x,y);ctx.scale(Z,Z);ctx.translate(-x,-y);   // 地上の敵も大きく
