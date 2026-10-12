@@ -796,10 +796,14 @@ function bossDamage(d,x,y,big){
  else if(d>1){boom(x,y,1.8);play('hit',.8,.7);pop(x,y-14,'-'+d,'#ffffff',14)}
  else{burst(x,y,3,'#ffffff');play('hit',1.6,.15)}
  if(boss.hp<=0){boss.hp=0;boss.dead=true;boss.deadT=0;ebul=[];score+=10000*area;
-  message('要塞撃破！',3);play('bossdown');flash=.5;if(CFG.voice&&sound)playVoice(['bossCry']);
-  for(let i=0;i<5;i++)later(i*.15,()=>{if(boss){boom(boss.x+(Math.random()-.5)*boss.w,boss.y+(Math.random()-.5)*boss.h,3.5);shake=14;play('boom_l',.7+Math.random()*.4)}});
-  later(4.6,areaClear)}}
-function bossRetreat(b,dt){b.deadT+=dt;if(b.deadT>1.4){b.y-=26*dt;b.x+=Math.sin(b.deadT*5)*30*dt}}   // 泣きながら、ゆっくり上へ帰っていく（小さくならない）
+  message('要塞撃破！',3);play('bossdown');flash=.5;
+  for(let i=0;i<24;i++)later(i*.12,()=>{if(boss){boom(boss.x+(Math.random()-.5)*boss.w,boss.y+(Math.random()-.5)*boss.h,3+Math.random()*1.5);   // まず数秒の大破壊
+   burst(boss.x+(Math.random()-.5)*boss.w,boss.y+(Math.random()-.5)*boss.h,10,Math.random()<.5?'#ffe0a0':'#ff8040');shake=16;if(i%2===0)play('boom_l',.6+Math.random()*.4,.8);if(i%8===0)flash=.35}});
+  later(BOSS_WRECK_T,()=>{if(CFG.voice&&sound)playVoice(['bossCry'])});   // こわれ終わってから「インドア派なんで…」
+  later(BOSS_WRECK_T+4.6,areaClear)}}
+const BOSS_WRECK_T=3.2;                               // 倒されてから泣き出すまで（大破壊の時間）
+function bossRetreat(b,dt){b.deadT+=dt;if(b.deadT<BOSS_WRECK_T){b.x+=(Math.random()-.5)*6;return}   // 大破壊の間は がたがた震える
+ if(b.deadT>BOSS_WRECK_T+1.2){b.y-=26*dt;b.x+=Math.sin(b.deadT*5)*30*dt}}   // 泣きながら、ゆっくり上へ帰っていく（小さくならない）
 function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=dt;
  if(b.yuck>0)b.yuck-=dt;
  if(b.dead){bossRetreat(b,dt);return}
@@ -860,7 +864,7 @@ function drawBoss(){const b=boss;if(!b)return;
   if(tr.hp<=0){if(!drawKTile('wreck',tr.dx,tr.dy,32)){ctx.fillStyle='#2a2018';ctx.fillRect(tr.dx-10,tr.dy-10,20,20)}continue}
   if(!drawKTile('bossTurret',tr.dx,tr.dy,32)){ctx.fillStyle='#1a140e';ctx.fillRect(tr.dx-12,tr.dy-12,24,24);ctx.fillStyle='#9aa8b0';ctx.fillRect(tr.dx-9,tr.dy-9,18,18)}
   ctx.fillStyle=tr.warn>0&&Math.floor(time*20)%2?'#fff':'#e2624a';ctx.fillRect(tr.dx-3,tr.dy-3,6,6)}
- if(bossTalk)drawBossFace(b);else if(b.dead)drawBossFace(b,'cry');else if(b.yuck>0)drawBossFace(b,'yuck');
+ if(bossTalk)drawBossFace(b);else if(b.dead&&b.deadT>=BOSS_WRECK_T)drawBossFace(b,'cry');else if(b.yuck>0)drawBossFace(b,'yuck');
  ctx.restore();ctx.globalAlpha=1;
  for(const tr of b.turrets)if(tr.hp>0&&tr.warn>0)warnRing(b.x+tr.dx,b.y+tr.dy,12,tr.warn)}
 function drawUnko(x,y,s,soft){                      // とぐろ3段。うんちは柔らかく垂れた形で明るめ
