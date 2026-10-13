@@ -542,6 +542,7 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   o.stopY=stopY;o.hold=o.hold0=hold*1.5;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}   // 板が帰るまで長めに（1.5倍）
  const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hold0:hold,hp:kind==='bigpyr'?2:1};if(kind==='bigpyr')o.aim=(++bigSeq)%2===0;ground.push(o);return o}   // 巨大ピラミッドは ばらまき型と ねらい撃ち型が交互
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
+function fixedRect(g){const k=g.kind==='bigpyr'?1.6:.55;return[g.x-CELL*k,g.y-CELL*k,g.x+CELL*k,g.y+CELL*k]}
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
  for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
   if(g.kind==='puz'){const y=g.lane!=null?g.lane:g.stopY;if(y==null)continue;a=g.x-40;b=y-30;c=g.x+g.w*CELL+40;d=y+g.h*CELL+30}   // 板はうろうろするので広めに
@@ -557,7 +558,8 @@ function spawnPuzzleAt(x,y,type,arg,tries=0){
  const o=makePuzzle(x,y,type,arg),pw=o.w*CELL,ph=o.h*CELL;
  o.x=clamp(x-pw/2,14,W-14-pw);let best=null;
  for(const dy of [0,-70,70,-140,140,-210]){const yy=clamp(y-ph/2+dy,90,H*.6-ph/2);
-  if(!ground.some(g=>g.kind==='puz'&&!g.done&&!g.left&&o.x<g.x+g.w*CELL+10&&g.x<o.x+pw+10&&yy<g.y+g.h*CELL+10&&g.y<yy+ph+10)){best=yy;break}}
+  if(!ground.some(g=>g.kind==='puz'&&!g.done&&!g.left&&o.x<g.x+g.w*CELL+10&&g.x<o.x+pw+10&&yy<g.y+g.h*CELL+10&&g.y<yy+ph+10)
+   &&!ground.some(g=>g.kind!=='puz'&&!g.dead&&!g.sinkT&&(r=>o.x<r[2]+6&&r[0]<o.x+pw+6&&yy<r[3]+6&&r[1]<yy+ph+6)(fixedRect(g)))){best=yy;break}}
  if(best==null){if(tries<8)later(1,()=>spawnPuzzleAt(x,y,type,arg,tries+1));return}
  o.y=best;o.grow=0;o.gx=x;o.gy=y;o.stopY=o.lane=o.y;o.arrived=true;o.hold=o.hold0=type==='grid'?28:24;o.vx=(Math.random()<.5?-1:1)*12;o.wt=0;ground.push(o);
  burst(x,y,24,'#f6e27a');play('sq2',1,.6);
@@ -574,7 +576,17 @@ function spawnLine(kind,x,stopY,n,dir,hold=8,tries=0){
   const o=dir==='h'?spawnGround(kind,x+d,{stopY,hold}):spawnGround(kind,x,{stopY:stopY+i*CELL,hold});
   if(dir!=='h')o.y=-30-(n-1-i)*CELL;
   o.grp=g}}
+function separateBoards(dt){                          // パネル（板）が地上物や ほかの板と重なったら、少しずつ よける（地上物は動かさない）
+ for(const o of ground){if(o.kind!=='puz'||o.done||o.left||!o.arrived||o.fixed||(grab&&grab.o===o))continue;
+  const pw=o.w*CELL,ph=o.h*CELL;
+  for(const g of ground){if(g===o||g.dead||g.done||g.left||g.sinkT)continue;
+   const r=g.kind==='puz'?[g.x,g.y,g.x+g.w*CELL,g.y+g.h*CELL]:fixedRect(g);
+   if(!(o.x<r[2]+6&&r[0]<o.x+pw+6&&o.y<r[3]+6&&r[1]<o.y+ph+6))continue;
+   const ox=Math.min(o.x+pw+6-r[0],r[2]+6-o.x),oy=Math.min(o.y+ph+6-r[1],r[3]+6-o.y),sp=140*dt;
+   if(ox<oy){const d=(o.x+pw/2<(r[0]+r[2])/2?-1:1);o.x=clamp(o.x+d*Math.min(sp,ox),14,W-14-pw);if(o.vx)o.vx=Math.abs(o.vx)*d}
+   else{const d=(o.y+ph/2<(r[1]+r[3])/2?-1:1);o.y=clamp(o.y+d*Math.min(sp,oy),70,H*.62);o.lane=o.stopY=o.y}}}}
 function updateGround(dt){
+ separateBoards(dt);
  for(const o of ground){
   if(o.kind==='puz'){updatePend(o,dt);if(o.stopY!==undefined)updateWander(o,dt);
    if(boss&&!boss.dead&&!o.left&&boss.y>=boss.ty-1){const lim=boss.y+boss.h/2+22;if(o.y<lim){o.y=lim;if(o.lane!=null&&o.lane<lim)o.lane=lim;if(o.stopY!=null&&o.stopY<lim)o.stopY=lim}}}   // ボス戦：板（地上絵・文字）は必ず要塞より下（上へ帰る時だけ別）
