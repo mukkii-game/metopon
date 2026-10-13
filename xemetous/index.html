@@ -155,7 +155,7 @@ MODES.all.words={...MODES.normal.words,...UNCHI_WORDS};
 MODES.normal.name='うんちなしモード';
 // うんちありモードは、前半はうんちなしと同じ言葉だけ。後半（UNCHI_T 秒から）とボス戦で うんち系がまざる。最後は巨大ナスの地上絵
 const STRETCH=1;                                  // 台本の時刻をのばす倍率（板が長く残るぶん、道中も長く）
-const UNCHI_T=70*STRETCH;                            // P3（2回目のパネルの時間）から
+const UNCHI_T=78*STRETCH;                            // P3（2回目のパネルの時間）から
 const EASY_T=UNCHI_T;                                 // ここまでの文字そろえは「1つ動かせばそろう」やさしい板
 const unchiTime=()=>mode==='all'&&(t>=UNCHI_T||!!boss);
 let mode='all';   // パイロット版は うんちありモードだけ（うんちなしモードは MODES.normal に残してある）
@@ -1111,7 +1111,7 @@ function drawCutin(){
 // ゼビウスの1面のように「空の山場」と「地上をじっくり狙う間」を交互に置いてメリハリを付ける。
 // 地上は「そろえる（ことば・ピース）」と「けす（横・縦に並んだ敵）」を混ぜる。
 //  導入 → 地上の間 → 空の山 → 休み（パズル） → パキュラの壁 → 締めの山 → 静かに終わる
-const AREA_LEN=136;               // ここでボスが出る（台本の時刻。実際は ×STRETCH）
+const AREA_LEN=162;               // ここでボスが出る（森の前の +8・+6 と、ボス前の猶予 12秒をふくむ）               // ここでボスが出る（台本の時刻。実際は ×STRETCH）
 let gid=0;
 function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
  if(Math.random()<.5){side=-side;if(x0!==undefined)x0=W-x0}   // 毎プレイ違う：左右はランダム
@@ -1186,9 +1186,12 @@ function areaScript(){
  G(130.0,()=>ringWave(-1,8));
  G(132.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
  G(133.0,()=>spawnLine('pyramid',330,250,3,'h',8));
- G(UNCHI_T/STRETCH,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
+ G((UNCHI_T/STRETCH)-8,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
+ // パキュラの森の前に パネルをそろえる時間を足す（森1の前 +8秒、森2の前 +6秒）。台本は ずらす前の時刻で書いてある
+ for(const g of grp)if(g[0]<AREA_LEN){if(g[0]>=54.5)g[0]+=8;if(g[0]>=119+8)g[0]+=6}
+ G(AREA_LEN-12,()=>{message('要塞が近い！ 今のパネルを そろえておこう',4);play('warn',1.1,.4)});   // ボスの前に パネルをそろえる猶予
  for(const g of grp)if(g[0]<AREA_LEN-1&&g[0]>2)g[0]+=(Math.random()-.5)*1.2;   // 毎プレイ違う：時刻を少しゆらす
  return grp.sort((a,b)=>a[0]-b[0]).map(([tm,f])=>[tm*STRETCH/diff**.15,f])}   // 時刻順に（書いた順に依らない）
 function unlockMouse(){try{if(document.pointerLockElement)document.exitPointerLock()}catch(e){}}
