@@ -121,7 +121,7 @@ const LIVES=3;
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
 let phase='ready',paused=false,time=0,t=0,area=1,diff=1,scroll=0,shake=0,flash=0,messageUntil=0;
-let padPrev=[],padUsed=false,easy=false;            // easy：イージースタート（敵の弾の出る頻度が半分）
+let padPrev=[],padUsed=false,easy=false,readyT=0;   // readyT：始まってすぐの READY（読み込みを落ち着かせる間）            // easy：イージースタート（敵の弾の出る頻度が半分）
 const FIRE=()=>easy?2.4:1;                               // 敵が撃つ間隔に掛ける                         // コントローラ（pollPad）
 let score=0,lives=LIVES,power=2,aim='h',groundHeld=false,armed=false;
 let ship,shots,ebul,air,ground,caps,feats,bomb,parts,booms,pops,script,si,timers=[];
@@ -1317,7 +1317,7 @@ function startArea(){
  ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:2,deadT:0,opts:ship&&ship.opts||[]};   // くっつけたパーツは次のエリアへ持ち越す
  items=[];missiles=[];boss=null;
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
- t=0;timers=[];cutin=null;bossTalk=null;shards=[];lineLeft={};lineInfo={};puzHintShown=false;tipQueue=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
+ readyT=1.5;t=0;timers=[];cutin=null;bossTalk=null;shards=[];lineLeft={};lineInfo={};puzHintShown=false;tipQueue=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
  phase='play';$('overlay').classList.add('hidden');
  bgmVolume(sound&&!paused?.3:0);   // 始まりの効果音は鳴らさない（パネルが出た音とまぎらわしい）
  message('AREA '+area+'　空の敵は通常弾、地上は地上弾',3);ui()}
@@ -1354,6 +1354,7 @@ function overlay(title,sub,lines,btns){            // btns：[[文字, 押した
 
 // ---- 更新 -------------------------------------------------------------------
 function update(dt){
+ if(readyT>0){readyT-=dt;for(const p of pops){p.t+=dt}return}   // READY の間は止めておく
  if(bossTalk){updateBossTalk(dt);return}             // 名乗りの間はゲームを止める
  time+=dt;t+=dt;scroll+=SPD*dt;
  shake=Math.max(0,shake-dt*30);flash=Math.max(0,flash-dt*2);
@@ -1634,6 +1635,8 @@ function draw(){
  ctx.globalAlpha=1;ctx.textAlign='left';
  if(phase==='play'&&usedTouch){ctx.save();ctx.globalAlpha=.75;ctx.fillStyle='#1a140e';ctx.fillRect(W-46,8,38,30);ctx.strokeStyle='#f2d9a4';ctx.lineWidth=2;ctx.strokeRect(W-46,8,38,30);   // スマホ用 一時停止ボタン
   ctx.fillStyle='#f2d9a4';ctx.fillRect(W-33,15,4,16);ctx.fillRect(W-25,15,4,16);ctx.restore()}
+ if(phase==='play'&&readyT>0){ctx.save();ctx.globalAlpha=Math.min(1,readyT*2);ctx.textAlign='center';ctx.font="bold 46px 'Dela Gothic One',sans-serif";
+  ctx.fillStyle='#1a140e';ctx.fillText('READY',W/2+3,H*.42+4);ctx.fillStyle='#f6c860';ctx.fillText('READY',W/2,H*.42);ctx.restore()}
  drawGrabWait();drawCutin();if(cutin&&ship.alive&&ship.y>H-150){drawShip();drawOpts()}drawBossTalk();   // 自機はカットインより上に描く
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')&&$('overlay').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
   ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
@@ -1828,7 +1831,8 @@ $('cfgreset').onclick=()=>{for(const d of CFG_DEF)setCfg(d,d.def)};
 const IMG={},IMG_NAMES=['items','ship','shot','boom','glyphs','slab','slab_lit','sand','enemy1','enemy2','zako22','nasu',
  'boss1','boss2','boss3','boss4','enemy4','kenney_ships','kenney_tiles','kenney_boss',
  'kenney_plate','kenney_pyramid','kenney_ground'];
-for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im}
+for(const n of IMG_NAMES){const im=new Image();im.src='../assets/img/'+n+'.png';IMG[n]=im;
+ im.onload=()=>{try{(im.decode?im.decode():Promise.resolve()).then(()=>{const c=document.createElement('canvas');c.width=c.height=2;c.getContext('2d').drawImage(im,0,0,2,2)})}catch(e){}}}   // 絵はタイトルのうちに一度描いておく（初めて出る時の つっかえ対策）
 const has=n=>IMG[n]&&IMG[n].complete&&IMG[n].naturalWidth>0;
 // Kenney「Pixel Shmup」(CC0) から切り出した絵（tools/gen_kenney.py）。読めない時は前の自作の絵で描く
 const KSHIP={ship:0,enemy1:1,enemy4:2,zako22:3,enemy2:4};   // kenney_ships.png のコマ（32×32）
