@@ -1365,7 +1365,7 @@ function update(dt){
  ui()}
 function hintText(){
  if(padUsed&&!usedTouch)return grab?'つかんでいる：動かすと入れかわる。A を離すと はなす（そろったら光る。はなすと決まる）':'スティック/十字＝移動（通常弾は自動）　A：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す　START＝一時停止';
- if(grab)return'つかんでいる：動かすと文字が入れかわる。離すと（短く押した時はもう1回押すと）はなす。そろったら光り、はなすと決まる';
+ if(grab)return'つかんでいる：動かすと文字が入れかわる。離すと はなす。そろったら光り、はなすと決まる';
  if(mouseMode)return'マウス：移動（通常弾は自動）　クリック：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す';
  if(usedTouch)return'なぞる＝移動（通常弾は自動）　タップ：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す';
  return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す'}
@@ -1574,7 +1574,7 @@ function draw(){
  ctx.globalAlpha=1;ctx.textAlign='left';
  if(phase==='play'&&usedTouch){ctx.save();ctx.globalAlpha=.75;ctx.fillStyle='#1a140e';ctx.fillRect(W-46,8,38,30);ctx.strokeStyle='#f2d9a4';ctx.lineWidth=2;ctx.strokeRect(W-46,8,38,30);   // スマホ用 一時停止ボタン
   ctx.fillStyle='#f2d9a4';ctx.fillRect(W-33,15,4,16);ctx.fillRect(W-25,15,4,16);ctx.restore()}
- drawGrabWait();drawTapHold();drawCutin();if(cutin&&ship.alive&&ship.y>H-150){drawShip();drawOpts()}drawBossTalk();   // 自機はカットインより上に描く
+ drawGrabWait();drawCutin();if(cutin&&ship.alive&&ship.y>H-150){drawShip();drawOpts()}drawBossTalk();   // 自機はカットインより上に描く
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')&&$('overlay').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
   ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   ctx.font='bold 30px sans-serif';ctx.fillStyle='#f6e7c1';ctx.fillText('一時停止',W/2,H/2-20);
@@ -1603,24 +1603,22 @@ let groundSrc=null;
 const DBL_T=.25;
 let lastUpT=-9,launchPress=false,pendBomb=null;
 let lastPressT=-9,pressHist=[];const TRIPLE_T=.6;
-function groundPress(dir){                            // 1回押した：つかんでいれば はなす／3回連打＝撃ち出す／文字の上なら つかむ／それ以外は地上弾
+function groundPress(dir,tap){                            // 1回押した：つかんでいれば はなす／3回連打＝撃ち出す／文字の上なら つかむ／それ以外は地上弾
  if(!ship.alive)return;
  if(grab){endGrab();return}
  pressHist=pressHist.filter(x=>t-x<TRIPLE_T);pressHist.push(t);
  if(ship.opts.length&&pressHist.length>=3){pressHist=[];launchParts();return}   // キャラ発射は 本当に連打した時だけ（0.6秒以内に3回）
  const sp=sightPoint(),hit=boardAt(sp.x,sp.y);
- if(hit){startGrab(hit);return}
+ if(hit){if(!tap)startGrab(hit);return}   // スマホのタップでは つかまない（指を置いて止めると つかむ）
  lastPressT=t;aim=dir;fireBomb()}
 const HOLD_MS=220,JUDGE_T=150,GAUGE_T=250,GRAB_WAIT=GAUGE_T;   // スマホ：様子見 JUDGE_T のあと、つかみゲージ GAUGE_T                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
 function grabKeep(src){if(!grab)return;grab.src=src;grab.t0=performance.now();grab.m0=grab.moves;grab.tap=false;grab.sx=ship.x;grab.sy=ship.y}
 function groundDown(src,dir){if(phase!=='play'||paused)return;
- if(grab&&grab.tap){endGrab();ignoreUp=src;return}    // タップでつかんでいた：もう1回押すと はなす
- const had=!!grab;groundPress(dir);if(!had&&grab)grabKeep(src)}
+  const had=!!grab;groundPress(dir);if(!had&&grab)grabKeep(src)}
 let ignoreUp=null;
 function groundUp(src){if(ignoreUp===src){ignoreUp=null;return}
- if(!grab||grab.src!==src||grab.tap)return;
- if(performance.now()-grab.t0<HOLD_MS&&grab.moves===grab.m0&&Math.hypot(ship.x-grab.sx,ship.y-grab.sy)<12)grab.tap=true;   // 短く押しただけで、自機も動かしていない時だけ「つかんだまま」   // 短く押しただけ：つかんだまま（もう1回押すと はなす）
- else endGrab()}                                      // 押し続けて動かした：離すと はなす
+ if(!grab||grab.src!==src)return;
+ endGrab()}   // 押しっぱなしで つかみ、離したら いつも はなす
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 // タッチは ゲーム画面の外（下の黒い説明らん・まわりの黒い帯）でも操作できる。ボタン・メニュー・設定の上だけは除く
 const offUI=e=>e.target&&e.target.closest&&e.target.closest('button,#overlay,#cfg,header,#top,a,input');
@@ -1663,7 +1661,7 @@ touchArea.addEventListener('pointermove',e=>{
 for(const ev of ['pointerup','pointercancel'])touchArea.addEventListener(ev,e=>{
  if(e.pointerType==='mouse')return;
  const up=e.type==='pointerup';
- if(touchBtn===e.pointerId){touchBtn=null;if(up&&phase==='play'&&!paused)groundPress('h')}
+ if(touchBtn===e.pointerId){touchBtn=null;if(up&&phase==='play'&&!paused)groundPress('h',true)}
  if(touchMover&&touchMover.id===e.pointerId){
   const p=point(e),dist=Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy),quick=performance.now()-touchMover.ms<220;
   const tap=up&&(!touchMover.moved||quick&&dist<45);   // すばやいタップは 少し指がずれても タップ
@@ -1672,8 +1670,8 @@ for(const ev of ['pointerup','pointercancel'])touchArea.addEventListener(ev,e=>{
   const now=touchMover.grabNow;touchMover=null;if(phase!=='play'||paused)return;
   if(!up)return;                                      // 端末に取り消された（pointercancel）だけでは はなさない
   const dropSoon=()=>{if(graceT)clearTimeout(graceT);graceT=setTimeout(()=>{graceT=null;if(grab)endGrab()},110)};   // 指を離したら、0.11秒待ってから はなす（触れが一瞬とぎれただけなら続ける）
-  if(now){if(grab){if(tap)grab.tap=true;else dropSoon()}return}   // 置いた瞬間につかんだ：タップなら つかんだまま、なぞったら 離すと はなす
-  if(tap)groundPress('h');
+  if(now){if(grab)dropSoon();return}   // 置いてつかんだ：指を離したら はなす   // 置いた瞬間につかんだ：タップなら つかんだまま、なぞったら 離すと はなす
+  if(tap)groundPress('h',true);
   else if(dragged&&grab)dropSoon()}});   // つかんでから なぞって動かし、指を離したら そこで はなす（もう1回タップでも はなせる）    // 動かさずに押して離した＝地上弾
 // マウス：通常弾は自動。左ボタンを押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('mousedown',e=>{
