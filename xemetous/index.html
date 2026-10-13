@@ -1466,7 +1466,7 @@ function drawCell(o,id,x,y,ok,k=1){
  ctx.font='bold '+Math.round(S*.7)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+2,y+S*.74+2);
  ctx.fillStyle=ok?'#ffffff':letterCol(id);ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
 function drawGrabWait(){                             // スマホ：つかむまで、照準の枠そのものがゲージになる（太く・白→黄→だいだいに）
- if(!touchMover||!touchMover.pend||!ship.alive)return;const k=Math.min(1,(performance.now()-touchMover.pendAt)/GRAB_WAIT),r=sightRect();
+ if(!touchMover||!touchMover.pend||!touchMover.gauge||!ship.alive)return;const k=Math.min(1,(performance.now()-touchMover.pendAt)/GAUGE_T),r=sightRect();
  const x0=r.x-2,y0=r.y-2,w=r.w+4,h=r.h+4,per=2*(w+h);let len=per*k;
  const pts=[[x0+w/2,y0],[x0+w,y0],[x0+w,y0+h],[x0,y0+h],[x0,y0],[x0+w/2,y0]];   // 上のまん中から時計回り
  const col=k<.5?`rgb(255,255,${Math.round(255-310*k)})`:`rgb(255,${Math.round(246-180*(k-.5))},${Math.round(100-120*(k-.5))})`;
@@ -1476,7 +1476,7 @@ function drawGrabWait(){                             // スマホ：つかむま
  ctx.stroke();ctx.restore()}
 let chargeOsc=null;
 function chargeStart(){if(!sound||!ac)return;chargeStop();const t0=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='triangle';   // ためている音：だんだん高く
- o.frequency.setValueAtTime(260,t0);o.frequency.exponentialRampToValueAtTime(900,t0+GRAB_WAIT/1000);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.09,t0+.05);
+ o.frequency.setValueAtTime(260,t0);o.frequency.exponentialRampToValueAtTime(900,t0+GAUGE_T/1000);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.09,t0+.05);
  o.connect(g);g.connect(outNode());o.start(t0);chargeOsc={o,g}}
 function chargeStop(){if(!chargeOsc)return;try{chargeOsc.g.gain.setTargetAtTime(0,ac.currentTime,.02);chargeOsc.o.stop(ac.currentTime+.08)}catch(e){}chargeOsc=null}
 function chargeCancel(){chargeStop();if(!sound||!ac)return;const t0=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='sine';   // 取り消し：シュウゥン（下がっていく音）
@@ -1585,7 +1585,7 @@ function groundPress(dir){                            // 1回押した：つか�
  if(hit){startGrab(hit);return}
  lastPressT=t;aim=dir;
  if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir};else fireBomb()}   // キャラを持っている時だけ、2回目を少し待つ
-const HOLD_MS=220,GRAB_WAIT=280;                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
+const HOLD_MS=220,JUDGE_T=150,GAUGE_T=250,GRAB_WAIT=GAUGE_T;   // スマホ：様子見 JUDGE_T のあと、つかみゲージ GAUGE_T                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
 function grabKeep(src){if(!grab)return;grab.src=src;grab.t0=performance.now();grab.m0=grab.moves;grab.tap=false}
 function groundDown(src,dir){if(phase!=='play'||paused)return;
  if(grab&&grab.tap){endGrab();ignoreUp=src;return}    // タップでつかんでいた：もう1回押すと はなす
@@ -1608,8 +1608,13 @@ canvas.addEventListener('pointerdown',e=>{
  if(graceT&&grab){clearTimeout(graceT);graceT=null;touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,ms:performance.now(),moved:true,dir,grabbed:true,grabNow:false};return}   // とぎれただけ：つかんだまま
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,ms:performance.now(),moved:false,dir,grabbed:!!grab,grabNow:false};
  if(!grab&&ship.alive){const sp=sightPoint();if(boardAt(sp.x,sp.y)){const tm=touchMover;   // 照準が文字の上：0.1秒止めたら つかむ（すぐ動かしたら 自機の移動だけ）
-  tm.pendAt=performance.now();chargeStart();tm.pend=setTimeout(()=>{tm.pend=null;chargeStop();if(touchMover!==tm||grab||phase!=='play'||paused||!ship.alive)return;
-   const q=sightPoint(),hit=boardAt(q.x,q.y);if(hit){startGrab(hit);if(grab){grabKeep('t'+tm.id);tm.grabNow=true}}},GRAB_WAIT)}}
+  // 1) まず JUDGE_T のあいだは何も見せずに様子を見る（動かしたら 移動だとみなして だまって やめる）
+  // 2) 動いていなければ、そこから つかみゲージを 0 からためる（GAUGE_T）。ためている間に動かしたら シュウゥンで取り消し
+  tm.pend=setTimeout(()=>{tm.pend=null;if(touchMover!==tm||grab||phase!=='play'||paused||!ship.alive)return;
+   const q0=sightPoint();if(!boardAt(q0.x,q0.y))return;
+   tm.gauge=true;tm.pendAt=performance.now();chargeStart();
+   tm.pend=setTimeout(()=>{tm.pend=null;tm.gauge=false;chargeStop();if(touchMover!==tm||grab||phase!=='play'||paused||!ship.alive)return;
+    const q=sightPoint(),hit=boardAt(q.x,q.y);if(hit){startGrab(hit);if(grab){grabKeep('t'+tm.id);tm.grabNow=true}}},GAUGE_T)},JUDGE_T)}}
  });   // タッチは、動かさずに押して離した（タップ）時に1回押したことにする   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
 function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,24,W-24);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-30)}
@@ -1622,7 +1627,7 @@ canvas.addEventListener('pointermove',e=>{
   nudge((p.x-touchMover.lx)*TOUCH_SENS,(p.y-touchMover.ly)*TOUCH_SENS);touchMover.lx=p.x;touchMover.ly=p.y;
   if(!touchMover.moved&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>TAP_MOVE){
    touchMover.moved=true}
-  if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>10){clearTimeout(touchMover.pend);touchMover.pend=null;chargeCancel()}}});   // 置いてすぐ動かした＝移動だけ（シュウゥン）   // 置いてすぐ動かした＝移動だけ
+  if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>10){clearTimeout(touchMover.pend);touchMover.pend=null;if(touchMover.gauge){touchMover.gauge=false;chargeCancel()}}}});   // 動かした＝移動（様子見の間は だまって、ゲージ中なら シュウゥン）   // 置いてすぐ動かした＝移動だけ（シュウゥン）   // 置いてすぐ動かした＝移動だけ
 for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
  if(e.pointerType==='mouse')return;
  const up=e.type==='pointerup';
