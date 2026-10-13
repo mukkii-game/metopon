@@ -402,7 +402,7 @@ function materialize(o){
   for(let c=0;c<o.w;c++){const col=[];for(let r=o.h-1;r>=0;r--)if(o.cells[r][c])col.push(o.cells[r][c]);   // 上から落ちてくる
    for(let r=o.h-1,i=0;r>=0;r--,i++)o.cells[r][c]=col[i]||null}
   refillBoard(o);checkNewWords(o)}                                    // 落ちてきてできた言葉は、また光って待つ（連鎖）
- if(!ship.opts.length&&items.length<=combo)message('出てきた物を照準で捕まえよう。地上弾を2回すばやく押すと撃ち出す',3.5)}
+ if(!ship.opts.length&&items.length<=combo)message('出てきた物を照準で捕まえよう。地上弾を3回すばやく連打すると撃ち出す',3.5)}
 // 補充：空いた所に入れる文字は、1枚すべらせれば言葉ができる（できれば2語以上）ように選ぶ
 function bestDrag(o,cells,enough=99){                  // 1枚をまっすぐすべらせて できる言葉の数の最大（enough 語に届いたら そこで終わり）
  const {w,h}=o;let best=wordsFound({w,h,cells}).length;
@@ -621,7 +621,7 @@ function updateWander(o,dt){
 //   ぶんが全部集まって1体の大きなキャラ**になり、照準にくっつく（いくつでもくっつけられる）。
 // ・くっついたキャラは 敵の弾を消す・ザコを倒す・**パキュラを倒せるのはこれだけ**。ぶつかると HP が減り、0 で消える。
 // ・生まれてから CHAR_LIFE 秒たつと、どこかへ飛んで行ってしまう。くっついている間も通常弾は撃てる。
-// ・地上弾を**2回すばやく押す**と全部を撃ち出してボスにぶつける（飛んでいる間は時間切れにならない）。
+// ・地上弾を**3回すばやく連打**と全部を撃ち出してボスにぶつける（飛んでいる間は時間切れにならない）。
 //   威力は HP の減り具合と関係なし。n 体同時なら n 倍、コンボで生まれたぶんはさらにコンボ数倍。
 const CHAR_LIFE=22,BULLET_DMG=.2;                   // キャラは弾にかなり強い（1発で HP 0.2 だけ減る）。消えるのは主に時間切れ（22秒）
 const PART={                                          // pow・hp は文字1つぶん（集まると文字の数だけ足される）
@@ -1352,11 +1352,11 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
- if(padUsed&&!usedTouch)return grab?'つかんでいる：動かすと入れかわる。A を離すと はなす（そろったら光る。はなすと決まる）':'スティック/十字＝移動（通常弾は自動）　A：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す　START＝一時停止';
+ if(padUsed&&!usedTouch)return grab?'つかんでいる：動かすと入れかわる。A を離すと はなす（そろったら光る。はなすと決まる）':'スティック/十字＝移動（通常弾は自動）　A：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す　START＝一時停止';
  if(grab)return'つかんでいる：動かすと文字が入れかわる。離すと（短く押した時はもう1回押すと）はなす。そろったら光り、はなすと決まる';
- if(mouseMode)return'マウス：移動（通常弾は自動）　クリック：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
- if(usedTouch)return'なぞる＝移動（通常弾は自動）　タップ：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
- return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す'}
+ if(mouseMode)return'マウス：移動（通常弾は自動）　クリック：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す';
+ if(usedTouch)return'なぞる＝移動（通常弾は自動）　タップ：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す';
+ return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　3回連打＝撃ち出す'}
 // ---- 描画 -------------------------------------------------------------------
 function glyph(k,x,y,size){
  if(has('glyphs'))ctx.drawImage(IMG.glyphs,k*24,0,24,24,Math.round(x-size/2),Math.round(y-size/2),size,size)}
@@ -1578,20 +1578,20 @@ function point(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.l
 // 地上弾のボタンは2つ：横（左クリック／N・Z／タッチは画面の左半分）と 縦（右クリック／M・X／右半分）。
 // 押すと照準がその向きの長さになり（地上攻撃モード。通常弾は止まる）、離すと発射。着弾したら1マスに戻る。
 let groundSrc=null;
-// 2回すばやく押す（前に離してから0.3秒以内にもう一度押す）と、くっついたパーツを発射
+// 3回すばやく連打する（0.6秒以内に3回押す）と、くっついたパーツを発射
 // パーツを持っている時だけ、離してから DBL_T 秒は地上弾を待たせる。その間にもう一度押したら
 // 地上弾は出さずにパーツだけを発射する（持っていない時は離した瞬間に撃つ）。
 const DBL_T=.25;
 let lastUpT=-9,launchPress=false,pendBomb=null;
-let lastPressT=-9;
-function groundPress(dir){                            // 1回押した：つかんでいれば はなす／2回すばやく＝撃ち出す／文字の上なら つかむ／それ以外は地上弾
+let lastPressT=-9,pressHist=[];const TRIPLE_T=.6;
+function groundPress(dir){                            // 1回押した：つかんでいれば はなす／3回連打＝撃ち出す／文字の上なら つかむ／それ以外は地上弾
  if(!ship.alive)return;
  if(grab){endGrab();return}
- if(ship.opts.length&&(pendBomb||t-lastPressT<DBL_T)){pendBomb=null;lastPressT=-9;launchParts();return}
+ pressHist=pressHist.filter(x=>t-x<TRIPLE_T);pressHist.push(t);
+ if(ship.opts.length&&pressHist.length>=3){pressHist=[];launchParts();return}   // キャラ発射は 本当に連打した時だけ（0.6秒以内に3回）
  const sp=sightPoint(),hit=boardAt(sp.x,sp.y);
  if(hit){startGrab(hit);return}
- lastPressT=t;aim=dir;
- if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir};else fireBomb()}   // キャラを持っている時だけ、2回目を少し待つ
+ lastPressT=t;aim=dir;fireBomb()}
 const HOLD_MS=220,JUDGE_T=150,GAUGE_T=250,GRAB_WAIT=GAUGE_T;   // スマホ：様子見 JUDGE_T のあと、つかみゲージ GAUGE_T                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
 function grabKeep(src){if(!grab)return;grab.src=src;grab.t0=performance.now();grab.m0=grab.moves;grab.tap=false}
 function groundDown(src,dir){if(phase!=='play'||paused)return;
@@ -1696,9 +1696,9 @@ function howtoHTML(){                               // 遊ぶ機械に合わせ�
  const pad=padUsed||[...(navigator.getGamepads?navigator.getGamepads():[])].some(g=>g&&g.connected);
  const row=(k,v)=>'<div class="r"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
  let h='';
- if(touch)h+=row('移動','ドラッグ')+row('空中攻撃','オート')+row('地上攻撃','タップ')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく2回タップ');
- else h+=row('移動','WASD・矢印・マウス')+row('空中攻撃','オート')+row('地上攻撃','クリック・N・M・Space')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく2回')+row('一時停止','Esc');
- if(pad)h+='<div class="pad">コントローラ：スティック＝移動、A＝地上攻撃・パネル（2回で発射）、START＝一時停止</div>';
+ if(touch)h+=row('移動','ドラッグ')+row('空中攻撃','オート')+row('地上攻撃','タップ')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく3回タップ');
+ else h+=row('移動','WASD・矢印・マウス')+row('空中攻撃','オート')+row('地上攻撃','クリック・N・M・Space')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく3回')+row('一時停止','Esc');
+ if(pad)h+='<div class="pad">コントローラ：スティック＝移動、A＝地上攻撃・パネル（3回連打で発射）、START＝一時停止</div>';
  return h}
 // SNS のアプリ内ブラウザで開かれた時は「ブラウザで開く」ボタンを出す（音や全画面がうまく動かないことがあるため）
 const inApp=/FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|Twitter|MicroMessenger/i.test(navigator.userAgent);
@@ -1873,7 +1873,7 @@ function resize(){const st=$('stage'),sw=st.clientWidth,sh=st.clientHeight;
 window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('stage'));resize();
 ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:0,opts:[]};shots=[];ebul=[];air=[];ground=[];caps=[];parts=[];booms=[];pops=[];script=[];si=0;
-// ---- コントローラ（どのゲームでも最初から対応）：スティック/十字＝移動、A・B・X・Y＝地上弾/つかむ/はなす（2回すばやく＝撃ち出す）、START＝一時停止
+// ---- コントローラ（どのゲームでも最初から対応）：スティック/十字＝移動、A・B・X・Y＝地上弾/つかむ/はなす（3回連打＝撃ち出す）、START＝一時停止
 function pollPad(dt){
  const gps=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const g of gps)if(g&&g.connected){gp=g;break}
  if(!gp)return;
