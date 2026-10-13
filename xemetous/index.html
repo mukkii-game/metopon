@@ -50,6 +50,9 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #howto .r{display:grid;grid-template-columns:6.2em 1fr;white-space:nowrap;padding-left:.6em}
 #howto .k{color:#f6c860;font-weight:bold}#howto .v{color:#fff3d6}
 #howto .pad{font-size:12px;color:#c9b183;margin-top:6px;padding-left:.6em;white-space:normal}
+#openhelp{margin:6px auto;max-width:360px;padding:10px 12px;border:1px solid #7aa84a;border-radius:10px;background:#1f2a14;font-size:13.5px;line-height:1.6;color:#e8f2d8;text-align:left}
+#openurl{width:100%;margin:6px 0;padding:6px;font-size:12px;background:#0f150a;color:#d8f0c0;border:1px solid #5a8a3a;border-radius:6px}
+#copyurl{padding:8px 16px!important;font-size:14px;background:#7aa84a!important;color:#1a140e!important}
 #extbtn{background:#5a8a3a!important;color:#fff!important;padding:10px 22px!important;font-size:15px}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
 #overlay button.sub{background:#3a2a17;color:#f2d9a4}
@@ -1788,11 +1791,21 @@ function howtoHTML(){                               // 遊ぶ機械に合わせ�
  return h}
 // SNS のアプリ内ブラウザで開かれた時は「ブラウザで開く」ボタンを出す（音や全画面がうまく動かないことがあるため）
 const inApp=/FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|Twitter|MicroMessenger/i.test(navigator.userAgent);
-function openInBrowser(){const u=location.href.replace(/#.*$/,'');
- if(/Android/i.test(navigator.userAgent))location.href='intent://'+u.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end';
- else if(isIOS)location.href='x-safari-'+u;
- else window.open(u,'_blank');
- setTimeout(()=>{try{navigator.clipboard.writeText(u)}catch(e){}message('開かない時は、右上のメニューから「ブラウザで開く」を選んでください（URLはコピーしました）',6)},800)}
+function openInBrowser(){const u=location.href.replace(/#.*$/,''),host=u.replace(/^https?:\/\//,'');
+ // アプリ内ブラウザ（Messenger・Facebook など）は、外のブラウザを開くのを止めてしまうことが多い。
+ // なので まず試して、すぐ画面に「開き方」と URL のコピーを出す（反応が無いように見えないように）
+ showOpenHelp(u);
+ try{if(/Android/i.test(navigator.userAgent))location.href='intent://'+host+'#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent(u)+';end';   // ブラウザを選ぶ画面
+  else if(isIOS)location.href='x-safari-'+u;
+  else window.open(u,'_blank')}catch(e){}}
+function showOpenHelp(u){const box=$('extopen');if(!box)return;
+ const ios=isIOS,menu=ios?'右下か右上の「…」や 共有ボタン →「Safariで開く」':'右上の「︙」や「…」メニュー →「ブラウザで開く」/「Chromeで開く」';
+ box.innerHTML='<div id="openhelp"><b>開かない時は</b><br>'+menu+'<br>または URL をコピーして、ふだんのブラウザに貼ってください<br>'
+  +'<input id="openurl" readonly value="'+u+'"><button id="copyurl">URLをコピー</button><span id="copied"></span></div>';
+ const inp=$('openurl');inp.onclick=()=>inp.select();
+ $('copyurl').onclick=()=>{inp.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}
+  try{navigator.clipboard.writeText(u).then(()=>{$('copied').textContent=' コピーしました'}).catch(()=>{})}catch(e){}
+  if(ok)$('copied').textContent=' コピーしました'}}
 function bindTitle(){
  if($('howto'))$('howto').innerHTML=howtoHTML();
  if($('extopen')){$('extopen').innerHTML=inApp?'<button id="extbtn">ブラウザで開く（オススメ！）</button>':'';if($('extbtn'))$('extbtn').onclick=openInBrowser}
