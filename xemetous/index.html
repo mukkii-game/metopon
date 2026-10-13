@@ -712,8 +712,10 @@ function updateParts(dt){
   for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.soft){o.hp-=BULLET_DMG;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
   for(const e of air){if(e.dead||e.panic||e.alpha<.5)continue;
    if(Math.hypot(e.x-p.x,e.y-p.y)<e.size*.4+r){       // ザコもパキュラも倒す
-    if(e.hp===Infinity){score+=500;pop(e.x,e.y-14,'パキュラ撃破 +500','#f6e27a',14);o.hp-=1}else o.hp-=.5;
-    killAir(e);o.hitT=.15;if(o.part==='dog')pop(p.x,p.y-r-8,'ガブッ','#ffd080',13)}}
+    if(e.hp===Infinity){                               // パキュラ：赤く点滅しながら 0.5秒ねばってから こわれる
+     e.grind=(e.grind||0)+dt;e.hitT=.12;if(Math.floor(e.grind*20)%3===0)play('hit',2.4,.12);
+     if(e.grind>=.5){score+=500;pop(e.x,e.y-14,'パキュラ撃破 +500','#f6e27a',14);o.hp-=1;killAir(e);o.hitT=.15}continue}
+    o.hp-=.5;killAir(e);o.hitT=.15;if(o.part==='dog')pop(p.x,p.y-r-8,'ガブッ','#ffd080',13)}}
   if(o.hp<=0){o.dead=true;boom(p.x,p.y,o.big?3:2);play('boom_s',1.4)}}
  ship.opts=ship.opts.filter(o=>!o.dead);
  for(const l of leavers){l.lt+=dt;l.x+=l.vx*dt;l.y+=l.vy*dt}leavers=leavers.filter(l=>l.lt<2.5&&l.y>-80);
@@ -1571,14 +1573,16 @@ function drawAir(){
    ctx.fillStyle='#e2624a33';ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.fill();
    ctx.strokeStyle='#e2624a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.stroke();
    if(e.tough>0){ctx.fillStyle='#1a140e';ctx.fillRect(e.x-30,e.y-r-10,60,5);ctx.fillStyle='#e2624a';ctx.fillRect(e.x-30,e.y-r-10,60*e.tough/40,5)}}
-  if(e.kind==='plate'){const c=Math.cos(e.t*2.1+(e.ph||0)),h=Math.max(3,Math.round(e.size*Math.abs(c))),w=Math.round(e.size),x0=Math.round(e.x-w/2),y0=Math.round(e.y-h/2);   // 回る板：一定の速さでゆっくり回る
+  if(e.kind==='plate'&&e.hitT>0){e.hitT-=1/60;e.shk=(Math.random()-.5)*4}else if(e.kind==='plate')e.shk=0;
+  if(e.kind==='plate'){const c=Math.cos(e.t*2.1+(e.ph||0)),h=Math.max(3,Math.round(e.size*Math.abs(c))),w=Math.round(e.size),x0=Math.round(e.x-w/2+(e.shk||0)),y0=Math.round(e.y-h/2);   // 回る板：一定の速さでゆっくり回る
    ctx.globalAlpha=e.alpha*.3;ctx.fillStyle='#1a0e04';ctx.fillRect(x0+14,y0+20,w,h);ctx.globalAlpha=e.alpha;   // 影（空に浮いている）
    ctx.fillStyle='#1a140e';ctx.fillRect(x0-2,y0-2,w+4,h+4);
    if(c>0){if(has('kenney_plate'))ctx.drawImage(IMG.kenney_plate,0,0,16,16,x0,y0,w,h);else{ctx.fillStyle='#b8c4cc';ctx.fillRect(x0,y0,w,h)}   // 表：明るい鉄板
     ctx.fillStyle='#ffffff55';ctx.fillRect(x0,y0,w,Math.max(1,h*.18))}
    else{ctx.fillStyle='#4a3a5a';ctx.fillRect(x0,y0,w,h);ctx.fillStyle='#2a2036';ctx.fillRect(x0+3,y0+Math.max(1,h*.2),w-6,Math.max(1,h*.6));   // 裏：暗い紫
     ctx.fillStyle='#e2624a';ctx.fillRect(Math.round(e.x-3),Math.round(e.y-Math.max(1,h*.15)),6,Math.max(2,Math.round(h*.3)))}
-   if(h<=6){ctx.fillStyle='#d8e4ea';ctx.fillRect(x0,Math.round(e.y-1),w,2)}}   // 真横を向いた時の縁
+   if(h<=6){ctx.fillStyle='#d8e4ea';ctx.fillRect(x0,Math.round(e.y-1),w,2)}
+   if(e.hitT>0&&Math.floor(time*24)%2){ctx.globalAlpha=e.alpha*.65;ctx.fillStyle='#ff3020';ctx.fillRect(x0,y0,w,h);ctx.globalAlpha=e.alpha}}   // けずられている：赤く点滅
   else if(e.kind==='flyer'&&has('kenney_ships')){const sz=e.size*1.15;   // やられ役：進む方向を向いて飛ぶ
    ctx.save();ctx.translate(e.x+14,e.y+21);ctx.rotate(e.rot);drawKShadow(e.sprite,0,0,sz,0);ctx.restore();
    ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.rot);drawKShip(e.sprite,0,0,sz);ctx.restore()}
