@@ -53,7 +53,8 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #extbtn{background:#5a8a3a!important;color:#fff!important;padding:10px 22px!important;font-size:15px}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
 #overlay button.sub{background:#3a2a17;color:#f2d9a4}
-#overlay button[data-mode]{padding:14px 48px;margin:8px 2px 0;font-size:17px}
+#overlay button[data-mode]{padding:13px 0;width:230px;margin:8px 2px 0;font-size:17px}
+#overlay button[data-easy]{background:#7aa84a;color:#1a140e}
 .hidden{display:none!important}
 #cfg{position:absolute;inset:0;z-index:5;overflow-y:auto;touch-action:pan-y;background:#1a1109f2;padding:10px 14px 20px}
 #cfg h2{font-size:17px;margin:4px 0 8px;color:#f2d9a4;text-align:center}
@@ -76,7 +77,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo_nasu.png" alt="ナスの地上絵">
 <div id="howto"></div>
-<p id="extopen"></p><p><button id="start" data-mode="all">スタート</button></p><p><small>Enter・Space でスタート</small></p>
+<p id="extopen"></p><p><button id="start" data-mode="all">ノーマルスタート</button><br><button id="start2" data-mode="all" data-easy="1">イージースタート</button></p><p><small>Enter・Space でノーマルスタート</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
 <p><button id="cfgreset">初期値に戻す</button> <button id="cfgclose">閉じる</button></p>
@@ -120,7 +121,8 @@ const LIVES=3;
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
 let phase='ready',paused=false,time=0,t=0,area=1,diff=1,scroll=0,shake=0,flash=0,messageUntil=0;
-let padPrev=[],padUsed=false;                         // コントローラ（pollPad）
+let padPrev=[],padUsed=false,easy=false;            // easy：イージースタート（敵の弾の出る頻度が半分）
+const FIRE=()=>easy?2.4:1;                               // 敵が撃つ間隔に掛ける                         // コントローラ（pollPad）
 let score=0,lives=LIVES,power=2,aim='h',groundHeld=false,armed=false;
 let ship,shots,ebul,air,ground,caps,feats,bomb,parts,booms,pops,script,si,timers=[];
 let items=[],missiles=[],boss=null;   // items＝宙に浮いたパーツ、missiles＝撃ち出したパーツ、boss＝地を這うボス
@@ -456,7 +458,7 @@ let fireT=-9,groups={};
 function ebMax(){return Math.round((2+(diff-1)*2+(boss?1:0))*CFG.eFire)}    // 画面に出せる敵弾の数
 function canFire(x,y){
  if(!ship.alive||CFG.eFire<=0)return false;
- if(ebul.length>=ebMax()*4||t-fireT<.55/CFG.eFire)return false;   // 弾の数（4発ずつまとめて撃つので×4）と、撃つ間隔
+ if(ebul.length>=ebMax()*4||t-fireT<.55/CFG.eFire*FIRE())return false;   // 弾の数（4発ずつまとめて撃つので×4）と、撃つ間隔
  if(y>ship.y-60||Math.hypot(ship.x-x,ship.y-y)<130)return false;  // 後ろ・目の前からは撃たない
  return true}
 function enemyShot(x,y,spd){if(!canFire(x,y))return false;fireT=t;   // 「だだだだ」と同じ向きに4発まとめて（よける手間は1発と同じ）
@@ -506,9 +508,9 @@ function updateAir(dt){
    if(!e.st){e.vy=Math.max(30,(110-e.y)*2.5);if(e.y>=107){e.st=1;e.vy=0;e.hold=1;e.warn=1;e.x0=e.x}}
    else if(e.st===1){e.hold-=dt;if(e.hold<=0){e.st=2;e.cd=0;e.cd2=1;e.ft=0;e.ang=0}}
    else if(e.st===2){e.ft+=dt;e.x=e.x0+Math.sin(e.ft*.7)*110;e.cd-=dt;e.cd2-=dt;
-    if(e.cd<=0){e.cd=.32;e.ang+=.5;                // 3方向に回しながら
+    if(e.cd<=0){e.cd=.32*FIRE();e.ang+=.5;                // 3方向に回しながら
      for(let k=0;k<3;k++){const a=e.ang+k*Math.PI*2/3;if(Math.sin(a)<-.2)continue;ebul.push({x:e.x,y:e.y+18,vx:Math.cos(a)*85,vy:Math.sin(a)*85+20,soft:true})}}
-    if(e.cd2<=0&&ship.alive){e.cd2=1.4;play('hit',1.2,.4);   // ときどき自機の方へ ゆっくりの5方向
+    if(e.cd2<=0&&ship.alive){e.cd2=1.4*FIRE();play('hit',1.2,.4);   // ときどき自機の方へ ゆっくりの5方向
      for(let k=-2;k<=2;k++){const a=Math.atan2(ship.y-e.y,ship.x-e.x)+k*.22;ebul.push({x:e.x,y:e.y+18,vx:Math.cos(a)*95,vy:Math.sin(a)*95,soft:true})}}
     if(e.ft>7.5)e.st=3}
    else{e.vy=toward(e.vy,-200,300,dt)}}
@@ -585,13 +587,13 @@ function updateGround(dt){
   if(o.kind==='bigpyr'&&!o.dead&&!o.sinkT&&o.y>40&&ship.alive){o.cd-=dt;   // 巨大ピラミッド：光ってから、5方向に「だだだだ」を連射
    if(o.cd<=.5&&!o.warned){o.warned=true;o.warn=.5}
    if(o.cd<=0){o.warned=false;play('hit',1.1,.5);          // 弾は絵のまん中（てっぺん）から出る
-    if(o.aim){o.cd=1.6;for(let k=0;k<12;k++)later(k*.06,()=>{if(o.dead||!ship.alive)return;   // ねらい撃ち型：自機をねらって ずらずらっと12発
+    if(o.aim){o.cd=1.6*FIRE();for(let k=0;k<12;k++)later(k*.06,()=>{if(o.dead||!ship.alive)return;   // ねらい撃ち型：自機をねらって ずらずらっと12発
       const ax=o.x-APEX,ay=o.y-APEX,a=Math.atan2(ship.y-ay,ship.x-ax);ebul.push({x:ax,y:ay,vx:Math.cos(a)*170,vy:Math.sin(a)*170})})}
-    else{o.cd=1.25;const base=Math.atan2(ship.y-o.y,ship.x-o.x);   // ばらまき型：5方向に「だだだだ」
+    else{o.cd=1.25*FIRE();const base=Math.atan2(ship.y-o.y,ship.x-o.x);   // ばらまき型：5方向に「だだだだ」
      for(let k=0;k<4;k++)later(k*.08,()=>{if(o.dead)return;for(let j=-2;j<=2;j++){const a=base+j*.32;ebul.push({x:o.x-APEX,y:o.y-APEX,vx:Math.cos(a)*135,vy:Math.sin(a)*135})}})}}}
   if(o.kind==='turret'&&!o.dead&&o.y>40&&o.y<ship.y-80){o.cd-=dt;   // 砲台：光ってから1発。間はたっぷり
    if(o.cd<=0&&!o.warn){o.warn=.6;o.cd=9}
-   if(o.cd>8&&o.warn<=0){o.cd=(4+Math.random()*2)/Math.sqrt(diff);o.warn=0;enemyShot(o.x,o.y)}}
+   if(o.cd>8&&o.warn<=0){o.cd=(4+Math.random()*2)/Math.sqrt(diff)*FIRE();o.warn=0;enemyShot(o.x,o.y)}}
   if(o.done)o.dieT+=dt;
   if(o.hitT>0)o.hitT-=dt}
  ground=ground.filter(o=>o.y<H+60&&!(o.done&&o.dieT>.5)&&!o.dead&&!(o.left&&o.y<-o.h*CELL-20))}
@@ -737,7 +739,7 @@ function startBoss(){
  setBgm('boss');
  const hp=Math.round(1000*(1+(area-1)*.35));
  boss={x:W/2,y:-90,ty:150,w:240,h:126,hp,max:hp,t:0,flash:0,dead:false,deadT:0,
-  turrets:[[-88,-34],[88,-34],[-88,34],[88,34]].map(([dx,dy])=>({dx,dy,hp:1,cd:2+Math.random()*2,warn:0}))};
+  turrets:[[-88,-34],[88,-34],[-88,34],[88,34]].map(([dx,dy])=>({dx,dy,hp:1,cd:(2+Math.random()*2)*FIRE(),warn:0}))};
  message('WARNING　地を這う要塞 インドアジェネシス',3.5);play('warn');
  }
 // 名乗り：要塞が降りきったらゲームを止めて、吹き出しで しゃべる（男の声：VOICEVOX 青山龍星）。
@@ -840,7 +842,7 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  const legendOn=b.legendBoard&&!b.legendBoard.done&&!b.legendBoard.left;
  for(const tr of b.turrets){if(tr.hp<=0||legendOn)continue;tr.cd-=dt;if(tr.warn>0)tr.warn-=dt;
   if(tr.cd<=0&&!tr.warning){tr.warning=true;tr.warn=.6}
-  if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=(rage?1.7:2.4)+Math.random()*.8;tr.n=(tr.n||0)+1;   // 四隅の砲台：散弾と集中弾を交互にバンバン撃つ
+  if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=((rage?1.7:2.4)+Math.random()*.8)*FIRE();tr.n=(tr.n||0)+1;   // 四隅の砲台：散弾と集中弾を交互にバンバン撃つ
    if(ship.alive){play('hit',1.4,.35);
     if(tr.n%2){for(let k=0;k<3;k++)later(k*.12,()=>{if(tr.hp<=0||!boss||boss.dead)return;const bx=boss.x+tr.dx,by=boss.y+tr.dy,base=Math.atan2(ship.y-by,ship.x-bx);   // 散弾：5方向×3回
       for(let j=-2;j<=2;j++){const a=base+j*.3;ebul.push({x:bx,y:by,vx:Math.cos(a)*130,vy:Math.sin(a)*130})}})}
@@ -1247,7 +1249,7 @@ function message(s,secs=2.2){$('hint').textContent=s;messageUntil=time+secs}
 function ui(){
  $('score').textContent='SCORE '+score;
  $('lives').textContent='残機 '+'▲'.repeat(Math.max(0,lives));
- $('power').textContent=MODES[mode].name}
+ $('power').textContent=easy?'イージー':'ノーマル'}
 
 // ---- 流れ -------------------------------------------------------------------
 function reset(){if(ship)ship.opts=[];tipShown={};score=0;lives=LIVES;power=2;area=1;diff=1;startArea()}
@@ -1720,8 +1722,8 @@ function openInBrowser(){const u=location.href.replace(/#.*$/,'');
 function bindTitle(){
  if($('howto'))$('howto').innerHTML=howtoHTML();
  if($('extopen')){$('extopen').innerHTML=inApp?'<button id="extbtn">ブラウザで開く（オススメ！）</button>':'';if($('extbtn'))$('extbtn').onclick=openInBrowser}
- for(const el of document.querySelectorAll('#overlay button[data-mode]')){el.id=el.dataset.mode==='all'?'start':'start2';
-  el.onclick=()=>{setMode(el.dataset.mode);audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
+ for(const el of document.querySelectorAll('#overlay button[data-mode]')){el.id=el.dataset.easy?'start2':'start';
+  el.onclick=()=>{setMode(el.dataset.mode);easy=!!el.dataset.easy;audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
 }
 TITLE_HTML=$('overlay').firstElementChild.innerHTML;bindTitle();
 // ---- 設定（スマホでもPCでも：スライダーと −／＋ ボタン） ---------------------
