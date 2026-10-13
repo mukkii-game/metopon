@@ -49,10 +49,29 @@ def excite(out):
         m['pitch']=round(base+0.25+0.18*k,3);m['vowel_length']=m['vowel_length']*(1.6+0.6*k)
     for m in a1['moras']+ms[:4]:
         if m['pitch']>0:m['pitch']=round(m['pitch']+0.12,3)
+    ms[0]['pitch']=round(ms[0]['pitch']-0.15,3);ms[3]['pitch']=round(ms[3]['pitch']-0.2,3)   # チ（低）ジョー（高）エ（低）をはっきり
     q1['accent_phrases']=[a1,a2]
     q1['speedScale']=1.18;q1['pitchScale']=0.06;q1['intonationScale']=1.5;q1['volumeScale']=1.3
     q1['prePhonemeLength']=0.05;q1['postPhonemeLength']=0.15;q1['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%SP,q1))
+def fix_chijoue(aps):
+    """地上絵＝チ（低）ジョー（高）エ（低）。エンジンだとジョーとエの差が小さいので、高さを付け直す"""
+    for ap in aps:
+        ms=ap['moras'];txt=''.join(m['text'] for m in ms)
+        i=txt.find('チジョオエ')
+        if i<0:continue
+        k=len(txt[:i])  # 1文字＝1拍（カタカナ）なので位置はそのまま
+        # 文字位置→拍位置（ジョ は2文字で1拍）
+        pos=0;idx=[]
+        for j,m in enumerate(ms):
+            if pos>=i and len(idx)<4:idx.append(j)
+            pos+=len(m['text'])
+        vo=[ms[j]['pitch'] for j in idx if ms[j]['pitch']>0];base=sum(vo)/len(vo)
+        for n,j in enumerate(idx):
+            if ms[j]['pitch']<=0:continue
+            ms[j]['pitch']=round(base+(0.22 if n in (1,2) else -0.2),3)
+        for j in range(idx[-1]+1,len(ms)):          # 地上絵 の後ろ（ノ など）も低いまま
+            if ms[j]['pitch']>0:ms[j]['pitch']=round(base-0.24,3)
 def boss_line(out):
     """ボスの名乗り（男の声：VOICEVOX 青山龍星）。文はエンジンのアクセントを使い、借りねば だけ カリネ＼バ に直す"""
     BOSS=13
@@ -60,6 +79,7 @@ def boss_line(out):
     for ap in q['accent_phrases']:
         if ''.join(m['text'] for m in ap['moras'])=='カリネバ':ap['accent']=3
     q['accent_phrases']=json.loads(post('/mora_pitch?speaker=%d'%BOSS,q['accent_phrases']))
+    fix_chijoue(q['accent_phrases'])
     q['speedScale']=0.88;q['pitchScale']=-0.06;q['intonationScale']=1.25;q['volumeScale']=1.2
     q['prePhonemeLength']=0.1;q['postPhonemeLength']=0.2;q['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%BOSS,q))
