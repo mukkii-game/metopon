@@ -106,7 +106,7 @@ try{const o=JSON.parse(localStorage.getItem('xemetous_cfg')||'{}');
  for(const d of CFG_DEF)if(typeof o[d.k]==='number'&&isFinite(o[d.k]))CFG[d.k]=Math.min(d.max,Math.max(d.min,o[d.k]))}catch(e){}
 if(CFG.sightAhead===118)CFG.sightAhead=150;      // 前の初期値のままなら、大きくした照準に合わせる
 let SPD,SIGHT_AHEAD,BOMB_T,SHOT_MAX,TOUCH_SENS,MOUSE_SENS;
-function applyCfg(){if(master)master.gain.value=CFG.volume/100;SPD=CFG.scroll;SIGHT_AHEAD=CFG.sightAhead;BOMB_T=CFG.bombT;SHOT_MAX=CFG.shotMax;
+function applyCfg(){if(master)master.gain.value=CFG.volume/100*MASTER;SPD=CFG.scroll;SIGHT_AHEAD=CFG.sightAhead;BOMB_T=CFG.bombT;SHOT_MAX=CFG.shotMax;
  TOUCH_SENS=CFG.touchSens*CFG.shipSpeed;MOUSE_SENS=CFG.mouseSens*CFG.shipSpeed}
 applyCfg();
 const SHOT_RATE=.11;            // 通常弾の最短の間隔
@@ -1784,7 +1784,8 @@ function bgmVolume(v){if(bgmGain)bgmGain.gain.value=bgmOn?v:0}
 const silentEl=new Audio('data:audio/wav;base64,UklGRiQCAABXQVZFZm10IBAAAAABAAEAIlYAACJWAAABAAgAZGF0YQACAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
 silentEl.loop=true;silentEl.volume=0;silentEl.setAttribute('playsinline','');
 function unlockAudio(){try{const p=silentEl.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
-function outNode(){if(!master){master=ac.createGain();master.gain.value=CFG.volume/100;master.connect(ac.destination)}return master}
+const MASTER=.65;                                    // 全体を少し小さく（設定の「音量」にさらに掛ける）
+function outNode(){if(!master){master=ac.createGain();master.gain.value=CFG.volume/100*MASTER;master.connect(ac.destination)}return master}
 function play(name,rate=1,vol=1){if(!sound||!ac)return;const buf=SFX[name];
  if(ac.currentTime<voiceEnd)vol*=.3;                // 声の間は効果音を小さく
  if(!buf){const f=FALLBACK[name];if(f)tone(f[0]*rate,f[1],f[2],.03*vol);return}
@@ -1801,6 +1802,7 @@ function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.
 function audio(){unlockAudio();setTimeout(loadVoice,0);
  if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
  ac.resume().catch(()=>{});loadSfx()}
+try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}   // iPhone：最初から「再生」扱いにして、途中で音量が上がらないように
 try{ac=new(window.AudioContext||window.webkitAudioContext)();loadSfx();loadVoice()}catch(e){}
 setTimeout(()=>{try{for(const [pic,w,h] of [['legend',8,5],['nasu',3,3],['neko',3,3],['unko',3,3]])pieceHasArt(pic,w,h,0)}catch(e){}},1500);   // 絵の下調べもタイトルのうちに（ゲーム中につっかえないよう）   // 止まったままの音の箱を先に作って、タイトルのうちに読み込んでおく（鳴らすのはスタート後）
 
