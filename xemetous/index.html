@@ -1144,16 +1144,16 @@ function flyWave(type,n,o={}){
  for(let i=0;i<n;i++)later(i*gap,()=>{
   let mv,x,y,life=14,h0;
   if(type==='side'){x=dir<0?W+30:-30;y=y0+(i%2?12:-12);h0=dir<0?Math.PI:0}            // 右上から（dir<0）／左上から
-  else if(type==='bottom'){x=x0+(i%2?16:-16);y=H+30;h0=-Math.PI/2}                   // 下から上へ
+  else if(type==='bottom'){x=dir<0?W+24:-24;y=H*.82+(i%2?14:-14);h0=dir<0?-Math.PI*.78:-Math.PI*.22}   // 右下か左下から、ゆっくり斜め上へ（自機のそばなので 気づけるように遅く）
   else if(type==='loop'){x=x0+(i%2?10:-10);y=-30;h0=Math.PI/2}                       // 上から
   else{x=dir<0?-20:W+20;y=40;h0=dir<0?Math.PI*.25:Math.PI*.75}                        // 角から斜めに
   const turn=(type==='loop'?1:-1)*dir;
   mv=(e,dt)=>{e.t+=dt;if(e.h==null){e.h=h0;e.ph='in'}
-   if(e.ph==='in'){const v=300;e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt;
+   if(e.ph==='in'){const v=type==='bottom'?110:300;e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt;
     if(type==='side'&&(dir<0?e.x<W*.62:e.x>W*.38)||type==='bottom'&&e.y<H*.42||type==='loop'&&e.y>cy-R||type==='swoop'&&e.y>H*.3){e.ph='stay';e.st=0}}
    else if(e.ph==='stay'){e.st+=dt;const v=type==='loop'?230:170,r=type==='loop'?R:62;e.h+=turn*(v/r)*dt;   // 画面の中で まわる
     e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt;e.x=clamp(e.x,30,W-30);e.y=clamp(e.y,50,H*.7);
-    if(e.st>(type==='loop'?4.5:STAY)){e.ph='out';e.out=type==='bottom'?Math.atan2(ship.y-e.y,ship.x-e.x):type==='side'?(dir<0?Math.PI:0):type==='loop'?-Math.PI/2:(dir<0?Math.PI*.3:Math.PI*.7)}}
+    if(e.st>(type==='loop'?4.5:STAY)){e.ph='out';e.out=type==='bottom'?-Math.PI/2:type==='side'?(dir<0?Math.PI:0):type==='loop'?-Math.PI/2:(dir<0?Math.PI*.3:Math.PI*.7)}}
    else{steer(e,e.out,3.5,dt);const v=270;e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt}};
   spawnAir('flyer',x,{y,mv,life,sprite:spr,g,gn:n})})}
 function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
