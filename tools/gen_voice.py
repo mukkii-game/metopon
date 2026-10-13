@@ -94,6 +94,19 @@ ouchi おうちは、いちどだけ守ってくれるよ！
 bossUnko うんこをなすりつけると、いやがるよ！人の嫌がることをしよう！ 1
 """
 BOSS_SP=13  # 青山龍星
+def boss_yuck(out):
+    """「きちゃないの、いやあああっ！」：きちゃないの は泣き声ぎみ、いやあああっ は高く上げて伸ばして叫ぶ"""
+    q=json.loads(post('/audio_query?speaker=%d&text=%s'%(BOSS_SP,urllib.parse.quote('きちゃないの、いやあああっ！'))))
+    aps=q['accent_phrases']
+    for a in aps[:-1]:
+        for m in a['moras']:
+            if m['pitch']>0:m['pitch']=round(m['pitch']+0.15,3)
+    last=[m for m in aps[-1]['moras'] if m['pitch']>0]
+    for k,m in enumerate(last):                      # イ・ヤ・ア・ア・ア：どんどん高く、長く
+        m['pitch']=round(4.85+0.16*k,3);m['vowel_length']=round(m['vowel_length']*(1.2+0.35*k),3)
+    q['speedScale']=1.05;q['pitchScale']=0.0;q['intonationScale']=1.0;q['volumeScale']=1.6
+    q['prePhonemeLength']=0.02;q['postPhonemeLength']=0.15;q['outputSamplingRate']=24000
+    open(out,'wb').write(post('/synthesis?speaker=%d'%BOSS_SP,q))
 LIST="""
 こいぬ 0 koinu.wav
 こねこ 0 koneko.wav
@@ -131,7 +144,7 @@ if __name__=='__main__':
     for line in TIPS.strip().splitlines():
         k,t,*a=line.split(' ');sentence(t,os.path.join(out,'tip_%s.wav'%k),speed=1.1,inton=1.3,acc0=int(a[0]) if a else None);print('tip_%s.wav'%k,t)
     # ボスの泣き言：少し高く、抑揚を大きく（涙目）
-    sentence('きちゃないの、いや〜！！',os.path.join(out,'boss_yuck.wav'),BOSS_SP,speed=1.05,pitch=0.06,inton=1.7,vol=1.2);print('boss_yuck.wav')
+    boss_yuck(os.path.join(out,'boss_yuck.wav'));print('boss_yuck.wav')
     sentence('インドア派なんで、おうちに帰る〜！',os.path.join(out,'boss_cry.wav'),BOSS_SP,speed=1.0,pitch=0.05,inton=1.6,vol=1.2,accs={1:0,2:1});print('boss_cry.wav')   # おうちに＝平板、かえる＝頭高
     sentence('あそんでくれて、ありがとう！',os.path.join(out,'thanks.wav'),speed=1.0,inton=1.4);print('thanks.wav')   # エンディング
     # そろった瞬間の「その物の音」のうち、声で作るもの（assets/se_item/）

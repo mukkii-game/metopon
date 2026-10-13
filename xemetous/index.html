@@ -652,7 +652,7 @@ function updateParts(dt){
    if(o.healT>=3){o.healT=0;const q=ship.opts.filter(q=>q!==o&&q.hp<q.max).sort((a,b)=>a.hp/a.max-b.hp/b.max)[0]||(o.hp<o.max?o:null);
     if(q){q.hp++;q.healFx=.6;const qp=optPos(ship.opts.indexOf(q));burst(qp.x,qp.y,10,'#a0f0a0');pop(qp.x,qp.y-18,'+1','#a0f0a0',12)}}}
   if((o.part==='unko'||o.part==='unchi')&&boss&&!boss.dead&&boss.y>=boss.ty-1&&bossHit(p.x,p.y,r*.6)){   // ボスは うんちが苦手：触れるだけで効く
-   o.yuckT=(o.yuckT||0)-dt;if(o.yuckT<=0){o.yuckT=.6;o.hp--;o.hitT=.15;bossDamage(o.big?36:12,p.x,p.y-10,false);if(boss.yuck<=0&&time-(boss.yuckSaid||-9)>3&&CFG.voice&&sound){boss.yuckSaid=time;playVoice(['bossYuck'])}boss.yuck=1.8;play('hit',.7,.6)}}
+   o.yuckT=(o.yuckT||0)-dt;if(o.yuckT<=0){o.yuckT=.6;o.hp--;o.hitT=.15;bossDamage(o.big?36:12,p.x,p.y-10,false);if(time-(boss.yuckSaid||-9)>2.4){boss.yuckSaid=time;if(CFG.voice&&sound)playVoice(['bossYuck'])}boss.yuck=1.8;play('hit',.7,.6)}}
   if(o.part==='cat')for(const g of ground)if(g.kind!=='puz'&&!g.dead&&Math.hypot(g.x-p.x,g.y-p.y)<r+18){destroyFixed(g);o.hp--;o.hitT=.15;pop(p.x,p.y-r-8,'ニャッ','#ffd080',13)}   // こねこ：地上の敵を壊す
   const wr=r+4+(WIDE[o.part]?16:0);
   for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.soft){o.hp-=BULLET_DMG;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
@@ -816,10 +816,12 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  const legendOn=b.legendBoard&&!b.legendBoard.done&&!b.legendBoard.left;
  for(const tr of b.turrets){if(tr.hp<=0||legendOn)continue;tr.cd-=dt;if(tr.warn>0)tr.warn-=dt;
   if(tr.cd<=0&&!tr.warning){tr.warning=true;tr.warn=.6}
-  if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=(rage?2.8:3.6)+Math.random()*1.2;   // 四隅の砲台：光ってから 3方向に「だだだ」（よけられる程度）
-   if(ship.alive){const x=b.x+tr.dx,y=b.y+tr.dy,base=Math.atan2(ship.y-y,ship.x-x);play('hit',1.4,.35);
-    for(let k=0;k<3;k++)later(k*.09,()=>{if(tr.hp<=0||!boss||boss.dead)return;const bx=boss.x+tr.dx,by=boss.y+tr.dy;
-     for(const j of [-1,0,1]){const a=base+j*.28;ebul.push({x:bx,y:by,vx:Math.cos(a)*140,vy:Math.sin(a)*140})}})}}}
+  if(tr.warning&&tr.warn<=0){tr.warning=false;tr.cd=(rage?1.7:2.4)+Math.random()*.8;tr.n=(tr.n||0)+1;   // 四隅の砲台：散弾と集中弾を交互にバンバン撃つ
+   if(ship.alive){play('hit',1.4,.35);
+    if(tr.n%2){for(let k=0;k<3;k++)later(k*.12,()=>{if(tr.hp<=0||!boss||boss.dead)return;const bx=boss.x+tr.dx,by=boss.y+tr.dy,base=Math.atan2(ship.y-by,ship.x-bx);   // 散弾：5方向×3回
+      for(let j=-2;j<=2;j++){const a=base+j*.3;ebul.push({x:bx,y:by,vx:Math.cos(a)*130,vy:Math.sin(a)*130})}})}
+    else for(let k=0;k<8;k++)later(k*.07,()=>{if(tr.hp<=0||!boss||boss.dead||!ship.alive)return;const bx=boss.x+tr.dx,by=boss.y+tr.dy,a=Math.atan2(ship.y-by,ship.x-bx);   // 集中弾：自機をねらって8連射
+      ebul.push({x:bx,y:by,vx:Math.cos(a)*175,vy:Math.sin(a)*175})})}}}
  // 体力が7割を切ったら、画面いっぱいのナスの地上絵（伝説の板）。その間はほかの板は出ない
  if(!b.legend&&b.hp<b.max*.7){b.legend=true;
   for(const g of ground)if(g.kind==='puz'&&!g.done){if(g.pend)materialize(g);g.hold=0;if(!g.arrived)g.left=true}   // ほかの板は帰らせる
