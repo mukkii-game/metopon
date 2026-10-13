@@ -604,8 +604,9 @@ function updateWander(o,dt){
   if(o.lane===undefined||o.lane===null){o.lane=pickLane(o);if(o.lane===null){o.y=Math.min(o.y,-o.h*CELL-10);return}}   // ほかの板と上下に重ならない高さを選ぶ
   o.stopY=o.lane;o.y+=Math.max(SPD,70)*dt;if(o.y>=o.stopY){o.y=o.stopY;o.arrived=true}return}
  if(grab&&grab.o===o)return;                          // つかんでいる間は板は止まる
- if(o.fixed){if(o.hold>0){o.hold-=dt;return}if(!o.left){o.left=true;message('ナスの地上絵は消えてしまった…',2.5)}o.y-=360*dt;return}
- if(o.hold>0){o.hold-=dt;o.wt+=dt;                    // ウロウロ：ゆっくり左右に、少し上下に
+ const busy=grab&&grab.o===o||o.pend||o.solving;      // いじっている途中・光って待っている間は 時間が来ても帰らない
+ if(o.fixed){if(o.hold>0||busy){if(!busy)o.hold-=dt;return}if(!o.left){o.left=true;message('ナスの地上絵は消えてしまった…',2.5)}o.y-=360*dt;return}
+ if(o.hold>0||busy){if(!busy)o.hold-=dt;else o.hold=Math.max(o.hold,.01);o.wt+=dt;                    // ウロウロ：ゆっくり左右に、少し上下に
   o.x+=o.vx*dt;const pw=o.w*CELL;
   if(o.x<12){o.x=12;o.vx=Math.abs(o.vx)}if(o.x>W-12-pw){o.x=W-12-pw;o.vx=-Math.abs(o.vx)}
   for(const g of ground)if(g.kind!=='puz'&&!g.dead&&g.x+16>o.x-6&&g.x-16<o.x+pw+6&&g.y+16>o.y-6&&g.y-16<o.y+o.h*CELL+6)
