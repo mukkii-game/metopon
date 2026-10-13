@@ -90,6 +90,7 @@
 おにぎり＝rice-eat1、さかな＝catch-fish1（バシャッ）、きりん＝extend1（伸びる）、うんこ・うんち＝windgas1（オナラ）、ナスの地上絵＝kira1。
 ごりら＝uho.wav（VOICEVOX:青山龍星「ウホッ、ウホッ！」）、おうち＝house.wav（VOICEVOX:春日部つむぎ「ハウス！」）は tools/gen_voice.py で作る。
 いるかはゲーム内で合成（キュイキュイ）。長い音は1.6秒で打ち切る。
+パキュラが壊れた時の「バキィ」＝rock-break1（岩が砕ける）＋ machine-hard-hit1（金属を強くたたく）を重ねたもの（同じく効果音ラボ）。
 
 ## タイトルロゴ — `assets/img/logo_nasu.png`
 `tools/logo_nasu.html` をブラウザ（Playwright）で描いて書き出した。文字は Google Fonts の **Dela Gothic One** と
