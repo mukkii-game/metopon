@@ -1469,6 +1469,9 @@ function drawCell(o,id,x,y,ok,k=1){
  if(id==null)return;                                  // 空いたマス（消えた所）は板だけ
  ctx.font='bold '+Math.round(S*.7)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+2,y+S*.74+2);
  ctx.fillStyle=ok?'#ffffff':letterCol(id);ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
+function drawGrabWait(){                             // スマホ：つかむまでの残り（照準のまわりに輪がたまる）
+ if(!touchMover||!touchMover.pend||!ship.alive)return;const k=Math.min(1,(performance.now()-touchMover.pendAt)/GRAB_WAIT),sp=sightPoint();
+ ctx.strokeStyle='#f6e27a';ctx.lineWidth=4;ctx.beginPath();ctx.arc(sp.x,sp.y,CELL*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*k);ctx.stroke()}
 function drawSightTop(){                             // ボス戦：照準を要塞の上にもう一度描く
  if(!ship.alive)return;const sr=sightRect(),sp=sightPoint();
  sightFrame(sr.x,sr.y,sr.w,sr.h,'#ffffffdd',2);ctx.fillStyle='#ffffff';ctx.fillRect(sp.x-1,sp.y-5,2,10);ctx.fillRect(sp.x-5,sp.y-1,10,2)}
@@ -1535,7 +1538,7 @@ function draw(){
   ctx.font='bold '+Math.round(p.size*sc)+'px monospace';
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
- drawCutin();drawBossTalk();
+ drawGrabWait();drawCutin();drawBossTalk();
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')&&$('overlay').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
   ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   ctx.font='bold 30px sans-serif';ctx.fillStyle='#f6e7c1';ctx.fillText('一時停止',W/2,H/2-20);
@@ -1572,7 +1575,7 @@ function groundPress(dir){                            // 1回押した：つか�
  if(hit){startGrab(hit);return}
  lastPressT=t;aim=dir;
  if(ship.opts.length&&!bomb)pendBomb={at:t+DBL_T,dir};else fireBomb()}   // キャラを持っている時だけ、2回目を少し待つ
-const HOLD_MS=220,GRAB_WAIT=100;                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
+const HOLD_MS=220,GRAB_WAIT=280;                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
 function grabKeep(src){if(!grab)return;grab.src=src;grab.t0=performance.now();grab.m0=grab.moves;grab.tap=false}
 function groundDown(src,dir){if(phase!=='play'||paused)return;
  if(grab&&grab.tap){endGrab();ignoreUp=src;return}    // タップでつかんでいた：もう1回押すと はなす
@@ -1595,7 +1598,7 @@ canvas.addEventListener('pointerdown',e=>{
  if(graceT&&grab){clearTimeout(graceT);graceT=null;touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,ms:performance.now(),moved:true,dir,grabbed:true,grabNow:false};return}   // とぎれただけ：つかんだまま
  touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,ms:performance.now(),moved:false,dir,grabbed:!!grab,grabNow:false};
  if(!grab&&ship.alive){const sp=sightPoint();if(boardAt(sp.x,sp.y)){const tm=touchMover;   // 照準が文字の上：0.1秒止めたら つかむ（すぐ動かしたら 自機の移動だけ）
-  tm.pend=setTimeout(()=>{tm.pend=null;if(touchMover!==tm||grab||phase!=='play'||paused||!ship.alive)return;
+  tm.pendAt=performance.now();tm.pend=setTimeout(()=>{tm.pend=null;if(touchMover!==tm||grab||phase!=='play'||paused||!ship.alive)return;
    const q=sightPoint(),hit=boardAt(q.x,q.y);if(hit){startGrab(hit);if(grab){grabKeep('t'+tm.id);tm.grabNow=true}}},GRAB_WAIT)}}
  });   // タッチは、動かさずに押して離した（タップ）時に1回押したことにする   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
@@ -1609,7 +1612,7 @@ canvas.addEventListener('pointermove',e=>{
   nudge((p.x-touchMover.lx)*TOUCH_SENS,(p.y-touchMover.ly)*TOUCH_SENS);touchMover.lx=p.x;touchMover.ly=p.y;
   if(!touchMover.moved&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>TAP_MOVE){
    touchMover.moved=true}
-  if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>8){clearTimeout(touchMover.pend);touchMover.pend=null}}});   // 置いてすぐ動かした＝移動だけ
+  if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>10){clearTimeout(touchMover.pend);touchMover.pend=null}}});   // 置いてすぐ動かした＝移動だけ
 for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
  if(e.pointerType==='mouse')return;
  const up=e.type==='pointerup';
@@ -1673,7 +1676,7 @@ function howtoHTML(){                               // 遊ぶ機械に合わせ�
  if(touch)L.push('<b>スマホ</b>',
   '<span class="k">移動</span>画面のどこでも なぞる',
   '<span class="k">地上攻撃</span>タップ',
-  '<span class="k">パネル</span>照準が文字・絵の上で 指を置いて一瞬止める（またはタップ）＝つかむ → なぞる → 指を離す＝はなす。置いてすぐ動かすと 自機の移動だけ',
+  '<span class="k">パネル</span>照準が文字・絵の上で 指を置いて少し止める（輪がたまる）かタップ＝つかむ → なぞる → 指を離す＝はなす。置いてすぐ動かすと 自機の移動だけ',
   '<span class="k">キャラ発射</span>キャラがくっついている時に すばやく2回タップ');
  else L.push('<b>パソコン</b>',
   '<span class="k">移動</span>WASD・矢印キー、またはマウス（クリックでマウスを固定、Esc で解除）',
