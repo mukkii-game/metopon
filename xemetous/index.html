@@ -1578,7 +1578,7 @@ canvas.addEventListener('pointerdown',e=>{
  const p=point(e);
  const dir='h';                                       // 照準は1マス（向きは無い）
  if(touchMover){touchBtn=e.pointerId;return}         // 動かしている間に別の指：その指を離した時に1回押したことにする
- touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,moved:false,dir};
+ touchMover={id:e.pointerId,lx:p.x,ly:p.y,sx:p.x,sy:p.y,t0:time,ms:performance.now(),moved:false,dir,grabbed:!!grab};
  });   // タッチは、動かさずに押して離した（タップ）時に1回押したことにする   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
 function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,24,W-24);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-30)}
@@ -1596,8 +1596,12 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
  const up=e.type==='pointerup';
  if(touchBtn===e.pointerId){touchBtn=null;if(up&&phase==='play'&&!paused)groundPress('h')}
  if(touchMover&&touchMover.id===e.pointerId){
-  const tap=!touchMover.moved&&up;
-  touchMover=null;if(tap&&phase==='play'&&!paused)groundPress('h')}});    // 動かさずに押して離した＝地上弾
+  const p=point(e),dist=Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy),quick=performance.now()-touchMover.ms<220;
+  const tap=up&&(!touchMover.moved||quick&&dist<45);   // すばやいタップは 少し指がずれても タップ
+  const dragged=!tap&&touchMover.moved&&touchMover.grabbed;
+  touchMover=null;if(phase!=='play'||paused)return;
+  if(tap)groundPress('h');
+  else if(dragged&&grab)endGrab()}});   // つかんでから なぞって動かし、指を離したら そこで はなす（もう1回タップでも はなせる）    // 動かさずに押して離した＝地上弾
 // マウス：通常弾は自動。左ボタンを押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('mousedown',e=>{
  if(phase!=='play'||paused||performance.now()-resumeT<400)return;e.preventDefault();audio();mouseMode=true;   // 再開のクリックでは撃たない
@@ -1646,7 +1650,7 @@ function howtoHTML(){                               // 遊ぶ機械に合わせ�
  if(touch)L.push('<b>スマホ</b>',
   '<span class="k">移動</span>画面のどこでも なぞる',
   '<span class="k">地上攻撃</span>タップ',
-  '<span class="k">パネル</span>照準が文字・絵の上でタップ＝つかむ → なぞって動かす → もう1回タップ＝はなす',
+  '<span class="k">パネル</span>照準が文字・絵の上でタップ＝つかむ → なぞって動かす → 指を離すと はなす（動かさずに もう1回タップでも はなせる）',
   '<span class="k">キャラ発射</span>キャラがくっついている時に すばやく2回タップ');
  else L.push('<b>パソコン</b>',
   '<span class="k">移動</span>WASD・矢印キー、またはマウス（クリックでマウスを固定、Esc で解除）',
