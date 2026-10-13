@@ -387,11 +387,11 @@ function materialize(o){
   refillBoard(o);checkNewWords(o)}                                    // 落ちてきてできた言葉は、また光って待つ（連鎖）
  if(!ship.opts.length&&items.length<=combo)message('出てきた物を照準で捕まえよう。地上弾を2回すばやく押すと撃ち出す',3.5)}
 // 補充：空いた所に入れる文字は、1枚すべらせれば言葉ができる（できれば2語以上）ように選ぶ
-function bestDrag(o,cells){                            // 1枚をまっすぐすべらせて できる言葉の数の最大
+function bestDrag(o,cells,enough=99){                  // 1枚をまっすぐすべらせて できる言葉の数の最大（enough 語に届いたら そこで終わり）
  const {w,h}=o;let best=wordsFound({w,h,cells}).length;
  for(let r=0;r<h;r++)for(let c=0;c<w;c++){
-  for(let c2=0;c2<w;c2++)if(c2!==c){const cl=cells.map(x=>x.slice()),st=Math.sign(c2-c);for(let x=c;x!==c2;x+=st){const t=cl[r][x];cl[r][x]=cl[r][x+st];cl[r][x+st]=t}best=Math.max(best,wordsFound({w,h,cells:cl}).length)}
-  for(let r2=0;r2<h;r2++)if(r2!==r){const cl=cells.map(x=>x.slice()),st=Math.sign(r2-r);for(let y=r;y!==r2;y+=st){const t=cl[y][c];cl[y][c]=cl[y+st][c];cl[y+st][c]=t}best=Math.max(best,wordsFound({w,h,cells:cl}).length)}}
+  for(let c2=0;c2<w;c2++)if(c2!==c){const cl=cells.map(x=>x.slice()),st=Math.sign(c2-c);for(let x=c;x!==c2;x+=st){const t=cl[r][x];cl[r][x]=cl[r][x+st];cl[r][x+st]=t}best=Math.max(best,wordsFound({w,h,cells:cl}).length);if(best>=enough)return best}
+  for(let r2=0;r2<h;r2++)if(r2!==r){const cl=cells.map(x=>x.slice()),st=Math.sign(r2-r);for(let y=r;y!==r2;y+=st){const t=cl[y][c];cl[y][c]=cl[y+st][c];cl[y+st][c]=t}best=Math.max(best,wordsFound({w,h,cells:cl}).length);if(best>=enough)return best}}
  return best}
 function refillBoard(o){
  const empty=[];for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++)if(o.cells[r][c]==null)empty.push([r,c]);
@@ -399,11 +399,12 @@ function refillBoard(o){
   const [r,c]=f.cs[rnd(f.cs.length)];o.cells[r][c]=null;empty.push([r,c])}
  if(!empty.length)return;
  let best=null,bs=0;
- for(let k=0;k<200;k++){const cl=o.cells.map(x=>x.slice());
+ const t0=performance.now();
+ for(let k=0;k<200;k++){if(performance.now()-t0>6&&best)break;const cl=o.cells.map(x=>x.slice());   // 時間をかけすぎない（スマホでつっかえないよう 6ms まで）
   const pool=[...pickWord(),...pickWord()];                  // 言葉の文字を多めに混ぜる
   for(const [r,c] of empty)cl[r][c]=Math.random()<.75?pool[rnd(pool.length)]:randLetter();
   if(wordsFound({w:o.w,h:o.h,cells:cl}).length)continue;   // 補充しただけで そろってしまう並びは使わない
-  const sc=bestDrag(o,cl);if(sc>bs){bs=sc;best=cl}if(bs>=2)break}
+  const sc=bestDrag(o,cl,2);if(sc>bs){bs=sc;best=cl}if(bs>=2)break}
  if(!best){best=o.cells.map(x=>x.slice());for(const [r,c] of empty)best[r][c]=randLetter();   // 見つからない時：そろわない文字にばらす
   for(let k=0;k<200&&wordsFound({w:o.w,h:o.h,cells:best}).length;k++){const [r,c]=empty[rnd(empty.length)];best[r][c]=randLetter()}}
  o.cells=best}
@@ -1760,7 +1761,8 @@ function tone(f=440,d=.07,type='square',v=.03){if(!sound||!ac)return;const o=ac.
 function audio(){unlockAudio();setTimeout(loadVoice,0);
  if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
  ac.resume().catch(()=>{});loadSfx()}
-try{ac=new(window.AudioContext||window.webkitAudioContext)();loadSfx();loadVoice()}catch(e){}   // 止まったままの音の箱を先に作って、タイトルのうちに読み込んでおく（鳴らすのはスタート後）
+try{ac=new(window.AudioContext||window.webkitAudioContext)();loadSfx();loadVoice()}catch(e){}
+setTimeout(()=>{try{for(const [pic,w,h] of [['legend',8,5],['nasu',3,3],['neko',3,3],['unko',3,3]])pieceHasArt(pic,w,h,0)}catch(e){}},1500);   // 絵の下調べもタイトルのうちに（ゲーム中につっかえないよう）   // 止まったままの音の箱を先に作って、タイトルのうちに読み込んでおく（鳴らすのはスタート後）
 
 // ---- 全画面と誤タッチ対策 ---------------------------------------------------
 const canFullscreen=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
