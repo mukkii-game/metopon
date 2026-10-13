@@ -75,7 +75,7 @@ def sentence(text,out,sp=SP,speed=1.0,pitch=0.0,inton=1.2,vol=1.0,acc0=None,accs
     q['speedScale']=speed;q['pitchScale']=pitch;q['intonationScale']=inton;q['volumeScale']=vol
     q['prePhonemeLength']=0.05;q['postPhonemeLength']=0.15;q['outputSamplingRate']=24000
     open(out,'wb').write(post('/synthesis?speaker=%d'%sp,q))
-# 役割の説明（女の子：春日部つむぎ）。xemetous/index.html の ROLE と同じ中身。後ろの数字＝最初の言葉のアクセント直し（うんち＝頭高）
+# 役割の説明（女の子：春日部つむぎ）。xemetous/index.html の ROLE と同じ中身。後ろの数字＝最初の言葉のアクセント直し（うんち＝頭高）、「n:a」＝n番目(0から)の句のアクセントを a に（こねこ＝平板）
 TIPS="""
 gorira ごりらは、がんじょうなんだよ！
 dog こいぬは、ちょこまか動くんだよ！
@@ -92,6 +92,9 @@ chin ちんちんは、弾を広く消すよ！
 chinL おちんちんは、弾を広く消すよ！
 ouchi おうちは、いちどだけ守ってくれるよ！
 bossUnko うんこをなすりつけると、いやがるよ！人の嫌がることをしよう！ 1
+big_nasu おおきなナスは、とても硬くて、撃つとボスにすごく効くよ！
+big_neko おおきなこねこは、とても硬くて、撃つとボスにすごく効くよ！ 1:0
+big_unko おおきなうんこは、硬くて、ボスになすりつけるとすごく効くよ！
 """
 BOSS_SP=13  # 青山龍星
 def boss_yuck(out):
@@ -142,7 +145,10 @@ if __name__=='__main__':
     excite(os.path.join(out,'legend.wav'));print('legend.wav ナスの地上絵よォォッ！')
     boss_line(os.path.join(out,'boss_intro.wav'));print('boss_intro.wav わしの名は…（青山龍星）')
     for line in TIPS.strip().splitlines():
-        k,t,*a=line.split(' ');sentence(t,os.path.join(out,'tip_%s.wav'%k),speed=1.1,inton=1.3,acc0=int(a[0]) if a else None);print('tip_%s.wav'%k,t)
+        k,t,*a=line.split(' ')
+        accs={int(x.split(':')[0]):int(x.split(':')[1]) for x in a if ':' in x}   # 「1:0」＝2つ目の句を平板に
+        acc0=next((int(x) for x in a if ':' not in x),None)
+        sentence(t,os.path.join(out,'tip_%s.wav'%k),speed=1.1,inton=1.3,acc0=acc0,accs=accs);print('tip_%s.wav'%k,t)
     # ボスの泣き言：少し高く、抑揚を大きく（涙目）
     boss_yuck(os.path.join(out,'boss_yuck.wav'));print('boss_yuck.wav')
     sentence('インドア派なんで、おうちに帰る〜！',os.path.join(out,'boss_cry.wav'),BOSS_SP,speed=1.0,pitch=0.05,inton=1.6,vol=1.2,accs={1:0,2:1});print('boss_cry.wav')   # おうちに＝平板、かえる＝頭高

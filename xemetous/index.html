@@ -370,7 +370,7 @@ function resolveBoard(o){
    later(FLASH_T,()=>{o.done=true;o.dieT=0;             // 0.5秒 ぴかぴか光ってから
     if(o.legend){legendAttack(o,cx,cy);return}
     score+=1500;items.push({x:cx,y:cy,t:0,part:o.pic,big:true,mult:1,g:++gseq,born:time});popBig(cx,cy-40,PICS[o.pic]+'！','#c8a0ff',22);
-    const nm={nasu:'なす',neko:'こねこ',unko:'うんこ'}[o.pic];sayWord(nm);showCutin([nm],1);
+    const nm={nasu:'なす',neko:'こねこ',unko:'うんこ'}[o.pic];sayWord(nm);showCutin([nm],1,true);roleTip('big_'+o.pic);   // 絵合わせから出るのは「おおきな○○」
     clearFx(o,cx,cy)})}
   return}
  checkNewWords(o)}
@@ -636,14 +636,16 @@ const PART={                                          // pow・hp は文字1つ�
  ouchi:{name:'おうち',pow:12,hp:3},dog:{name:'こいぬ',pow:16,hp:2},cat:{name:'こねこ',pow:14,hp:2},suika:{name:'すいか',pow:18,hp:3},
  ringo:{name:'りんご',pow:12,hp:2},sakana:{name:'さかな',pow:15,hp:2},onigiri:{name:'おにぎり',pow:24,hp:2},gorira:{name:'ごりら',pow:24,hp:3},
  kirin:{name:'きりん',pow:16,hp:2},iruka:{name:'いるか',pow:15,hp:2},
- nasu:{name:'デカナス',pow:150,hp:45,big:true},neko:{name:'デカこねこ',pow:150,hp:45,big:true},unkoBig:{name:'デカうんこ',pow:150,hp:45,big:true}};   // デカいのは体が大きく弾を受けやすいので HP 多め
+ nasu:{name:'おおきなナス',pow:150,hp:45,big:true},neko:{name:'おおきなこねこ',pow:150,hp:45,big:true},unkoBig:{name:'おおきなうんこ',pow:150,hp:45,big:true}};   // デカいのは体が大きく弾を受けやすいので HP 多め
 // 役割：どれも「少しトク」になる違い。初めて捕まえた時に、下の女の子が短く説明する
 const ROLE={gorira:'ごりらは|がんじょうなんだよ！',dog:'こいぬは|ちょこまか うごくんだよ！',iruka:'いるかは|ほーみんぐ するよ！',
  onigiri:'おにぎりは|みんなを げんきにするよ！',suika:'すいかは|われて まわりも こわすよ！',ringo:'りんごは|びゅーんと はやいよ！',
  sakana:'さかなは|たまを ひろく けすよ！',cat:'こねこは|じめんの てきを こわすよ！',kirin:'きりんは|くびで うえの たまも けすよ！',
  unko:'うんこは|ボスに すっごく きくよ！',unchi:'うんちも|ボスに よく きくよ！',chin:'ちんちんは|たまを ひろく けすよ！',
  chinL:'おちんちんは|たまを ひろく けすよ！',ouchi:'おうちは|いちどだけ まもってくれるよ！',
- bossUnko:'うんこを なすりつけると いやがるよ！|ひとの いやがることを しよう！'};   // ボス戦の始めに（うんちありモード）
+ bossUnko:'うんこを なすりつけると いやがるよ！|ひとの いやがることを しよう！',
+ big_nasu:'おおきなナスは|とても かたくて、うつと ボスに すごく きくよ！',big_neko:'おおきなこねこは|とても かたくて、うつと ボスに すごく きくよ！',
+ big_unko:'おおきなうんこは|かたくて、ボスに なすりつけると すごく きくよ！'};   // ボス戦の始めに（うんちありモード）
 const WIDE={sakana:1,chin:1,chinL:1};                 // 弾を消す範囲が広い
 let tipShown={},tipQueue=[];
 function roleTip(part){if(tipShown[part]||!ROLE[part])return;tipShown[part]=1;tipQueue.push(part)}
@@ -1022,7 +1024,7 @@ const VOICE_FILE={'こいぬ':'koinu','こねこ':'koneko','すいか':'suika','
  'ごりら':'gorira','きりん':'kirin','いるか':'iruka',
  'うんこ':'unko','うんち':'unchi','ちんちん':'chinchin','おちんちん':'ochinchin','ちんこ':'chinko','おちんこ':'ochinko','おうち':'ouchi',
  'なす':'nasu',legend:'legend',bossIntro:'boss_intro',thanks:'thanks',bossYuck:'boss_yuck',bossCry:'boss_cry',
- ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi','bossUnko'].map(k=>['tip_'+k,'tip_'+k])),
+ ...Object.fromEntries(['gorira','dog','iruka','onigiri','suika','ringo','sakana','cat','kirin','unko','unchi','chin','chinL','ouchi','bossUnko','big_nasu','big_neko','big_unko'].map(k=>['tip_'+k,'tip_'+k])),
  c2:'combo2',c3:'combo3',c4:'combo4',c5:'combo5',c6:'combo6',c:'combo'};
 const VOX={};let voxLoaded=false;
 // そろった瞬間に鳴らす「その物の音」（効果音ラボ。ごりら・おうちは VOICEVOX、いるかは合成）
@@ -1062,9 +1064,9 @@ function speakTTS(text){
   u.pitch=1.3;u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
 function unlockSpeech(){try{if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
 // カットイン：言葉ができた瞬間（声と同時）に出す。待っている間にほかの言葉が増えたら、吹き出しを書き足す
-function showCutin(words,combo){
+function showCutin(words,combo,noTip){
  if(cutin&&cutin.tip){for(const s of voxSrcs)try{s.stop()}catch(e){}voxSrcs=[];voiceQueueEnd=0;cutin=null}   // 説明より言葉が先（説明の声も止める）
- for(const w of words)if(WORD_PART[w])roleTip(WORD_PART[w]);   // 初めての言葉なら、すぐ後に役割の説明
+ if(!noTip)for(const w of words)if(WORD_PART[w])roleTip(WORD_PART[w]);   // 初めての言葉なら、すぐ後に役割の説明（絵合わせは別）
  const keep=cutin&&cutin.t<cutin.life-.3;              // 出ている途中なら、出し直しの動きはしない
  cutin={text:words.join('・')+'！',combo,t:keep?Math.min(cutin.t,.3):0,life:Math.max(2.6,1.2+words.length*.7)}}
 function announce(words,combo){                       // まとめて出る時：コンボなら「ツーコンボ！」
