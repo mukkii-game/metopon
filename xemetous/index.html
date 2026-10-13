@@ -292,6 +292,10 @@ function boardAt(px,py){                       // 照準の下の板とマス
   if(o.kind!=='puz'||o.done||o.solving||o.left||(o.emerge!==undefined&&o.emerge<1)||(o.grow!==undefined&&o.grow<1))continue;
   const c=Math.floor((px-o.x)/CELL),r=Math.floor((py-o.y)/CELL);
   if(r>=0&&r<o.h&&c>=0&&c<o.w)return{o,r,c}}
+ for(const o of ground){                             // 少しはみ出していても（照準が半分くらい かかっていれば）いちばん近いマス
+  if(o.kind!=='puz'||o.done||o.solving||o.left||(o.emerge!==undefined&&o.emerge<1)||(o.grow!==undefined&&o.grow<1))continue;
+  const m=CELL*.5;if(px<o.x-m||px>o.x+o.w*CELL+m||py<o.y-m||py>o.y+o.h*CELL+m)continue;
+  return{o,r:clamp(Math.floor((py-o.y)/CELL),0,o.h-1),c:clamp(Math.floor((px-o.x)/CELL),0,o.w-1)}}
  return null}
 // つかんで動かす（パズドラ式）
 let grab=null;
@@ -1084,7 +1088,7 @@ function drawGirl(x,y,s,talk){                       // 女の子（ちびキャ
  ctx.beginPath();ctx.arc(x+s*.38,y-s*.46,s*.07,0,Math.PI*2);ctx.fill()}
 function drawCutin(){
  if(!cutin)return;const c=cutin,k=Math.min(1,c.t/.15),out=Math.max(0,(c.t-(c.life-.3))/.3);
- const PH=104,y=H-PH-14+(1-k)*40,a=1-out;            // 画面の下（敵も地上物もいない所）に出す
+ const PH=104,y=H-PH-14+(1-k)*40,a=(1-out)*(ship.alive&&ship.y>H-PH-60?.45:1);   // 画面の下に出す。自機が下にいる時は薄く
  ctx.globalAlpha=a*.85;ctx.fillStyle='#1a140e';ctx.fillRect(8,y,W-16,PH);
  ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=2;ctx.strokeRect(8,y,W-16,PH);
  const talk=Math.floor(c.t*8)%2===0&&c.t<1.8,bounce=c.t<1.8?Math.abs(Math.sin(c.t*12))*3:0;
@@ -1558,7 +1562,9 @@ function draw(){
   ctx.font='bold '+Math.round(p.size*sc)+'px monospace';
   ctx.fillStyle='#1a140e';ctx.fillText(p.text,p.x+2,p.y+2);ctx.fillStyle=p.col;ctx.fillText(p.text,p.x,p.y)}
  ctx.globalAlpha=1;ctx.textAlign='left';
- drawGrabWait();drawCutin();drawBossTalk();
+ if(phase==='play'&&usedTouch){ctx.save();ctx.globalAlpha=.75;ctx.fillStyle='#1a140e';ctx.fillRect(W-46,8,38,30);ctx.strokeStyle='#f2d9a4';ctx.lineWidth=2;ctx.strokeRect(W-46,8,38,30);   // スマホ用 一時停止ボタン
+  ctx.fillStyle='#f2d9a4';ctx.fillRect(W-33,15,4,16);ctx.fillRect(W-25,15,4,16);ctx.restore()}
+ drawGrabWait();drawCutin();if(cutin&&ship.alive&&ship.y>H-150){drawShip();drawOpts()}drawBossTalk();   // 自機はカットインより上に描く
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')&&$('overlay').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
   ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   ctx.font='bold 30px sans-serif';ctx.fillStyle='#f6e7c1';ctx.fillText('一時停止',W/2,H/2-20);
@@ -1569,7 +1575,7 @@ function draw(){
    ctx.fillStyle='#1a140e';ctx.fillRect(8,24,W-16,18);ctx.fillStyle='#4a3620';ctx.fillRect(11,27,W-22,12);
    ctx.fillStyle=boss.flash>0?'#ffffff':k<.5?'#e2624a':'#f6e27a';ctx.fillRect(11,27,(W-22)*k,12);
    ctx.font='bold 10px monospace';ctx.fillStyle='#1a140e';ctx.fillText('インドアジェネシス  '+Math.ceil(boss.hp)+' / '+boss.max,16,37)}
-  else if(!boss){const left=Math.max(0,AREA_LEN*STRETCH/diff**.15-t);ctx.textAlign='right';ctx.fillText('要塞まで '+Math.ceil(left)+'秒',W-10,18)}
+  else if(!boss){const left=Math.max(0,AREA_LEN*STRETCH/diff**.15-t);ctx.textAlign='right';ctx.fillText('要塞まで '+Math.ceil(left)+'秒',usedTouch?W-54:W-10,18)}
   ctx.textAlign='left'}
  ctx.restore();
  if(flash>0){ctx.globalAlpha=Math.min(.8,flash);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
@@ -1608,6 +1614,7 @@ function groundUp(src){if(ignoreUp===src){ignoreUp=null;return}
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
  if(phase==='ending')return;
+ if(phase==='play'&&!paused&&e.pointerType!=='mouse'){const q=point(e);if(q.x>W-52&&q.y<46){togglePause('一時停止ボタン');return}}   // 右上の「II」
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')){togglePause();resumeT=performance.now();return}   // 止まっている時は画面を押すと再開
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
@@ -1637,7 +1644,7 @@ canvas.addEventListener('pointermove',e=>{
   nudge((p.x-touchMover.lx)*TOUCH_SENS,(p.y-touchMover.ly)*TOUCH_SENS);touchMover.lx=p.x;touchMover.ly=p.y;
   if(!touchMover.moved&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>TAP_MOVE){
    touchMover.moved=true}
-  if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>10){clearTimeout(touchMover.pend);touchMover.pend=null;if(touchMover.gauge){touchMover.gauge=false;chargeCancel()}}}});   // 動かした＝移動（様子見の間は だまって、ゲージ中なら シュウゥン）   // 置いてすぐ動かした＝移動だけ（シュウゥン）   // 置いてすぐ動かした＝移動だけ
+  if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>16){clearTimeout(touchMover.pend);touchMover.pend=null;if(touchMover.gauge){touchMover.gauge=false;chargeCancel()}}}});   // 動かした＝移動（様子見の間は だまって、ゲージ中なら シュウゥン）   // 置いてすぐ動かした＝移動だけ（シュウゥン）   // 置いてすぐ動かした＝移動だけ
 for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
  if(e.pointerType==='mouse')return;
  const up=e.type==='pointerup';
@@ -1685,7 +1692,7 @@ let pauseWhy='',resumeT=0;
 function togglePause(why,menu=true){if(phase!=='play')return;paused=!paused;pauseWhy=paused&&typeof why==='string'?why:'停止ボタン';
  $('pause').textContent=paused?'再開':'停止';bgmVolume(paused||!sound?0:.3);
  if(paused){mouseShoot=keyShoot=false;groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;touchMover=touchBtn=null;unlockMouse();
-  if(menu)overlay('一時停止','（'+pauseWhy+'）','Esc でも再開できる',[['再開',()=>{if(paused)togglePause()}],['タイトルに戻る',()=>{paused=false;$('pause').textContent='停止';showTitle()}]])}   // 止めた時のメニュー
+  if(menu)overlay('一時停止','（'+pauseWhy+'）','Esc でも再開できる',[['再開',()=>{if(paused)togglePause()}],['最初からやり直す',()=>{paused=false;$('pause').textContent='停止';$('overlay').classList.add('hidden');reset()}],['タイトルに戻る',()=>{paused=false;$('pause').textContent='停止';showTitle()}]])}   // 止めた時のメニュー
  else $('overlay').classList.add('hidden')}
 window.addEventListener('blur',()=>{if(phase==='play'&&!paused&&!usedTouch)togglePause('ほかの窓に移ったため')});   // スマホでは止めない（通知などでも起きるため）
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='play'&&!paused)togglePause('画面が隠れたため')});
@@ -1699,7 +1706,7 @@ function howtoHTML(){                               // 遊ぶ機械に合わせ�
  const pad=padUsed||[...(navigator.getGamepads?navigator.getGamepads():[])].some(g=>g&&g.connected);
  const row=(k,v)=>'<div class="r"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
  let h='';
- if(touch)h+=row('移動','ドラッグ')+row('空中攻撃','オート')+row('地上攻撃','タップ')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく3回タップ');
+ if(touch)h+=row('移動','ドラッグ')+row('空中攻撃','オート')+row('地上攻撃','タップ')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく3回タップ')+row('一時停止','右上の Ⅱ');
  else h+=row('移動','WASD・矢印・マウス')+row('空中攻撃','オート')+row('地上攻撃','クリック・N・M・Space')+row('パネル','つかんで、動かして、離す')+row('キャラ発射','すばやく3回')+row('一時停止','Esc');
  if(pad)h+='<div class="pad">コントローラ：スティック＝移動、A＝地上攻撃・パネル（3回連打で発射）、START＝一時停止</div>';
  return h}
