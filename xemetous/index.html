@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://mukkii-game.github.io/metopon/xemetous/">
 <meta property="og:title" content="ナスの地上絵（パイロット版）">
 <meta property="og:description" content="文字をつかんで、そろえて、うちこむ縦スクロールシューティング。ブラウザですぐ遊べます。">
-<meta property="og:image" content="https://mukkii-game.github.io/metopon/assets/img/logo_nasu.png">
+<meta property="og:image" content="https://mukkii-game.github.io/metopon/assets/img/logo_nasu.png?v=2">
 <meta property="og:image:width" content="1120"><meta property="og:image:height" content="680">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
@@ -44,6 +44,8 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 #overlay h2{font-size:19px;margin:8px 0;color:#f2d9a4}
 #overlay p{font-size:12.5px;line-height:1.6;color:#d9c49a;margin:6px 0}
 #overlay b{color:#f2d9a4}#overlay small{display:inline}
+#howto{margin:6px auto 2px;max-width:380px;text-align:left;font-size:12.5px;line-height:1.55;color:#e8d4a8}
+#howto b{color:#f6e27a}#howto .k{display:inline-block;min-width:5.5em;color:#f2d9a4}#howto .sub{font-size:11px;color:#bfa77a;margin-top:2px}
 #overlay button{background:#e0a93c;color:#2a1c0a;font-weight:bold;padding:12px 30px;border-color:#f2d9a4;margin-top:8px}
 #overlay button.sub{background:#3a2a17;color:#f2d9a4}
 #overlay button[data-mode]{padding:14px 48px;margin:8px 2px 0;font-size:17px}
@@ -68,9 +70,7 @@ canvas{display:block;flex:0 0 auto;touch-action:none;image-rendering:pixelated}
 <div id="status"><span id="score">SCORE 0</span><span id="power"></span><span id="lives">残機 ▲▲▲</span></div>
 <div id="stage"><canvas id="game"></canvas><div id="overlay"><div>
 <img id="logo" src="../assets/img/logo_nasu.png" alt="ナスの地上絵">
-<p><small>移動：なぞる／マウス／矢印・WASD　通常弾：自動<br>
-地上弾・つかむ（照準の1マス）：タップ／クリック／N・M を1回押す。つかんだ文字はもう1回で はなす<br>コントローラ：スティック/十字＝移動、A＝地上弾・つかむ、START＝一時停止<br>
-2回すばやく押す：出てきた物を撃ち出す</small></p>
+<div id="howto"></div>
 <p><button id="start" data-mode="all">スタート</button></p><p><small>Enter・Space でスタート</small></p>
 <div id="credit"><b>MUKKII</b>ALL RIGHTS RESERVED<br>声：VOICEVOX:春日部つむぎ・青山龍星　音楽・効果音：魔王魂<br>絵文字：Twemoji（CC-BY 4.0）　機体・地形：Kenney（CC0）</div></div></div>
 <div id="cfg" class="hidden"><div><h2>設定</h2><div id="cfglist"></div>
@@ -115,6 +115,7 @@ const LIVES=3;
 const SAND={deep:'#3a2a1a',dark:'#8f6d38',base:'#c8a062',light:'#ecd196',hi:'#faeecd'};
 
 let phase='ready',paused=false,time=0,t=0,area=1,diff=1,scroll=0,shake=0,flash=0,messageUntil=0;
+let padPrev=[],padUsed=false;                         // コントローラ（pollPad）
 let score=0,lives=LIVES,power=2,aim='h',groundHeld=false,armed=false;
 let ship,shots,ebul,air,ground,caps,feats,bomb,parts,booms,pops,script,si,timers=[];
 let items=[],missiles=[],boss=null;   // items＝宙に浮いたパーツ、missiles＝撃ち出したパーツ、boss＝地を這うボス
@@ -1243,7 +1244,7 @@ function startArea(){
  shots=[];ebul=[];air=[];ground=[];caps=[];feats=[];parts=[];booms=[];pops=[];bomb=null;
  t=0;timers=[];cutin=null;bossTalk=null;lineLeft={};lineInfo={};puzHintShown=false;tipQueue=[];fireT=-9;groups={};script=areaScript();si=0;time=0;aim='h';groundHeld=armed=false;groundSrc=null;pendBomb=null;grab=null;
  phase='play';$('overlay').classList.add('hidden');
- bgmVolume(sound&&!paused?.3:0);play('start');
+ bgmVolume(sound&&!paused?.3:0);   // 始まりの効果音は鳴らさない（パネルが出た音とまぎらわしい）
  message('AREA '+area+'　空の敵は通常弾、地上は地上弾',3);ui()}
 function loseLife(){
  if(!ship.alive||ship.inv>0)return;
@@ -1613,7 +1614,7 @@ window.addEventListener('keydown',e=>{
  keys.add(k);
  if(phase!=='play'||paused)return;
  if(e.repeat)return;
- if(k==='n'||k==='z'){audio();groundDown('k'+k,'h')}
+ if(k==='n'||k==='z'||k===' '){audio();groundDown('k'+k,'h')}   // Space でも地上攻撃
  if(k==='m'||k==='x'){audio();groundDown('k'+k,'v')}
  });
 window.addEventListener('keyup',e=>{
@@ -1632,7 +1633,27 @@ document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockEleme
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent='音 '+(sound?'ON':'OFF');bgmVolume(sound&&!paused&&bgmOn?.3:0)};
 $('bgm').onclick=()=>{bgmOn=!bgmOn;$('bgm').textContent='BGM '+(bgmOn?'ON':'OFF');
  if(bgmOn){audio();startBgm();bgmVolume(sound&&!paused?.3:0)}else stopBgm()};
+function howtoHTML(){                               // 遊ぶ機械に合わせた操作説明（わからない時は並べて書く）
+ const touch=matchMedia('(pointer: coarse)').matches||(navigator.maxTouchPoints>0&&!matchMedia('(pointer: fine)').matches);
+ const pad=padUsed||[...(navigator.getGamepads?navigator.getGamepads():[])].some(g=>g&&g.connected);
+ const L=[];
+ if(touch)L.push('<b>スマホ</b>',
+  '<span class="k">移動</span>画面のどこでも なぞる',
+  '<span class="k">地上攻撃</span>タップ',
+  '<span class="k">パネル</span>照準が文字・絵の上でタップ＝つかむ → なぞって動かす → もう1回タップ＝はなす',
+  '<span class="k">キャラ発射</span>キャラがくっついている時に すばやく2回タップ');
+ else L.push('<b>パソコン</b>',
+  '<span class="k">移動</span>WASD・矢印キー、またはマウス（クリックでマウスを固定、Esc で解除）',
+  '<span class="k">地上攻撃</span>N・M・Space キー、またはクリック',
+  '<span class="k">パネル</span>照準が文字・絵の上で押す＝つかむ → 動かす → もう1回押す＝はなす',
+  '<span class="k">キャラ発射</span>キャラがくっついている時に すばやく2回押す',
+  '<span class="k">一時停止</span>Esc');
+ if(pad)L.push('<b>コントローラ</b>','<span class="k">移動</span>スティック・十字　<span class="k">攻撃・つかむ</span>A（2回で発射）　START＝一時停止');
+ else if(!touch)L.push('<div class="sub">コントローラもつなげば使えます（スティック＝移動、A＝攻撃・つかむ、START＝一時停止）</div>');
+ L.push('<div class="sub">空の敵は自動で撃つ通常弾で。パネルの文字をそろえると、キャラが出てくる。照準でつかまえて くっつけよう</div>');
+ return L.join('<br>')}
 function bindTitle(){
+ if($('howto'))$('howto').innerHTML=howtoHTML();
  for(const el of document.querySelectorAll('#overlay button[data-mode]')){el.id=el.dataset.mode==='all'?'start':'start2';
   el.onclick=()=>{setMode(el.dataset.mode);audio();unlockSpeech();goFullscreen();keepAwake();reset()}}
 }
@@ -1794,7 +1815,6 @@ window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('stage'));resize();
 ship={x:W/2,y:H-120,tx:W/2,ty:H-120,alive:true,inv:0,opts:[]};shots=[];ebul=[];air=[];ground=[];caps=[];parts=[];booms=[];pops=[];script=[];si=0;
 // ---- コントローラ（どのゲームでも最初から対応）：スティック/十字＝移動、A・B・X・Y＝地上弾/つかむ/はなす（2回すばやく＝撃ち出す）、START＝一時停止
-let padPrev=[],padUsed=false;
 function pollPad(dt){
  const gps=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const g of gps)if(g&&g.connected){gp=g;break}
  if(!gp)return;
@@ -1810,7 +1830,7 @@ function pollPad(dt){
    if(x||y){const v=CFG.keySpeed*CFG.shipSpeed*dt;ship.tx=clamp(ship.tx+x*v,24,W-24);ship.ty=clamp(ship.ty+y*v,SIGHT_AHEAD+40,H-30);padUsed=true;mouseMode=false}
    if(down(0)||down(1)||down(2)||down(3)){padUsed=true;mouseMode=false;audio();groundPress('h')}}}
  padPrev=gp.buttons.map(q=>q.pressed)}
-window.addEventListener('gamepadconnected',()=>{padUsed=true;message('コントローラをつなぎました（A＝地上弾・つかむ、START＝一時停止）',3)});
+window.addEventListener('gamepadconnected',()=>{padUsed=true;if($('howto'))$('howto').innerHTML=howtoHTML();message('コントローラをつなぎました（A＝地上弾・つかむ、START＝一時停止）',3)});
 let last=performance.now();
 function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
  try{pollPad(dt);if(phase==='play'&&!paused)update(dt);else if(phase==='ending')updateEnding(dt);else scroll+=dt*SPD*.5;

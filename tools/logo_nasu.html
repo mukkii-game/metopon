@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8">
 <!-- タイトルロゴ。ブラウザ（Playwright）で #logo を撮って assets/img/logo_nasu.png にする（tools/make_logo.py）。
-     文字は大きく、ナスの地上絵は文字に重ねず、その下に置く -->
+     文字は大きく、ナスの地上絵とうんこの地上絵は文字に重ねず、その下に並べる -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&display=block">
 <style>
 body{margin:0;background:transparent}
@@ -12,18 +12,22 @@ h1{position:absolute;left:0;right:0;text-align:center;top:18px;margin:0;font-fam
  color:#f6e7c1;white-space:nowrap;
  text-shadow:0 2px 0 #fff8e4,0 -3px 0 #5a3e1e,3px 0 0 #5a3e1e,-3px 0 0 #5a3e1e,0 7px 0 #3a2a1a,5px 11px 0 #00000055}
 h1 span{font-size:60px}
-svg{position:absolute;left:225px;top:142px;width:110px;height:110px}
+svg{position:absolute;top:142px;width:110px;height:110px}
+#nasu{left:160px}#unko{left:290px}
 p{position:absolute;left:0;right:0;text-align:center;top:252px;margin:0;font-family:'DotGothic16';font-size:24px;letter-spacing:8px;color:#fff3d6;
  text-shadow:2px 2px 0 #3a2a1a,-1px -1px 0 #3a2a1a}
 small{position:absolute;left:0;right:0;text-align:center;top:290px;font-family:'DotGothic16';font-size:16px;letter-spacing:3px;color:#fff3d6;text-shadow:1px 1px 0 #3a2a1a}
 </style></head><body>
 <div id="logo">
 <h1>ナス<span>の</span>地上絵</h1>
-<svg viewBox="0 0 100 100"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<svg id="nasu" viewBox="0 0 100 100"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
 <g stroke="#3a2a1a" stroke-width="7"><ellipse cx="57" cy="60" rx="25" ry="34" transform="rotate(-36 57 60)"/>
 <path d="M20 12 L34 30 M22 36 L34 30 L30 46 M34 30 L50 26 M34 30 L46 40"/><path d="M38 70 Q44 82 58 86"/></g>
 <g stroke="#fff3d6" stroke-width="3.4"><ellipse cx="57" cy="60" rx="25" ry="34" transform="rotate(-36 57 60)"/>
 <path d="M20 12 L34 30 M22 36 L34 30 L30 46 M34 30 L50 26 M34 30 L46 40"/><path d="M38 70 Q44 82 58 86"/></g></g></svg>
+<svg id="unko" viewBox="0 0 100 100"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g stroke="#3a2a1a" stroke-width="7"><path d="M18 82 Q50 94 82 82 Q92 70 76 64 Q84 50 66 47 Q72 33 57 32 Q60 20 48 12 Q50 28 38 32 Q24 36 32 47 Q16 50 24 64 Q8 70 18 82 Z"/><path d="M27 64 Q50 73 73 64 M35 47 Q50 53 64 47"/></g>
+<g stroke="#fff3d6" stroke-width="3.4"><path d="M18 82 Q50 94 82 82 Q92 70 76 64 Q84 50 66 47 Q72 33 57 32 Q60 20 48 12 Q50 28 38 32 Q24 36 32 47 Q16 50 24 64 Q8 70 18 82 Z"/><path d="M27 64 Q50 73 73 64 M35 47 Q50 53 64 47"/></g></g></svg>
 <p>NASU NO CHIJOE</p>
 <small>— もじをつかんで、そろえて、うちこめ —</small>
 </div></body></html>
