@@ -323,7 +323,7 @@ function updateGrab(){
   if(ready&&!grab.ready){grab.ready=true;grab.readyAt=time;play('sq2',1.5,.5)}else if(!ready)grab.ready=false}}
 function endGrab(){
  if(graceT){clearTimeout(graceT);graceT=null}
- if(!grab)return;const o=grab.o,moved=grab.moves>0;grab=null;noGrabUntil=performance.now()+300;
+ if(!grab)return;const o=grab.o,moved=grab.moves>0;grab=null;noGrabUntil=performance.now()+300;play('swap',.8,.5);   // はなした音
  if(moved&&!o.done)resolveBoard(o)}
 // ---- 地上弾 -----------------------------------------------------------------
 function fireBomb(){
@@ -1501,6 +1501,9 @@ function chargeStop(){if(!chargeOsc)return;try{chargeOsc.g.gain.setTargetAtTime(
 function chargeCancel(){chargeStop();if(!sound||!ac)return;const t0=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='sine';   // 取り消し：シュウゥン（下がっていく音）
  o.frequency.setValueAtTime(700,t0);o.frequency.exponentialRampToValueAtTime(140,t0+.32);g.gain.setValueAtTime(.12,t0);g.gain.exponentialRampToValueAtTime(.001,t0+.34);
  o.connect(g);g.connect(outNode());o.start(t0);o.stop(t0+.36)}
+function drawTapHold(){                              // 短く押して つかんだままの時の しるし
+ if(!grab||!grab.tap||!ship.alive)return;const sp=sightPoint();ctx.save();ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+ const txt=usedTouch?'もう1回タップで はなす':'もう1回押すと はなす';ctx.fillStyle='#1a140e';ctx.fillText(txt,sp.x+1,sp.y-CELL*.75+1);ctx.fillStyle='#f6e27a';ctx.fillText(txt,sp.x,sp.y-CELL*.75);ctx.restore()}
 function drawSightTop(){                             // ボス戦：照準を要塞の上にもう一度描く
  if(!ship.alive)return;const sr=sightRect(),sp=sightPoint();
  sightFrame(sr.x,sr.y,sr.w,sr.h,'#ffffffdd',2);ctx.fillStyle='#ffffff';ctx.fillRect(sp.x-1,sp.y-5,2,10);ctx.fillRect(sp.x-5,sp.y-1,10,2)}
@@ -1571,7 +1574,7 @@ function draw(){
  ctx.globalAlpha=1;ctx.textAlign='left';
  if(phase==='play'&&usedTouch){ctx.save();ctx.globalAlpha=.75;ctx.fillStyle='#1a140e';ctx.fillRect(W-46,8,38,30);ctx.strokeStyle='#f2d9a4';ctx.lineWidth=2;ctx.strokeRect(W-46,8,38,30);   // スマホ用 一時停止ボタン
   ctx.fillStyle='#f2d9a4';ctx.fillRect(W-33,15,4,16);ctx.fillRect(W-25,15,4,16);ctx.restore()}
- drawGrabWait();drawCutin();if(cutin&&ship.alive&&ship.y>H-150){drawShip();drawOpts()}drawBossTalk();   // 自機はカットインより上に描く
+ drawGrabWait();drawTapHold();drawCutin();if(cutin&&ship.alive&&ship.y>H-150){drawShip();drawOpts()}drawBossTalk();   // 自機はカットインより上に描く
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')&&$('overlay').classList.contains('hidden')){   // 止まっている時は、止まった わけ と再開のしかたを出す
   ctx.fillStyle='#1a1109b8';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   ctx.font='bold 30px sans-serif';ctx.fillStyle='#f6e7c1';ctx.fillText('一時停止',W/2,H/2-20);
@@ -1609,14 +1612,14 @@ function groundPress(dir){                            // 1回押した：つか�
  if(hit){startGrab(hit);return}
  lastPressT=t;aim=dir;fireBomb()}
 const HOLD_MS=220,JUDGE_T=150,GAUGE_T=250,GRAB_WAIT=GAUGE_T;   // スマホ：様子見 JUDGE_T のあと、つかみゲージ GAUGE_T                    // GRAB_WAIT：スマホで指を置いて この時間 止めたら つかむ                                   // これより短く押して離した＝タップ（つかんだまま）。長く押していた・動かした＝離すと はなす
-function grabKeep(src){if(!grab)return;grab.src=src;grab.t0=performance.now();grab.m0=grab.moves;grab.tap=false}
+function grabKeep(src){if(!grab)return;grab.src=src;grab.t0=performance.now();grab.m0=grab.moves;grab.tap=false;grab.sx=ship.x;grab.sy=ship.y}
 function groundDown(src,dir){if(phase!=='play'||paused)return;
  if(grab&&grab.tap){endGrab();ignoreUp=src;return}    // タップでつかんでいた：もう1回押すと はなす
  const had=!!grab;groundPress(dir);if(!had&&grab)grabKeep(src)}
 let ignoreUp=null;
 function groundUp(src){if(ignoreUp===src){ignoreUp=null;return}
  if(!grab||grab.src!==src||grab.tap)return;
- if(performance.now()-grab.t0<HOLD_MS&&grab.moves===grab.m0)grab.tap=true;   // 短く押しただけ：つかんだまま（もう1回押すと はなす）
+ if(performance.now()-grab.t0<HOLD_MS&&grab.moves===grab.m0&&Math.hypot(ship.x-grab.sx,ship.y-grab.sy)<12)grab.tap=true;   // 短く押しただけで、自機も動かしていない時だけ「つかんだまま」   // 短く押しただけ：つかんだまま（もう1回押すと はなす）
  else endGrab()}                                      // 押し続けて動かした：離すと はなす
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
 canvas.addEventListener('pointerdown',e=>{
