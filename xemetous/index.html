@@ -300,7 +300,8 @@ function updateGrab(){
   const nr=grab.c!==c?grab.r:grab.r+Math.sign(r-grab.r),nc=grab.c!==c?grab.c+Math.sign(c-grab.c):grab.c;
   if(isLocked(o,nr,nc))break;   // できた言葉にぶつかったら、そこで止まる（はなさない）             // できた言葉にぶつかったら、そこで終わり
   swapCells(o.cells,[grab.r,grab.c],[nr,nc]);grab.r=nr;grab.c=nc;grab.moves++;play('swap',1.3+Math.random()*.2,.35);
-  if(o.type==='pic'?picSolved(o):wordsFound(o).some(f=>!f.cs.some(([a,b])=>isLocked(o,a,b)))){endGrab();return}}}   // そろったら、はなすまでもなく その場で確定
+  const ready=o.type==='pic'?picSolved(o):wordsFound(o).some(f=>!f.cs.some(([a,b])=>isLocked(o,a,b)));   // そろった：知らせるだけ。確定は はなした時
+  if(ready&&!grab.ready){grab.ready=true;grab.readyAt=time;play('sq2',1.5,.5)}else if(!ready)grab.ready=false}}
 function endGrab(){
  if(graceT){clearTimeout(graceT);graceT=null}
  if(!grab)return;const o=grab.o,moved=grab.moves>0;grab=null;noGrabUntil=performance.now()+300;
@@ -1344,8 +1345,8 @@ function update(dt){
  if(time>messageUntil)$('hint').textContent=hintText();
  ui()}
 function hintText(){
- if(padUsed&&!usedTouch)return grab?'つかんでいる：動かすと入れかわる。A で はなす（そろえば自動で決まる）':'スティック/十字＝移動（通常弾は自動）　A：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す　START＝一時停止';
- if(grab)return'つかんでいる：動かすと文字が入れかわる。もう1回押すと そこで はなす（そろえば自動で決まる）';
+ if(padUsed&&!usedTouch)return grab?'つかんでいる：動かすと入れかわる。A を離すと はなす（そろったら光る。はなすと決まる）':'スティック/十字＝移動（通常弾は自動）　A：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す　START＝一時停止';
+ if(grab)return'つかんでいる：動かすと文字が入れかわる。離すと（短く押した時はもう1回押すと）はなす。そろったら光り、はなすと決まる';
  if(mouseMode)return'マウス：移動（通常弾は自動）　クリック：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
  if(usedTouch)return'なぞる＝移動（通常弾は自動）　タップ：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す';
  return'矢印/WASD＝移動（通常弾は自動）　N・M：文字の上なら つかむ（もう1回で はなす）／それ以外は地上弾　2回すばやく＝撃ち出す'}
@@ -1387,6 +1388,7 @@ function drawGroundObjs(){
    for(let r=0;r<o.h;r++)for(let c=0;c<o.w;c++){const id=o.cells[r][c],x=o.x+c*CELL,y=o.y+r*CELL,ok=m.has(r*o.w+c);
     if(grab&&grab.o===o&&grab.r===r&&grab.c===c){ctx.fillStyle='#1a140e88';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);continue}   // つかんでいるマスは浮かせて描く
     drawCell(o,id,x,y,ok);
+    if(ok&&grab&&grab.o===o&&grab.ready){const b=.5+.5*Math.sin(time*16);ctx.globalAlpha=a*(.25+.35*b);ctx.fillStyle='#fff6a0';ctx.fillRect(x,y,CELL,CELL);ctx.globalAlpha=a;ctx.strokeStyle='#f6e27a';ctx.lineWidth=3;ctx.strokeRect(x+1.5,y+1.5,CELL-3,CELL-3)}   // そろっている（はなすと決まる）
     const fl=o.solving&&time-o.flashAt<FLASH_T?o.flashAt:isLocked(o,r,c)?(o.pend.words.find(f=>f.cs.some(([a2,b2])=>a2===r&&b2===c)).at||-9):-9;
     if(time-fl<FLASH_T){const on=Math.floor((time-fl)*16)%2===0,k=1+.12*Math.sin((time-fl)/FLASH_T*Math.PI);   // そろった瞬間：ぴかぴか点滅して ふくらむ
      ctx.save();ctx.translate(x+CELL/2,y+CELL/2);ctx.scale(k,k);ctx.translate(-x-CELL/2,-y-CELL/2);
