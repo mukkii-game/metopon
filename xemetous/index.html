@@ -473,6 +473,7 @@ function spawnAir(kind,x,o={}){
  if(kind==='plate'){e.ph=x*.02;e.vy=SPD+40;e.size=34*Z;e.hp=Infinity}
  if(kind==='barrage'){e.vy=120;e.sprite='enemy4';e.size=64*Z;e.tough=40}
  if(kind==='giddo'){e.vy=190;e.x0=x;e.amp=e.amp||100;e.sprite='enemy2';e.size=34*Z}
+ if(kind==='flyer'){e.size=e.size||30*Z;e.sprite=e.sprite||'enemy1';e.rot=0}
  air.push(e)}
 function aimShot(x,y,spd=CFG.eSpeed){
  if(!ship.alive)return;
@@ -514,13 +515,15 @@ function updateAir(dt){
      for(let k=-2;k<=2;k++){const a=Math.atan2(ship.y-e.y,ship.x-e.x)+k*.22;ebul.push({x:e.x,y:e.y+18,vx:Math.cos(a)*95,vy:Math.sin(a)*95,soft:true})}}
     if(e.ft>7.5)e.st=3}
    else{e.vy=toward(e.vy,-200,300,dt)}}
+  if(e.kind==='flyer'){const px=e.x,py=e.y;e.mv(e,dt);const dx=e.x-px,dy=e.y-py;if(dx*dx+dy*dy>.01)e.rot=Math.atan2(dy,dx)-Math.PI/2;   // 進む方向を向く
+   if(e.t>e.life||(e.t>1.5&&(e.y>H+70||e.y<-70||e.x<-70||e.x>W+70)))e.gone=true;continue}
   if(e.kind==='giddo')e.x=e.x0+Math.sin(e.t*2.6)*e.amp;
   if(e.kind!=='giddo')e.x+=e.vx*dt;
   e.y+=e.vy*dt;
   if(e.y>H+40||e.y<-60||e.x<-60||e.x>W+60)e.gone=true}
  air=air.filter(e=>!e.gone&&!e.dead)}
 function killAir(e,mult=1){
- e.dead=true;const pts=({ring:30,torkan:50,zakato:150,giddo:80,barrage:3000}[e.kind]||30)*mult;score+=pts;
+ e.dead=true;const pts=({ring:30,torkan:50,zakato:150,giddo:80,barrage:3000,flyer:40}[e.kind]||30)*mult;score+=pts;
  if(mult>1)pop(e.x,e.y-12,'+'+pts,'#8fe0ff',13);
  boom(e.x,e.y,2);burst(e.x,e.y,8,'#ffe0a0');play('kill',.95+Math.random()*.1,.8);
  if(e.g&&--groups[e.g]===0&&e.gn>=4){const b=100*e.gn;score+=b;        // 編隊を全部落とした
@@ -1127,6 +1130,30 @@ function drawCutin(){
 //  導入 → 地上の間 → 空の山 → 休み（パズル） → パキュラの壁 → 締めの山 → 静かに終わる
 const AREA_LEN=162;               // ここでボスが出る（森の前の +8・+6 と、ボス前の猶予 12秒をふくむ）               // ここでボスが出る（台本の時刻。実際は ×STRETCH）
 let gid=0;
+// やられ役の編隊（撃たない）：
+//  side   … 右上か左上から横に入ってきて、波打ちながら反対へ抜ける
+//  bottom … 下から上へ出てきて、上で くるっと回り、自機の方へ もどってくる
+//  loop   … 上から入って、画面の中を ぐるぐる回ってから（ギャラガ風）上へ帰る
+//  swoop  … 上の角から大きく弧を描いて 反対側の下へ抜ける
+function flyWave(type,n,o={}){
+ const g=++gid,dir=o.dir!=null?o.dir:(Math.random()<.5?-1:1),gap=o.gap||.22,spr=o.sprite||{side:'enemy2',bottom:'zako22',loop:'enemy1',swoop:'enemy4'}[type];
+ const y0=o.y0!=null?o.y0:70+rnd(90),x0=o.x0!=null?o.x0:(dir<0?W*.3:W*.7),cy=o.cy||250,R=o.r||110;
+ for(let i=0;i<n;i++)later(i*gap,()=>{
+  let mv,x,y,life=9;
+  if(type==='side'){x=dir<0?-30:W+30;y=y0;mv=(e,dt)=>{e.t+=dt;e.x+=(dir<0?1:-1)*170*dt;e.y=y0+Math.sin(e.t*2.4)*36}}
+  else if(type==='bottom'){x=x0+(i%2?16:-16);y=H+30;let h=-Math.PI/2,turned=0,ph=0;   // 下から上へ → 上でUターン → 自機の方へ
+   mv=(e,dt)=>{e.t+=dt;const v=270;
+    if(ph===0){if(e.y<150)ph=1}
+    else if(ph===1){const w=dir*4.6*dt;h+=w;turned+=Math.abs(w);if(turned>=Math.PI){ph=2;h=Math.atan2(ship.y-e.y,ship.x-e.x)}}
+    e.x+=Math.cos(h)*v*dt;e.y+=Math.sin(h)*v*dt}}
+  else if(type==='loop'){x=x0+(i%2?10:-10);y=-30;let h=Math.PI/2,turned=0,ph=0;      // 上から入って 1回半まわってから 上へ帰る（ギャラガ風）
+   mv=(e,dt)=>{e.t+=dt;const v=230;
+    if(ph===0){if(e.y>cy-R)ph=1}
+    else if(ph===1){const w=dir*(v/R)*dt;h+=w;turned+=Math.abs(w);if(turned>=Math.PI*3)ph=2}
+    e.x+=Math.cos(h)*v*dt;e.y+=Math.sin(h)*v*dt};life=12}
+  else{x=dir<0?-20:W+20;y=40;const sx=x,ex=dir<0?W+40:-40;   // swoop：2次曲線で弧を描く
+   mv=(e,dt)=>{e.t+=dt;const u=Math.min(1.2,e.t/2.6);e.x=sx+(ex-sx)*u;e.y=40+Math.sin(Math.min(1,u)*Math.PI)*(H*.55)*(1-.3*u)+(u>1?(u-1)*600:0)}}
+  spawnAir('flyer',x,{y,mv,life,sprite:spr,g,gn:n})})}
 function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
  if(Math.random()<.5){side=-side;if(x0!==undefined)x0=W-x0}   // 毎プレイ違う：左右はランダム
  if(x0!==undefined)x0=clamp(x0+(Math.random()-.5)*60,40,W-40);
@@ -1147,17 +1174,17 @@ function areaScript(){
  //  P1 0〜20 → E1 20〜32 → P2 32〜56（森の前・長め）→ E2 56〜70 森 → P3 70〜88 → E3 88〜100 ばらまき
  //  → P4 100〜120（森2の前・長め）→ E4 120〜135 ボス前の波状攻撃（パネルこまめ）→ 136 要塞
  const MSG=(tm,txt)=>G(tm,()=>{message(txt,3.2);play('warn',1.3,.5)});
- const FOD=(tm,side)=>G(tm,()=>ringWave(side,5));     // 撃ってこない編隊（なぐさみ）
+ const FOD=(tm,side)=>G(tm,()=>flyWave(Math.random()<.5?'side':'swoop',5,{dir:side}));   // 撃ってこない編隊（なぐさみ）：横から・弧を描いて
  // ---- P1 パネルの時間 ----
  G(2.0,()=>spawnLine('pyramid',W/2+40,170,3,'h',14));
  G(8.0,()=>spawnLine('pyramid',140,400,4,'h',14));
  FOD(11,-1);FOD(16,1);
  // ---- E1 敵の時間：編隊とトーカン ----
  MSG(19.5,'敵の編隊が来る！');
- G(20.5,()=>ringWave(-1,8));
- G(22.5,()=>ringWave(1,8,{shooters:[7]}));
+ G(20.5,()=>flyWave('side',7,{dir:-1,y0:90}));                          // 右上から横に
+ G(22.5,()=>flyWave('side',7,{dir:1,y0:170}));                          // 左上から横に
  G(25.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
- G(27.0,()=>ringWave(-1,8,{shooters:[3]}));
+ G(27.0,()=>flyWave('loop',7));                                          // ぐるぐる回る（ギャラガ風）
  G(29.5,()=>spawnAir('giddo',W/2,{amp:110}));
  // ---- P2 パネルの時間（森の前なので長め） ----
  G(32.5,()=>spawnLine('pyramid',W/2,170,3,'h',14));
@@ -1169,7 +1196,7 @@ function areaScript(){
  MSG(55.0,'パキュラの森！ すき間をぬけろ（キャラなら壊せる）');
  G(56.5,()=>bakuraRows(5,1.8));
  G(57.5,()=>ringWave(-1,8,{shooters:[7]}));
- G(60.0,()=>ringWave(1,8));
+ G(60.0,()=>flyWave('bottom',6));                                        // 下から出てきて 自機の方へ
  G(63.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
  G(66.0,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
  // ---- P3 パネルの時間 ----
@@ -1180,8 +1207,8 @@ function areaScript(){
  // ---- E3 弾をばらまく敵＋編隊 ----
  MSG(87.5,'弾をばらまく敵！ 編隊もいっしょに来るぞ');
  G(88.5,()=>spawnAir('barrage',W/2));
- G(90.0,()=>ringWave(-1,8));
- G(92.5,()=>ringWave(1,8,{shooters:[0]}));
+ G(90.0,()=>flyWave('swoop',6,{dir:1}));
+ G(92.5,()=>flyWave('swoop',6,{dir:-1}));
  G(95.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
  // ---- P4 パネルの時間（森2の前なので長め） ----
  G(100.5,()=>spawnLine('pyramid',W/2,170,5,'h',14));
@@ -1195,9 +1222,9 @@ function areaScript(){
  G(121.5,()=>ringWave(-1,6,{x0:60}));
  G(123.5,()=>spawnLine('pyramid',W/2,170,3,'h',9));
  G(126.0,()=>{for(let i=0;i<4;i++)later(i*.3,()=>spawnAir('torkan',80+i*93,{stopY:100+i%2*60}))});
- G(127.5,()=>ringWave(1,8,{shooters:[2,6]}));
+ G(127.5,()=>flyWave('loop',8));
  G(129.0,()=>spawnLine('pyramid',120,400,3,'h',8));
- G(130.0,()=>ringWave(-1,8));
+ G(130.0,()=>flyWave('bottom',7));
  G(132.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
  G(133.0,()=>spawnLine('pyramid',330,250,3,'h',8));
  G((UNCHI_T/STRETCH)-8,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
@@ -1538,6 +1565,9 @@ function drawAir(){
    else{ctx.fillStyle='#4a3a5a';ctx.fillRect(x0,y0,w,h);ctx.fillStyle='#2a2036';ctx.fillRect(x0+3,y0+Math.max(1,h*.2),w-6,Math.max(1,h*.6));   // 裏：暗い紫
     ctx.fillStyle='#e2624a';ctx.fillRect(Math.round(e.x-3),Math.round(e.y-Math.max(1,h*.15)),6,Math.max(2,Math.round(h*.3)))}
    if(h<=6){ctx.fillStyle='#d8e4ea';ctx.fillRect(x0,Math.round(e.y-1),w,2)}}   // 真横を向いた時の縁
+  else if(e.kind==='flyer'&&has('kenney_ships')){const sz=e.size*1.15;   // やられ役：進む方向を向いて飛ぶ
+   ctx.save();ctx.translate(e.x+14,e.y+21);ctx.rotate(e.rot);drawKShadow(e.sprite,0,0,sz,0);ctx.restore();
+   ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.rot);drawKShip(e.sprite,0,0,sz);ctx.restore()}
   else if(e.sprite&&(drawKShadow(e.sprite,e.x,e.y,e.size*1.15,14),drawKShip(e.sprite,e.x+(e.panic?Math.sin(e.spinP||0)*3:0),e.y,e.size*1.15))){}   // Kenney の機体（32px の絵は余白があるので少し大きめに）
   else if(has(e.sprite)){const im=IMG[e.sprite],w=e.size,h=e.size*im.height/im.width,jx=e.panic?Math.sin(e.spinP||0)*3:0;
    ctx.drawImage(im,Math.round(e.x-w/2+jx),Math.round(e.y-h/2),w,h)}
