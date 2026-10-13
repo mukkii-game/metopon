@@ -1138,21 +1138,23 @@ let gid=0;
 function flyWave(type,n,o={}){
  const g=++gid,dir=o.dir!=null?o.dir:(Math.random()<.5?-1:1),gap=o.gap||.22,spr=o.sprite||{side:'enemy2',bottom:'zako22',loop:'enemy1',swoop:'enemy4'}[type];
  const y0=o.y0!=null?o.y0:70+rnd(90),x0=o.x0!=null?o.x0:(dir<0?W*.3:W*.7),cy=o.cy||250,R=o.r||110;
+ const STAY=o.stay||3.6;                              // 入ってきてから 画面の中で ぐるぐる 遊んでいる時間（やられ役なので しばらく いる）
+ // 向き h（ラジアン）で進む。phase：in（すばやく入る）→ stay（画面の中で まわる）→ out（出ていく）
+ const steer=(e,target,rate,dt)=>{let d=((target-e.h+Math.PI*3)%(Math.PI*2))-Math.PI;e.h+=clamp(d,-rate*dt,rate*dt)};
  for(let i=0;i<n;i++)later(i*gap,()=>{
-  let mv,x,y,life=9;
-  if(type==='side'){x=dir<0?-30:W+30;y=y0;mv=(e,dt)=>{e.t+=dt;e.x+=(dir<0?1:-1)*170*dt;e.y=y0+Math.sin(e.t*2.4)*36}}
-  else if(type==='bottom'){x=x0+(i%2?16:-16);y=H+30;let h=-Math.PI/2,turned=0,ph=0;   // 下から上へ → 上でUターン → 自機の方へ
-   mv=(e,dt)=>{e.t+=dt;const v=270;
-    if(ph===0){if(e.y<150)ph=1}
-    else if(ph===1){const w=dir*4.6*dt;h+=w;turned+=Math.abs(w);if(turned>=Math.PI){ph=2;h=Math.atan2(ship.y-e.y,ship.x-e.x)}}
-    e.x+=Math.cos(h)*v*dt;e.y+=Math.sin(h)*v*dt}}
-  else if(type==='loop'){x=x0+(i%2?10:-10);y=-30;let h=Math.PI/2,turned=0,ph=0;      // 上から入って 1回半まわってから 上へ帰る（ギャラガ風）
-   mv=(e,dt)=>{e.t+=dt;const v=230;
-    if(ph===0){if(e.y>cy-R)ph=1}
-    else if(ph===1){const w=dir*(v/R)*dt;h+=w;turned+=Math.abs(w);if(turned>=Math.PI*3)ph=2}
-    e.x+=Math.cos(h)*v*dt;e.y+=Math.sin(h)*v*dt};life=12}
-  else{x=dir<0?-20:W+20;y=40;const sx=x,ex=dir<0?W+40:-40;   // swoop：2次曲線で弧を描く
-   mv=(e,dt)=>{e.t+=dt;const u=Math.min(1.2,e.t/2.6);e.x=sx+(ex-sx)*u;e.y=40+Math.sin(Math.min(1,u)*Math.PI)*(H*.55)*(1-.3*u)+(u>1?(u-1)*600:0)}}
+  let mv,x,y,life=14,h0;
+  if(type==='side'){x=dir<0?W+30:-30;y=y0+(i%2?12:-12);h0=dir<0?Math.PI:0}            // 右上から（dir<0）／左上から
+  else if(type==='bottom'){x=x0+(i%2?16:-16);y=H+30;h0=-Math.PI/2}                   // 下から上へ
+  else if(type==='loop'){x=x0+(i%2?10:-10);y=-30;h0=Math.PI/2}                       // 上から
+  else{x=dir<0?-20:W+20;y=40;h0=dir<0?Math.PI*.25:Math.PI*.75}                        // 角から斜めに
+  const turn=(type==='loop'?1:-1)*dir;
+  mv=(e,dt)=>{e.t+=dt;if(e.h==null){e.h=h0;e.ph='in'}
+   if(e.ph==='in'){const v=300;e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt;
+    if(type==='side'&&(dir<0?e.x<W*.62:e.x>W*.38)||type==='bottom'&&e.y<H*.42||type==='loop'&&e.y>cy-R||type==='swoop'&&e.y>H*.3){e.ph='stay';e.st=0}}
+   else if(e.ph==='stay'){e.st+=dt;const v=type==='loop'?230:170,r=type==='loop'?R:62;e.h+=turn*(v/r)*dt;   // 画面の中で まわる
+    e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt;e.x=clamp(e.x,30,W-30);e.y=clamp(e.y,50,H*.7);
+    if(e.st>(type==='loop'?4.5:STAY)){e.ph='out';e.out=type==='bottom'?Math.atan2(ship.y-e.y,ship.x-e.x):type==='side'?(dir<0?Math.PI:0):type==='loop'?-Math.PI/2:(dir<0?Math.PI*.3:Math.PI*.7)}}
+   else{steer(e,e.out,3.5,dt);const v=270;e.x+=Math.cos(e.h)*v*dt;e.y+=Math.sin(e.h)*v*dt}};
   spawnAir('flyer',x,{y,mv,life,sprite:spr,g,gn:n})})}
 function ringWave(side,n,{gap=.24,shooters=[],x0}={}){       // トーロイドの列：片側から斜めに並んで降りてくる
  if(Math.random()<.5){side=-side;if(x0!==undefined)x0=W-x0}   // 毎プレイ違う：左右はランダム
@@ -1847,19 +1849,22 @@ function pumpAudio(){if(audioBusy||!audioQ.length||!ac)return;audioBusy=true;con
 function loadSfx(){if(sfxLoaded||!ac)return;sfxLoaded=true;
  for(const n of SFX_NAMES){if(n==='bgm')continue;
   loadAudio('../assets/'+(MAOU_SFX.includes(n)?'sfx_maou/':'sfx/')+n+'.wav',b=>{SFX[n]=b},true)}
- for(const [k,f] of Object.entries(BGM_FILE))
-  loadAudio('../assets/bgm/'+f+'.mp3',b=>{SFX['bgm_'+k]=b;if(k===bgmName)startBgm()},k===bgmName||k==='stage')}
-function setBgm(name){if(name===bgmName&&bgmSrc)return;bgmName=name;stopBgm();startBgm()}
+ }
+function setBgm(name){if(name===bgmName&&bgmSrc)return;stopBgm();bgmName=name;startBgm()}
 // BGM。効果音と同じ仕組みでループ再生する
 let bgmSrc=null,bgmGain=null;
 let bgmOn=true;                                   // BGM は最初から鳴らす（BGMボタンで切り替え）
+// BGM は丸ごと読み込まず、<audio> で少しずつ流す（大きな曲を一度に変換すると、スマホで かくつく・メモリを食う）
+const bgmEl={},bgmNode={};
+function bgmElement(name){if(!BGM_FILE[name])return null;
+ if(!bgmEl[name]){const a=new Audio('../assets/bgm/'+BGM_FILE[name]+'.mp3');a.loop=true;a.preload='auto';a.crossOrigin='anonymous';bgmEl[name]=a}
+ return bgmEl[name]}
 function startBgm(){
- const buf=SFX['bgm_'+bgmName];
- if(!bgmOn||!ac||!buf||bgmSrc)return;
- bgmGain=ac.createGain();bgmGain.gain.value=sound&&!paused?.3:0;
- bgmSrc=ac.createBufferSource();bgmSrc.buffer=buf;bgmSrc.loop=true;
- bgmSrc.connect(bgmGain);bgmGain.connect(outNode());bgmSrc.start()}
-function stopBgm(){if(bgmSrc){try{bgmSrc.stop()}catch(e){}bgmSrc=null;bgmGain=null}}
+ if(!bgmOn||!ac||!bgmName||bgmSrc)return;const el=bgmElement(bgmName);if(!el)return;
+ if(!bgmNode[bgmName]){try{bgmNode[bgmName]=ac.createMediaElementSource(el)}catch(e){return}}
+ bgmGain=ac.createGain();bgmGain.gain.value=sound&&!paused?.3:0;bgmNode[bgmName].connect(bgmGain);bgmGain.connect(outNode());
+ try{el.currentTime=0}catch(e){}const pr=el.play();if(pr&&pr.catch)pr.catch(()=>{});bgmSrc=el}
+function stopBgm(){if(bgmSrc){try{bgmSrc.pause()}catch(e){}try{bgmNode[bgmName]&&bgmNode[bgmName].disconnect()}catch(e){}bgmSrc=null;bgmGain=null}}
 function bgmVolume(v){if(bgmGain)bgmGain.gain.value=bgmOn?v:0}
 // iPhone は着信スイッチが「消音」だと WebAudio まで黙るので、
 // 無音の <audio> を一度鳴らして再生扱いにしておく。
