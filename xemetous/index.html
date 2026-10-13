@@ -1622,13 +1622,17 @@ function groundUp(src){if(ignoreUp===src){ignoreUp=null;return}
  if(performance.now()-grab.t0<HOLD_MS&&grab.moves===grab.m0&&Math.hypot(ship.x-grab.sx,ship.y-grab.sy)<12)grab.tap=true;   // 短く押しただけで、自機も動かしていない時だけ「つかんだまま」   // 短く押しただけ：つかんだまま（もう1回押すと はなす）
  else endGrab()}                                      // 押し続けて動かした：離すと はなす
 // タッチ：なぞる＝移動。動かさずに押して離す＝地上弾（押している間は照準の形が固定）
-canvas.addEventListener('pointerdown',e=>{
+// タッチは ゲーム画面の外（下の黒い説明らん・まわりの黒い帯）でも操作できる。ボタン・メニュー・設定の上だけは除く
+const offUI=e=>e.target&&e.target.closest&&e.target.closest('button,#overlay,#cfg,header,#top,a,input');
+const touchArea=document;
+touchArea.addEventListener('pointerdown',e=>{
+ if(offUI(e))return;if(e.pointerType==='mouse'&&e.target!==canvas)return;
  if(phase==='ending')return;
- if(phase==='play'&&!paused&&e.pointerType!=='mouse'){const q=point(e);if(q.x>W-52&&q.y<46){togglePause('一時停止ボタン');return}}   // 右上の「II」
+ if(phase==='play'&&!paused&&e.pointerType!=='mouse'){const q=point(e);if(q.x>W-52&&q.x<W&&q.y>0&&q.y<46){togglePause('一時停止ボタン');return}}   // 右上の「II」
  if(phase==='play'&&paused&&$('cfg').classList.contains('hidden')){togglePause();resumeT=performance.now();return}   // 止まっている時は画面を押すと再開
  if(e.pointerType==='mouse'||phase!=='play'||paused)return;
  usedTouch=true;mouseMode=false;audio();
- try{canvas.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
+ try{e.target.setPointerCapture(e.pointerId)}catch(err){}   // 端末によっては投げるので止めない
  const p=point(e);
  const dir='h';                                       // 照準は1マス（向きは無い）
  if(touchMover&&!e.isPrimary){touchBtn=e.pointerId;return}   // 動かしている間に別の指：その指を離した時に1回押したことにする
@@ -1645,8 +1649,9 @@ canvas.addEventListener('pointerdown',e=>{
  });   // タッチは、動かさずに押して離した（タップ）時に1回押したことにする   // 文字の上では、少し長押ししてからつかむ                      // 動かさずに離せば地上弾。動かしたら取り消し
 // 移動はゼビウスのように「動かした方向・量」で動く（指やカーソルの位置へ飛ばない）
 function nudge(dx,dy){ship.tx=clamp(ship.tx+dx,24,W-24);ship.ty=clamp(ship.ty+dy,SIGHT_AHEAD+40,H-30)}
-canvas.addEventListener('pointermove',e=>{
+touchArea.addEventListener('pointermove',e=>{
  if(phase!=='play'||paused)return;
+ if(e.pointerType==='mouse'&&e.target!==canvas&&!document.pointerLockElement)return;
  if(e.pointerType==='mouse'){mouseMode=true;
   const b=canvas.getBoundingClientRect();
   nudge(e.movementX/b.width*W*MOUSE_SENS,e.movementY/b.height*H*MOUSE_SENS);return}
@@ -1655,7 +1660,7 @@ canvas.addEventListener('pointermove',e=>{
   if(!touchMover.moved&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>TAP_MOVE){
    touchMover.moved=true}
   if(touchMover.pend&&Math.hypot(p.x-touchMover.sx,p.y-touchMover.sy)>16){clearTimeout(touchMover.pend);touchMover.pend=null;if(touchMover.gauge){touchMover.gauge=false;chargeCancel()}}}});   // 動かした＝移動（様子見の間は だまって、ゲージ中なら シュウゥン）   // 置いてすぐ動かした＝移動だけ（シュウゥン）   // 置いてすぐ動かした＝移動だけ
-for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{
+for(const ev of ['pointerup','pointercancel'])touchArea.addEventListener(ev,e=>{
  if(e.pointerType==='mouse')return;
  const up=e.type==='pointerup';
  if(touchBtn===e.pointerId){touchBtn=null;if(up&&phase==='play'&&!paused)groundPress('h')}
