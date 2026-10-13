@@ -560,7 +560,7 @@ function fixedRect(g){const k=g.kind==='bigpyr'?1.6:.55;return[g.x-CELL*k,g.y-CE
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
  for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
   if(g.kind==='puz'){const y=g.lane!=null?g.lane:g.stopY;if(y==null)continue;a=g.x-40;b=y-30;c=g.x+g.w*CELL+40;d=y+g.h*CELL+30}   // 板はうろうろするので広めに
-  else{if(g.stopY==null||g.hold<=0)continue;const k=g.kind==='bigpyr'?1.7:.6;a=g.x-CELL*k;b=g.stopY-CELL*k;c=g.x+CELL*k;d=g.stopY+CELL*k}
+  else{if(g.stopY==null||g.hold<=0)continue;const k=g.kind==='bigpyr'?1.7:.6;a=g.x-CELL*k;b=Math.min(g.y,g.stopY)-CELL*k;c=g.x+CELL*k;d=g.stopY+CELL*k}   // まだ降りてくる途中なら、今いる所から止まる所までの通り道ぜんぶ
   if(x0<c&&a<x1&&y0<d&&b<y1)return false}
  return true}
 // 地上物を壊すとパズル：ひとつだけのピラミッド → 絵合わせ、並んだ地上物を全部 → 文字そろえ（4つ以上なら 5×3）
