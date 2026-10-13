@@ -603,7 +603,7 @@ function updateWander(o,dt){
 // ・生まれてから CHAR_LIFE 秒たつと、どこかへ飛んで行ってしまう。くっついている間も通常弾は撃てる。
 // ・地上弾を**2回すばやく押す**と全部を撃ち出してボスにぶつける（飛んでいる間は時間切れにならない）。
 //   威力は HP の減り具合と関係なし。n 体同時なら n 倍、コンボで生まれたぶんはさらにコンボ数倍。
-const CHAR_LIFE=22;
+const CHAR_LIFE=22,BULLET_DMG=.2;                   // キャラは弾にかなり強い（1発で HP 0.2 だけ減る）。消えるのは主に時間切れ（22秒）
 const PART={                                          // pow・hp は文字1つぶん（集まると文字の数だけ足される）
  unko:{name:'うんこ',pow:15,hp:2},unchi:{name:'うんち',pow:12,hp:2},chin:{name:'ちんちん',pow:14,hp:2},chinL:{name:'おちんちん',pow:22,hp:2},
  ouchi:{name:'おうち',pow:12,hp:3},dog:{name:'こいぬ',pow:16,hp:2},cat:{name:'こねこ',pow:14,hp:2},suika:{name:'すいか',pow:18,hp:3},
@@ -654,10 +654,10 @@ function updateParts(dt){
    o.yuckT=(o.yuckT||0)-dt;if(o.yuckT<=0){o.yuckT=.6;o.hp--;o.hitT=.15;bossDamage(o.big?36:12,p.x,p.y-10,false);if(boss.yuck<=0&&time-(boss.yuckSaid||-9)>3&&CFG.voice&&sound){boss.yuckSaid=time;playVoice(['bossYuck'])}boss.yuck=1.8;play('hit',.7,.6)}}
   if(o.part==='cat')for(const g of ground)if(g.kind!=='puz'&&!g.dead&&Math.hypot(g.x-p.x,g.y-p.y)<r+18){destroyFixed(g);o.hp--;o.hitT=.15;pop(p.x,p.y-r-8,'ニャッ','#ffd080',13)}   // こねこ：地上の敵を壊す
   const wr=r+4+(WIDE[o.part]?16:0);
-  for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.soft){o.hp--;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
+  for(const b of ebul)if(!b.dead&&(Math.hypot(b.x-p.x,b.y-p.y)<wr||o.part==='kirin'&&Math.abs(b.x-p.x)<r&&b.y<p.y&&b.y>p.y-r-90)){b.dead=true;if(!b.soft){o.hp-=BULLET_DMG;o.hitT=.15}burst(b.x,b.y,5,'#c8a060');play('hit',2.2,.25)}
   for(const e of air){if(e.dead||e.panic||e.alpha<.5)continue;
    if(Math.hypot(e.x-p.x,e.y-p.y)<e.size*.4+r){       // ザコもパキュラも倒す
-    if(e.hp===Infinity){score+=500;pop(e.x,e.y-14,'パキュラ撃破 +500','#f6e27a',14);o.hp-=2}else o.hp--;
+    if(e.hp===Infinity){score+=500;pop(e.x,e.y-14,'パキュラ撃破 +500','#f6e27a',14);o.hp-=1}else o.hp-=.5;
     killAir(e);o.hitT=.15;if(o.part==='dog')pop(p.x,p.y-r-8,'ガブッ','#ffd080',13)}}
   if(o.hp<=0){o.dead=true;boom(p.x,p.y,o.big?3:2);play('boom_s',1.4)}}
  ship.opts=ship.opts.filter(o=>!o.dead);
