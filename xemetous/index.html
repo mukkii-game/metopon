@@ -520,7 +520,7 @@ function spawnGround(kind,x,{stopY,hold=8,arg}={}){
   if(blocked(o.x)){const xs=[];for(let X=14;X<=W-14-pw;X+=20)xs.push(X);xs.sort((a,b)=>Math.abs(a-o.x)-Math.abs(b-o.x));
    const nx=xs.find(X=>!blocked(X));if(nx!==undefined)o.x=nx}
   o.stopY=stopY;o.hold=o.hold0=hold*1.5;o.vx=(Math.random()<.5?-1:1)*16;o.wt=Math.random()*6;ground.push(o);return o}   // 板が帰るまで長めに（1.5倍）
- const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hp:kind==='bigpyr'?2:1};if(kind==='bigpyr')o.aim=(++bigSeq)%2===0;ground.push(o);return o}   // 巨大ピラミッドは ばらまき型と ねらい撃ち型が交互
+ const o={kind,x,y:kind==='bigpyr'?-CELL*1.6:-30,cd:kind==='bigpyr'?2.2:2+Math.random()*2,stopY,hold,hold0:hold,hp:kind==='bigpyr'?2:1};if(kind==='bigpyr')o.aim=(++bigSeq)%2===0;ground.push(o);return o}   // 巨大ピラミッドは ばらまき型と ねらい撃ち型が交互
 // けす：横に n 個／縦に n 個並んだ地上の敵。照準の長さで一度に壊せると気持ちいい（＋ボーナス）
 function groundFree(x0,y0,x1,y1){                    // その範囲に、ほかの地上物・板が止まる場所が無いか
  for(const g of ground){if(g.dead||g.done||g.left)continue;let a,b,c,d;
@@ -838,7 +838,7 @@ function updateBoss(dt){const b=boss;if(!b)return;b.t+=dt;if(b.flash>0)b.flash-=
  if(lb&&lb.left&&!b.legendDone){b.retryT=(b.retryT||0)+dt;if(b.retryT>8){b.retryT=0;b.legend=false;b.legendBoard=null}}   // そろえられなかったら8秒後にまた出る
  // 下の方に地上パズルがせり上がる
  b.spawnT=(b.spawnT||1.5)-dt;
- if(b.spawnT<=0){b.spawnT=6;b.n=(b.n||0)+1;
+ if(b.spawnT<=0){b.spawnT=4.5;b.n=(b.n||0)+1;
   const type=b.n%3===0?'pic':b.n%3===2?'grid':'word';
   let o=null;for(let k=0;k<10;k++){const q=makePuzzle(60+Math.random()*(W-120),H*.4,type);    // 他の板と重ならない所に
    if(ground.filter(g=>g.kind==='puz'&&!g.done&&!g.left).length<2&&!ground.some(g=>g.kind==='puz'&&!g.done&&q.x<g.x+g.w*CELL+10&&g.x<q.x+q.w*CELL+10&&q.y<g.y+g.h*CELL+10&&g.y<q.y+q.h*CELL+10)){o=q;break}}
@@ -1105,79 +1105,70 @@ function bakuraRows(n,gap){                         // パキュラの森：1列
   for(const x of out)spawnAir('plate',clamp(x+(Math.random()-.5)*20,24,W-24))})}
 function areaScript(){
  const grp=[];const G=(tm,f)=>grp.push([tm,f]);const late=area>=2;
- // 空は「山」（編隊がどっと来る）と「間」（空っぽ。地上物を落ち着いて撃てる）を交互に
- //  0〜9 山：導入の大編隊 → 9〜17 間 → 17〜27 山 → 27〜35 ばらまき → 35〜41 間 → 41〜49 パキュラの森 → 49〜52 間 → 52〜59 締めの山 → 59〜64 間
- // 山1：撃ってこないトーロイドの大編隊で、引きつけて落とす練習
- G(1.0,()=>ringWave(-1,8));
- G(3.5,()=>ringWave(1,8));
- G(6.0,()=>ringWave(-1,6,{x0:W/2-80}));
- // 山2：編隊を重ねて、トーカン・ザカート・ジアラ
- G(17.0,()=>ringWave(-1,8,{shooters:[7]}));
- G(18.5,()=>ringWave(1,8));
- G(20.0,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
- G(21.5,()=>ringWave(-1,8,{shooters:late?[3,7]:[7]}));
- G(23.0,()=>{spawnAir('giddo',W/2-60,{amp:110});later(.4,()=>spawnAir('giddo',W/2+60,{amp:110}))});
- G(24.0,()=>ringWave(1,8,{shooters:[0]}));
- G(25.5,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
- // ばらまき：ゆっくりの弾をやたら撃ってくる敵。よけられるが、キャラがいると弾を消せて楽
- G(27.0,()=>{message('弾をばらまく敵が来る！ キャラがいると消せて楽',3.5);play('warn',1.3,.5)});
- G(28.0,()=>spawnAir('barrage',W/2));
- G(30.0,()=>ringWave(-1,6));
- G(32.5,()=>ringWave(1,6));
+ // 緩急の決まり（台本の時刻。実際は ×STRETCH）：
+ //  ・ふだんは「ちょっとした弾よけ」＋パネル（パネルを作りながらでも よけられる量）
+ //  ・「大きな攻撃」はひとつだけ来る時間を作り、それをよける遊びにする（その間ほかの敵は出さない）
+ //  ・「波状攻撃」（大きな攻撃が重なる・敵やパキュラがどっと来る）の前には、パネルだけを ゆっくり作れる時間を置く
+ //  ・ボスの少し前とボス戦は波状攻撃ぎみ。そのかわりパネルはこまめに出す
+ //  0〜12 導入（軽い弾よけ＋パネル） → 12〜20 大きな攻撃ひとつ（ばらまく敵） → 20〜32 パネルの時間
+ //  → 32〜44 波状攻撃1（パキュラの森＋編隊） → 44〜52 大きな攻撃ひとつ（巨大ピラミッド） → 52〜62 パネルの時間
+ //  → 62〜72 波状攻撃2（ばらまく敵＋編隊＋ザカート） → 72〜80 パネルの時間 → 80〜100 ボス前の波状攻撃（森と編隊、パネルこまめ）
+ const MSG=(tm,txt)=>G(tm,()=>{message(txt,3.2);play('warn',1.3,.5)});
+ // ---- 0〜12 導入：撃ってこない編隊で軽い弾よけ。パネル2枚 ----
+ G(1.5,()=>ringWave(-1,6));
+ G(5.0,()=>ringWave(1,6));
+ G(2.5,()=>spawnLine('pyramid',W/2+40,170,3,'h',12));                     // 3つ並び → 文字そろえ
+ G(7.0,()=>spawnLine('pyramid',120,380,2,'h',12));
+ G(9.5,()=>ringWave(-1,5,{shooters:[4]}));
+ // ---- 12〜20 大きな攻撃ひとつ：弾をばらまく敵だけ ----
+ MSG(12.0,'弾をばらまく敵が来る！ よけきれ（キャラがいると消せて楽）');
+ G(13.0,()=>spawnAir('barrage',W/2));
+ // ---- 20〜32 パネルの時間：空はほぼ空っぽ。地上物を落ち着いて壊してパネルを作る ----
+ G(20.5,()=>spawnLine('pyramid',W/2,170,4,'h',12));                       // 4つ並び → 5×3
+ G(23.0,()=>spawnGround('pic',110,{stopY:220,hold:13}));                  // 上から降りてくる絵合わせ
+ G(25.5,()=>spawnLine('pyramid',330,400,3,'h',11));
+ G(27.0,()=>spawnAir('giddo',W/2,{amp:110}));                             // 撃たない敵がひとつ
+ G(29.0,()=>spawnLine('tower',120,150,1,'h'));
+ // ---- 32〜44 波状攻撃1：パキュラの森＋編隊（ここではパネルは出さない） ----
+ MSG(31.5,'パキュラの森！ すき間をぬけろ（キャラなら壊せる）');
+ G(33.0,()=>bakuraRows(5,1.8));
+ G(34.0,()=>ringWave(-1,8,{shooters:[7]}));
+ G(36.5,()=>ringWave(1,8));
+ G(38.5,()=>{spawnAir('torkan',120,{stopY:120});spawnAir('torkan',W-120,{stopY:120})});
+ G(40.0,()=>ringWave(-1,8,{shooters:late?[3,7]:[7]}));
+ G(42.0,()=>{spawnAir('zakato',110,{y0:150});later(.5,()=>spawnAir('zakato',W-110,{y0:150}))});
+ // ---- 44〜52 大きな攻撃ひとつ：巨大ピラミッド（壊すと絵合わせ） ----
+ G(44.5,()=>spawnLine('bigpyr',W/2,170,1,'h',12));
+ // ---- 52〜62 パネルの時間 ----
+ G(52.5,()=>spawnLine('pyramid',110,170,3,'h',12));
+ G(54.5,()=>spawnGround('pic',W-140,{stopY:230,hold:13}));
+ G(57.0,()=>spawnLine('pyramid',W/2,400,4,'h',12));
+ G(59.5,()=>spawnAir('giddo',W/2,{amp:90}));
+ // ---- 62〜72 波状攻撃2：ばらまく敵＋編隊＋ザカート ----
+ MSG(61.5,'また弾をばらまく敵！ 編隊もいっしょに来るぞ');
+ G(63.0,()=>spawnAir('barrage',W/2));
+ G(64.0,()=>ringWave(-1,8));
+ G(66.0,()=>ringWave(1,8,{shooters:[0]}));
+ G(68.0,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
+ G(69.5,()=>spawnLine('turret',W/2,130,3,'h',6));
+ // ---- 72〜80 パネルの時間（ボス前にキャラをためる） ----
+ G(72.5,()=>spawnLine('pyramid',W/2,170,4,'h',12));
+ G(74.5,()=>spawnLine('bigpyr',100,160,1,'h',9));
+ G(77.0,()=>spawnLine('pyramid',330,420,3,'h',11));
+ // ---- 80〜100 ボス前の波状攻撃：森と編隊とトーカン。パネルはこまめに ----
+ MSG(80.0,'パキュラの森、ふたたび！ 要塞が近いぞ');
+ G(81.0,()=>bakuraRows(6,1.7));
+ G(82.0,()=>spawnLine('pyramid',W/2,160,3,'h',8));
+ G(83.0,()=>ringWave(-1,6,{x0:60}));
+ G(86.0,()=>spawnLine('pyramid',120,400,2,'h',8));
+ G(88.5,()=>{for(let i=0;i<4;i++)later(i*.3,()=>spawnAir('torkan',80+i*93,{stopY:100+i%2*60}))});
+ G(89.5,()=>spawnLine('pyramid',330,170,3,'h',8));
+ G(90.5,()=>ringWave(1,8,{shooters:[2,6]}));
+ G(92.0,()=>ringWave(-1,8));
+ G(93.0,()=>spawnGround('pic',W/2,{stopY:230,hold:11}));
+ G(94.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
+ G(96.0,()=>spawnLine('pyramid',W/2,400,2,'h',7));
  G(UNCHI_T/STRETCH,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
- // パキュラの森：回る板がたくさん。すき間を縫って抜ける（キャラがいれば壊して道を作れる）
- G(40.0,()=>{message('パキュラの森！ すき間をぬけろ（キャラなら壊せる）',3.5);play('warn',1.3,.5)});
- G(41.0,()=>bakuraRows(5,1.8));
- G(43.0,()=>ringWave(-1,6,{x0:60}));
- G(46.0,()=>ringWave(1,6,{x0:W-60,shooters:[5]}));
- // 締めの山：大編隊を3つ重ねる
- G(52.0,()=>{for(let i=0;i<3;i++)later(i*.35,()=>spawnAir('torkan',110+i*110,{stopY:100+i%2*60}))});
- G(53.0,()=>ringWave(-1,8,{shooters:[2]}));
- G(54.0,()=>ringWave(1,8,{shooters:late?[2,5]:[5]}));
- G(55.5,()=>ringWave(-1,8,{x0:W/2+60}));
- G(56.5,()=>{spawnAir('giddo',100,{amp:80});spawnAir('giddo',W-100,{amp:80})});
- G(57.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- // ---- 地上：上から降りてくる板は絵合わせだけ。文字パズルは並んだ地上物を全部壊すと出る（ひとつのピラミッドなら絵合わせ） ----
- G(3.5,()=>spawnLine('bigpyr',120,150,1,'h',12));                                 // ひとつのピラミッド → 絵合わせ
- G(7.0,()=>spawnLine('pyramid',W/2+60,170,3,'h',9));                              // 3つ並び → 文字そろえ
- G(12.0,()=>spawnLine('turret',W/2,120,2,'h'));                                   // 2つ（撃ってくる）→ 文字そろえ
- G(17.5,()=>spawnLine('pyramid',W/2,400,4,'h',9));                                // 4つ並び → 5×3
- G(22.0,()=>spawnLine('bigpyr',330,150,1,'h',11));
- G(30.0,()=>{spawnGround('pic',120,{stopY:200,hold:13});spawnLine('tower',350,140,1,'h')});   // 上から降りてくる絵合わせ
- G(33.0,()=>spawnLine('pyramid',W/2,170,3,'h',9));                                // 森の少し前：すばやく壊して そろえれば、森でキャラが使える
- G(35.5,()=>spawnLine('turret',W/2,420,3,'h'));
- G(38.0,()=>spawnLine('bigpyr',100,140,1,'h',10));
- G(44.0,()=>spawnLine('bigpyr',340,160,1,'h',11));
- G(47.0,()=>spawnGround('pic',W/2,{stopY:220,hold:12}));
- G(49.5,()=>spawnLine('pyramid',W/2,420,4,'h',8));
- G(53.0,()=>spawnLine('pyramid',110,170,3,'h',8));
- G(59.0,()=>spawnLine('turret',W/2,130,3,'h',6));
- // ---- 後半（60〜100秒）：もう一回り。山 → 間 → ばらまき＋編隊 → 間 → パキュラの森 → 締め ----
- G(61.0,()=>ringWave(-1,8));
- G(62.5,()=>ringWave(1,8,{shooters:[7]}));
- G(64.0,()=>{spawnAir('torkan',110,{stopY:110});spawnAir('torkan',W/2,{stopY:150});spawnAir('torkan',W-110,{stopY:110})});
- G(65.5,()=>ringWave(-1,8,{shooters:[3]}));
- G(67.0,()=>{spawnAir('giddo',W/2-70,{amp:100});later(.4,()=>spawnAir('giddo',W/2+70,{amp:100}))});
- G(63.0,()=>spawnLine('bigpyr',120,150,1,'h',11));
- G(68.5,()=>spawnLine('pyramid',W/2,170,3,'h',9));
- G(71.0,()=>spawnLine('turret',W/2,130,3,'h'));
- G(73.5,()=>spawnLine('pyramid',110,420,3,'h',7));
- G(76.0,()=>{message('また弾をばらまく敵！',3);play('warn',1.3,.5)});
- G(77.0,()=>spawnAir('barrage',W/2));
- G(78.0,()=>ringWave(-1,8));
- G(80.5,()=>ringWave(1,8,{shooters:[0]}));
- G(78.5,()=>spawnLine('pyramid',W/2,400,4,'h',8));
- G(81.0,()=>spawnLine('pyramid',W/2,160,3,'h',8));   // 森（2回目）の少し前
- G(84.5,()=>{spawnGround('pic',W/2,{stopY:220,hold:12});spawnLine('tower',350,140,1,'h')});
- G(86.0,()=>{message('パキュラの森、ふたたび！',3);play('warn',1.3,.5)});
- G(87.0,()=>bakuraRows(6,1.7));
- G(89.0,()=>ringWave(-1,6,{x0:60}));
- G(92.5,()=>{for(let i=0;i<4;i++)later(i*.3,()=>spawnAir('torkan',80+i*93,{stopY:100+i%2*60}))});
- G(93.5,()=>ringWave(1,8,{shooters:[2,6]}));
- G(94.5,()=>ringWave(-1,8));
- G(95.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
- G(95.0,()=>spawnLine('bigpyr',110,160,1,'h',10));
- G(97.0,()=>spawnLine('turret',330,130,2,'h',5));
  // ボス：地を這う要塞
  G(AREA_LEN,()=>startBoss());
  for(const g of grp)if(g[0]<AREA_LEN-1&&g[0]>2)g[0]+=(Math.random()-.5)*1.2;   // 毎プレイ違う：時刻を少しゆらす
@@ -1261,7 +1252,7 @@ function loseLife(){
  boom(ship.x,ship.y,4);burst(ship.x,ship.y,36,'#ffffff');play('bossdown',1.3);shake=18;flash=.4;
  ui()}
 function gameOver(){
- setBgm('title');
+ stopBgm();bgmName='';                               // ゲームオーバーも無音
  phase='over';unlockMouse();
  overlay('GAME OVER','SCORE <b>'+score+'</b>','',[['コンティニュー',continueGame],['タイトルに戻る',showTitle]])}
 // コンティニュー：やられた所からそのまま続ける（残機を戻す）
