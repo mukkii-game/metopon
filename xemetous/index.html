@@ -1125,7 +1125,8 @@ function areaScript(){
  G(13.0,()=>spawnAir('barrage',W/2));
  // ---- 20〜32 パネルの時間：空はほぼ空っぽ。地上物を落ち着いて壊してパネルを作る ----
  G(20.5,()=>spawnLine('pyramid',W/2,170,4,'h',12));                       // 4つ並び → 5×3
- G(23.0,()=>spawnGround('pic',110,{stopY:220,hold:13}));                  // 上から降りてくる絵合わせ
+ G(23.0,()=>spawnLine('pyramid',110,400,2,'h',12));                     // パネルは地上物を壊した所からだけ出る（上から降りてくる板はやめた）
+ G(22.0,()=>ringWave(1,5));G(26.5,()=>ringWave(-1,5));                   // パネルをそろえている間の なぐさみ：撃ってこない編隊
  G(25.5,()=>spawnLine('pyramid',330,400,3,'h',11));
  G(27.0,()=>spawnAir('giddo',W/2,{amp:110}));                             // 撃たない敵がひとつ
  G(29.0,()=>spawnLine('tower',120,150,1,'h'));
@@ -1141,7 +1142,8 @@ function areaScript(){
  G(44.5,()=>spawnLine('bigpyr',W/2,170,1,'h',12));
  // ---- 52〜62 パネルの時間 ----
  G(52.5,()=>spawnLine('pyramid',110,170,3,'h',12));
- G(54.5,()=>spawnGround('pic',W-140,{stopY:230,hold:13}));
+ G(54.5,()=>spawnLine('pyramid',W-130,250,2,'h',12));
+ G(53.5,()=>ringWave(-1,5));G(58.0,()=>ringWave(1,5));
  G(57.0,()=>spawnLine('pyramid',W/2,400,4,'h',12));
  G(59.5,()=>spawnAir('giddo',W/2,{amp:90}));
  // ---- 62〜72 波状攻撃2：ばらまく敵＋編隊＋ザカート ----
@@ -1155,6 +1157,7 @@ function areaScript(){
  G(72.5,()=>spawnLine('pyramid',W/2,170,4,'h',12));
  G(74.5,()=>spawnLine('bigpyr',100,160,1,'h',9));
  G(77.0,()=>spawnLine('pyramid',330,420,3,'h',11));
+ G(73.5,()=>ringWave(1,5));G(77.5,()=>ringWave(-1,5));
  // ---- 80〜100 ボス前の波状攻撃：森と編隊とトーカン。パネルはこまめに ----
  MSG(80.0,'パキュラの森、ふたたび！ 要塞が近いぞ');
  G(81.0,()=>bakuraRows(6,1.7));
@@ -1165,7 +1168,7 @@ function areaScript(){
  G(89.5,()=>spawnLine('pyramid',330,170,3,'h',8));
  G(90.5,()=>ringWave(1,8,{shooters:[2,6]}));
  G(92.0,()=>ringWave(-1,8));
- G(93.0,()=>spawnGround('pic',W/2,{stopY:230,hold:11}));
+ G(93.0,()=>spawnLine('pyramid',W/2,250,2,'h',8));
  G(94.5,()=>{for(let i=0;i<3;i++)later(i*.45,()=>spawnAir('zakato',100+i*120,{y0:120+i%2*70}))});
  G(96.0,()=>spawnLine('pyramid',W/2,400,2,'h',7));
  G(UNCHI_T/STRETCH,()=>{if(mode==='all'){message('うんちが まざってきた！',3);play('sq3')}});
