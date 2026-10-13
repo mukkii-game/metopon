@@ -1462,6 +1462,9 @@ function drawCell(o,id,x,y,ok,k=1){
  if(id==null)return;                                  // 空いたマス（消えた所）は板だけ
  ctx.font='bold '+Math.round(S*.7)+'px sans-serif';ctx.textAlign='center';ctx.fillStyle='#1a140e';ctx.fillText(id,x+S/2+2,y+S*.74+2);
  ctx.fillStyle=ok?'#ffffff':letterCol(id);ctx.fillText(id,x+S/2,y+S*.74);ctx.textAlign='left'}
+function drawSightTop(){                             // ボス戦：照準を要塞の上にもう一度描く
+ if(!ship.alive)return;const sr=sightRect(),sp=sightPoint();
+ sightFrame(sr.x,sr.y,sr.w,sr.h,'#ffffffdd',2);ctx.fillStyle='#ffffff';ctx.fillRect(sp.x-1,sp.y-5,2,10);ctx.fillRect(sp.x-5,sp.y-1,10,2)}
 function sightFrame(x,y,w,h,col,lw){
  ctx.strokeStyle='#1a140e';ctx.lineWidth=lw+3;ctx.strokeRect(x,y,w,h);
  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.strokeRect(x,y,w,h);
@@ -1506,7 +1509,7 @@ function draw(){
  ctx.save();
  if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
  if(phase==='ending'){drawTerrain();drawEnding();ctx.restore();return}
- drawTerrain();drawGroundObjs();drawBoss();drawParts();   // 要塞と吹き出しは板より上に
+ drawTerrain();drawGroundObjs();drawBoss();if(boss)drawSightTop();drawParts();   // 要塞と吹き出しは板より上、照準は要塞よりさらに上（四隅の砲台をねらうため）
  for(const c of caps){const b=.5+Math.sin(c.t*9)*.5;
   ctx.fillStyle='#1a140e';ctx.fillRect(c.x-13,c.y-13,26,26);ctx.fillStyle=b>.5?'#8fe0ff':'#fff';ctx.fillRect(c.x-11,c.y-11,22,22);
   ctx.fillStyle='#1a140e';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('P',c.x,c.y+5);ctx.textAlign='left'}
